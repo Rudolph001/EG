@@ -250,6 +250,7 @@
                             })
                             .catch(error => {
                                 console.error('Error fetching status:', error);
+                                // Continue trying even if there are errors - processing might still be running
                             });
                     }
                     
