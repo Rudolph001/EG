@@ -368,6 +368,13 @@ class DataProcessor:
             else:
                 logger.info(f"Step 4 already completed for session {session_id}")
 
+            # Mark session as completed when all workflow steps are done
+            session = ProcessingSession.query.get(session_id)
+            if session and session.exclusion_applied and session.whitelist_applied and session.rules_applied and session.ml_applied:
+                session.status = 'completed'
+                db.session.commit()
+                logger.info(f"Session {session_id} marked as completed - all workflow steps finished")
+            
             logger.info(f"Workflow completed for session {session_id}")
 
         except Exception as e:

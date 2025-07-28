@@ -50,11 +50,7 @@ class DomainManager:
             logger.info(f"Found {len(whitelist_domains)} active whitelist domains: {whitelist_set}")
 
             if not whitelist_set:
-                logger.warning("No active whitelist domains found")
-                session = ProcessingSession.query.get(session_id)
-                if session:
-                    session.whitelist_applied = True
-                    db.session.commit()
+                logger.warning("No active whitelist domains found - no filtering will be applied")
                 return 0
 
             # Get records to process (not already whitelisted and not excluded)

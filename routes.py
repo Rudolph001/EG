@@ -157,6 +157,9 @@ def processing_status(session_id):
             
             logger.info(f"Session {session_id}: Found {total_records_in_db} records in database")
             
+            # Check workflow step completion status for proper reporting
+            logger.info(f"Session {session_id} workflow steps: exclusion={session.exclusion_applied}, whitelist={session.whitelist_applied}, rules={session.rules_applied}, ml={session.ml_applied}")
+            
             if total_records_in_db > 0:
                 # Count excluded records (records that have been excluded by rules)
                 try:
@@ -166,11 +169,15 @@ def processing_status(session_id):
                         EmailRecord.excluded_by_rule != '',
                         EmailRecord.excluded_by_rule != 'null'
                     ).scalar() or 0
-                    workflow_stats['excluded_count'] = excluded_count
+                    
+                    # If exclusion step is completed, show the count (even if 0)
+                    if session.exclusion_applied:
+                        workflow_stats['excluded_count'] = excluded_count
                     logger.info(f"Session {session_id}: {excluded_count} excluded records")
                 except Exception as e:
                     logger.warning(f"Error counting excluded records: {str(e)}")
-                    workflow_stats['excluded_count'] = 0
+                    if session.exclusion_applied:
+                        workflow_stats['excluded_count'] = 0
 
                 # Count whitelisted records - check both whitelisted field and case_status
                 try:
@@ -182,12 +189,15 @@ def processing_status(session_id):
                         )
                     ).scalar() or 0
                     
-                    workflow_stats['whitelisted_count'] = whitelisted_count
+                    # If whitelist step is completed, show the count (even if 0)
+                    if session.whitelist_applied:
+                        workflow_stats['whitelisted_count'] = whitelisted_count
                     logger.info(f"Session {session_id}: {whitelisted_count} whitelisted records")
                     
                 except Exception as e:
                     logger.warning(f"Error counting whitelisted records: {str(e)}")
-                    workflow_stats['whitelisted_count'] = 0
+                    if session.whitelist_applied:
+                        workflow_stats['whitelisted_count'] = 0
 
                 # Count records with rule matches (security rules)
                 try:
@@ -197,11 +207,15 @@ def processing_status(session_id):
                         EmailRecord.rule_matches != '',
                         EmailRecord.rule_matches != 'null'
                     ).scalar() or 0
-                    workflow_stats['rules_matched_count'] = rules_matched_count
+                    
+                    # If rules step is completed, show the count (even if 0)
+                    if session.rules_applied:
+                        workflow_stats['rules_matched_count'] = rules_matched_count
                     logger.info(f"Session {session_id}: {rules_matched_count} records with rule matches")
                 except Exception as e:
                     logger.warning(f"Error counting rule matches: {str(e)}")
-                    workflow_stats['rules_matched_count'] = 0
+                    if session.rules_applied:
+                        workflow_stats['rules_matched_count'] = 0
 
                 # Count ML analyzed records (this shows processing progress)
                 try:
@@ -210,12 +224,15 @@ def processing_status(session_id):
                         EmailRecord.ml_risk_score.isnot(None)
                     ).scalar() or 0
                     
-                    workflow_stats['critical_cases_count'] = ml_analyzed_count
+                    # If ML step is completed, show the count (even if 0)
+                    if session.ml_applied:
+                        workflow_stats['critical_cases_count'] = ml_analyzed_count
                     logger.info(f"Session {session_id}: {ml_analyzed_count} ML analyzed records")
                     
                 except Exception as e:
                     logger.warning(f"Error counting ML analyzed records: {str(e)}")
-                    workflow_stats['critical_cases_count'] = 0
+                    if session.ml_applied:
+                        workflow_stats['critical_cases_count'] = 0
             else:
                 logger.warning(f"Session {session_id}: No records found in database")
 
