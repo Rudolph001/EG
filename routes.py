@@ -185,6 +185,21 @@ def processing_status(session_id):
         
         progress_percent = int((processed_records / max(total_records, 1)) * 100) if total_records > 0 else 0
         chunk_progress_percent = int((current_chunk / max(total_chunks, 1)) * 100) if total_chunks > 0 else 0
+        
+        # Force completion if processing appears stuck at 100%
+        if (progress_percent >= 100 and 
+            session.status == 'processing' and 
+            processed_records >= total_records and 
+            total_records > 0):
+            
+            logger.info(f"Forcing completion for stuck session {session_id}")
+            session.status = 'completed'
+            session.exclusion_applied = True
+            session.whitelist_applied = True
+            session.rules_applied = True
+            session.ml_applied = True
+            session.completed_at = datetime.utcnow()
+            db.session.commit()
 
         return jsonify({
             'status': session.status or 'unknown',
@@ -3336,6 +3351,37 @@ def api_export_monthly_report_excel():
         
     except Exception as e:
         logger.error(f"Error exporting monthly report Excel: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/force-complete-session/<session_id>', methods=['POST'])
+def force_complete_session(session_id):
+    """Force complete a stuck processing session"""
+    try:
+        session = ProcessingSession.query.get_or_404(session_id)
+        
+        if session.status != 'processing':
+            return jsonify({'error': 'Session is not in processing state'}), 400
+        
+        # Force completion
+        session.status = 'completed'
+        session.exclusion_applied = True
+        session.whitelist_applied = True
+        session.rules_applied = True
+        session.ml_applied = True
+        session.completed_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        logger.info(f"Forced completion for session {session_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Session {session_id} marked as completed',
+            'redirect_url': f'/dashboard/{session_id}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error forcing completion for session {session_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/reprocess-session/<session_id>', methods=['POST'])

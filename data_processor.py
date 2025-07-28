@@ -117,7 +117,12 @@ class DataProcessor:
                 session.whitelist_applied = True
                 session.rules_applied = True
                 session.ml_applied = True
+                
+                # Add completion timestamp
+                session.completed_at = datetime.utcnow()
+                
                 db.session.commit()
+                logger.info(f"Session {session_id} marked as completed with {processed_count} records")
             
             logger.info(f"CSV processing completed for session {session_id}")
             
@@ -270,33 +275,51 @@ class DataProcessor:
         try:
             logger.info(f"Applying workflow for session {session_id}")
             
+            # Get session and check if workflow steps already completed
+            session = ProcessingSession.query.get(session_id)
+            if not session:
+                logger.error(f"Session {session_id} not found during workflow")
+                return
+            
             # Step 1: Apply Exclusion Rules
-            try:
-                self._apply_exclusion_rules(session_id)
-                logger.info(f"Step 1 completed: Exclusion rules applied for session {session_id}")
-            except Exception as e:
-                logger.warning(f"Step 1 failed for session {session_id}: {str(e)}")
+            if not session.exclusion_applied:
+                try:
+                    self._apply_exclusion_rules(session_id)
+                    logger.info(f"Step 1 completed: Exclusion rules applied for session {session_id}")
+                except Exception as e:
+                    logger.warning(f"Step 1 failed for session {session_id}: {str(e)}")
+            else:
+                logger.info(f"Step 1 already completed for session {session_id}")
             
             # Step 2: Apply Whitelist Filtering
-            try:
-                self._apply_whitelist_filtering(session_id)
-                logger.info(f"Step 2 completed: Whitelist filtering applied for session {session_id}")
-            except Exception as e:
-                logger.warning(f"Step 2 failed for session {session_id}: {str(e)}")
+            if not session.whitelist_applied:
+                try:
+                    self._apply_whitelist_filtering(session_id)
+                    logger.info(f"Step 2 completed: Whitelist filtering applied for session {session_id}")
+                except Exception as e:
+                    logger.warning(f"Step 2 failed for session {session_id}: {str(e)}")
+            else:
+                logger.info(f"Step 2 already completed for session {session_id}")
             
             # Step 3: Apply Security Rules
-            try:
-                self._apply_security_rules(session_id)
-                logger.info(f"Step 3 completed: Security rules applied for session {session_id}")
-            except Exception as e:
-                logger.warning(f"Step 3 failed for session {session_id}: {str(e)}")
+            if not session.rules_applied:
+                try:
+                    self._apply_security_rules(session_id)
+                    logger.info(f"Step 3 completed: Security rules applied for session {session_id}")
+                except Exception as e:
+                    logger.warning(f"Step 3 failed for session {session_id}: {str(e)}")
+            else:
+                logger.info(f"Step 3 already completed for session {session_id}")
             
             # Step 4: Apply ML Analysis
-            try:
-                self._apply_ml_analysis(session_id)
-                logger.info(f"Step 4 completed: ML analysis applied for session {session_id}")
-            except Exception as e:
-                logger.warning(f"Step 4 failed for session {session_id}: {str(e)}")
+            if not session.ml_applied:
+                try:
+                    self._apply_ml_analysis(session_id)
+                    logger.info(f"Step 4 completed: ML analysis applied for session {session_id}")
+                except Exception as e:
+                    logger.warning(f"Step 4 failed for session {session_id}: {str(e)}")
+            else:
+                logger.info(f"Step 4 already completed for session {session_id}")
             
             logger.info(f"Workflow completed for session {session_id}")
             

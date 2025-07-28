@@ -169,6 +169,9 @@
                         <button class="btn btn-outline-primary" onclick="location.reload()">
                             <i class="fas fa-sync-alt"></i> Refresh Status
                         </button>
+                        <button class="btn btn-outline-warning ms-2" onclick="forceCompleteSession()" id="forceCompleteBtn" style="display: none;">
+                            <i class="fas fa-check-circle"></i> Force Complete
+                        </button>
                         <a href="{{ url_for('index') }}" class="btn btn-outline-secondary ms-2">
                             <i class="fas fa-arrow-left"></i> Back to Upload
                         </a>
@@ -177,6 +180,34 @@
                     <script>
                     // Auto-refresh processing status every 5 seconds
                     const sessionId = "{{ session.id }}";
+
+                    let stuckCounter = 0;
+                    let lastProgressTime = Date.now();
+                    let lastProgress = 0;
+
+                    function forceCompleteSession() {
+                        if (confirm('Force complete this processing session? This will mark it as completed and redirect to the dashboard.')) {
+                            fetch(`/api/force-complete-session/${sessionId}`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    alert('Session marked as completed');
+                                    window.location.href = data.redirect_url;
+                                } else {
+                                    alert('Error: ' + data.error);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error forcing completion:', error);
+                                alert('Error forcing completion: ' + error);
+                            });
+                        }
+                    }
 
                     function updateProgress() {
                         fetch(`/api/processing-status/${sessionId}`)
@@ -231,8 +262,19 @@
                                     highlightStage('stage-ml', stats.critical_cases_count > 0);
                                 }
 
+                                // Check if session appears stuck
+                                if (data.progress_percent >= 100 && data.status === 'processing') {
+                                    stuckCounter++;
+                                    if (stuckCounter >= 3) {
+                                        document.getElementById('forceCompleteBtn').style.display = 'inline-block';
+                                    }
+                                } else {
+                                    stuckCounter = 0;
+                                    document.getElementById('forceCompleteBtn').style.display = 'none';
+                                }
+
                                 // Redirect to dashboard when completed or if 100% processed
-                                if (data.status === 'completed' || data.progress_percent >= 100) {
+                                if (data.status === 'completed' || (data.progress_percent >= 100 && stuckCounter >= 5)) {
                                     setTimeout(() => {
                                         window.location.href = `/dashboard/${sessionId}`;
                                     }, 1000);
