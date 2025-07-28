@@ -77,11 +77,23 @@ class DomainManager:
                 matched_domain = None
 
                 for whitelist_domain in whitelist_set:
-                    if (record_domain == whitelist_domain or 
-                        record_domain.endswith('.' + whitelist_domain) or 
-                        whitelist_domain.endswith('.' + record_domain) or
-                        whitelist_domain in record_domain or
-                        record_domain in whitelist_domain):
+                    # Exact match
+                    if record_domain == whitelist_domain:
+                        is_whitelisted = True
+                        matched_domain = whitelist_domain
+                        break
+                    # Subdomain match (record is subdomain of whitelist)
+                    elif record_domain.endswith('.' + whitelist_domain):
+                        is_whitelisted = True
+                        matched_domain = whitelist_domain
+                        break
+                    # Parent domain match (whitelist is subdomain of record)
+                    elif whitelist_domain.endswith('.' + record_domain):
+                        is_whitelisted = True
+                        matched_domain = whitelist_domain
+                        break
+                    # Partial match for common corporate domains
+                    elif len(whitelist_domain) > 3 and whitelist_domain in record_domain:
                         is_whitelisted = True
                         matched_domain = whitelist_domain
                         break

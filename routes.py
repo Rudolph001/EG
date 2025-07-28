@@ -598,6 +598,8 @@ def cases(session_id):
 
     # Build query with filters - exclude whitelisted, cleared, and escalated records from cases
     query = EmailRecord.query.filter_by(session_id=session_id).filter(
+        EmailRecord.whitelisted != True
+    ).filter(
         db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
     ).filter(
         db.or_(
@@ -3072,6 +3074,72 @@ def debug_rules(session_id):
         
     except Exception as e:
         logger.error(f"Error in rules debug for session {session_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/debug-whitelist-status/<session_id>')
+def debug_whitelist_status(session_id):
+    """Debug endpoint to check whitelist status of records"""
+    try:
+        # Get all records for this session
+        all_records = EmailRecord.query.filter_by(session_id=session_id).all()
+        
+        # Get whitelisted records
+        whitelisted_records = EmailRecord.query.filter_by(
+            session_id=session_id, 
+            whitelisted=True
+        ).all()
+        
+        # Get records that should appear in cases (non-whitelisted, active)
+        case_records = EmailRecord.query.filter_by(session_id=session_id).filter(
+            EmailRecord.whitelisted != True
+        ).filter(
+            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+        ).filter(
+            db.or_(
+                EmailRecord.case_status.is_(None),
+                EmailRecord.case_status == 'Active'
+            )
+        ).all()
+        
+        # Get unique domains and their whitelist status
+        domain_status = {}
+        for record in all_records:
+            domain = record.recipients_email_domain
+            if domain:
+                if domain not in domain_status:
+                    domain_status[domain] = {
+                        'total_records': 0,
+                        'whitelisted_records': 0,
+                        'case_records': 0,
+                        'sample_whitelisted': record.whitelisted
+                    }
+                domain_status[domain]['total_records'] += 1
+                if record.whitelisted:
+                    domain_status[domain]['whitelisted_records'] += 1
+                if record in case_records:
+                    domain_status[domain]['case_records'] += 1
+        
+        # Get active whitelist domains
+        active_whitelist = WhitelistDomain.query.filter_by(is_active=True).all()
+        whitelist_domains = [w.domain for w in active_whitelist]
+        
+        return jsonify({
+            'total_records': len(all_records),
+            'whitelisted_records': len(whitelisted_records),
+            'case_records': len(case_records),
+            'domain_status': domain_status,
+            'active_whitelist_domains': whitelist_domains,
+            'sample_whitelisted_records': [
+                {
+                    'record_id': r.record_id,
+                    'domain': r.recipients_email_domain,
+                    'whitelisted': r.whitelisted
+                } for r in whitelisted_records[:10]
+            ]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in whitelist debug for session {session_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/monthly-report')
