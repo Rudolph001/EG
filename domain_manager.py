@@ -133,11 +133,6 @@ class DomainManager:
             # Final flush before commit
             db.session.flush()
 
-            # Mark as applied to prevent re-processing
-            session = ProcessingSession.query.get(session_id)
-            if session:
-                session.whitelist_applied = True
-
             # Commit all changes
             db.session.commit()
             
