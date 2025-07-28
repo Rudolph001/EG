@@ -258,6 +258,9 @@ def processing_status(session_id):
             session.ml_applied = True
             session.completed_at = datetime.utcnow()
             db.session.commit()
+            
+            # Log final completion status
+            logger.info(f"Session {session_id} auto-completed with workflow stats: {workflow_stats}")
 
         return jsonify({
             'status': session.status or 'unknown',
@@ -393,8 +396,9 @@ def dashboard(session_id):
     """Main dashboard with processing statistics and ML insights"""
     session = ProcessingSession.query.get_or_404(session_id)
 
-    # If still processing, show processing view
-    if session.status in ['uploaded', 'processing']:
+    # Only redirect to processing if explicitly not completed
+    # This allows users to manually navigate to dashboard after completion
+    if session.status in ['uploaded', 'processing'] and not request.args.get('force'):
         return render_template('processing.html', session=session)
 
     # Get processing statistics

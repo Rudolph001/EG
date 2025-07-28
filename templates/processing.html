@@ -79,7 +79,30 @@
                     <div class="processing-stages">
                         <h6><i class="fas fa-cogs"></i> Processing Workflow</h6>
                         <p class="text-muted small mb-3">Email counts for each processing stage</p>
-                        <div class="row g-3">
+                        
+                        <!-- Workflow Status Cards -->
+                        <div class="row g-3" id="workflowStages"></div>
+                        
+                        <!-- Processing Complete Actions -->
+                        <div id="processingComplete" style="display: none;" class="mt-4 text-center">
+                            <div class="alert alert-success">
+                                <h5><i class="fas fa-check-circle"></i> Processing Complete!</h5>
+                                <p class="mb-3">All processing stages have been completed successfully. Review the results above.</p>
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <a href="/dashboard/{{ session.id }}" class="btn btn-primary">
+                                        <i class="fas fa-tachometer-alt"></i> View Dashboard
+                                    </a>
+                                    <a href="/cases/{{ session.id }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-list"></i> View Cases
+                                    </a>
+                                    <button class="btn btn-outline-secondary" onclick="refreshStatus()">
+                                        <i class="fas fa-sync"></i> Refresh Status
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-3"></div>
                             <div class="col-md-6 col-lg-3">
                                 <div class="card h-100 stage-card" id="stage-exclusion">
                                     <div class="card-body text-center">
@@ -468,8 +491,15 @@
 <script>
 function checkProcessingStatus() {
     fetch(`/api/processing-status/{{ session.id }}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Processing status:', data);
+            
             // Update progress bar
             const progressPercent = data.progress_percent || 0;
             document.getElementById('progressBar').style.width = progressPercent + '%';
@@ -494,7 +524,117 @@ function checkProcessingStatus() {
             document.getElementById('chunkProgressBar').setAttribute('aria-valuenow', chunkProgressPercent);
             document.getElementById('chunkProgressText').textContent = chunkProgressPercent + '%';
 
-            // Update status
+            // Update status text
+            document.getElementById('statusText').textContent = data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) + '...' : 'Processing...';
+
+            // Update workflow stages with detailed results
+            updateWorkflowStages(data.workflow_stats || {});
+
+            // Handle completion - DO NOT AUTO-REDIRECT
+            if (data.status === 'completed') {
+                document.getElementById('processingComplete').style.display = 'block';
+                document.getElementById('statusText').textContent = 'Processing Complete!';
+                
+                // Stop polling but don't redirect
+                clearInterval(window.statusInterval);
+                
+                // Show final results
+                console.log('Processing completed successfully!');
+                console.log('Final workflow stats:', data.workflow_stats);
+            } else if (data.status === 'error') {
+                document.getElementById('statusText').textContent = 'Processing Error';
+                clearInterval(window.statusInterval);
+                
+                // Show error message
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'alert alert-danger mt-3';
+                errorDiv.innerHTML = `
+                    <h6><i class="fas fa-exclamation-triangle"></i> Processing Error</h6>
+                    <p class="mb-0">${data.error_message || 'Unknown error occurred'}</p>
+                `;
+                document.querySelector('.processing-stages').appendChild(errorDiv);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking status:', error);
+        });
+}
+
+function updateWorkflowStages(workflowStats) {
+    const workflowContainer = document.getElementById('workflowStages');
+    if (!workflowContainer) return;
+    
+    const stages = [
+        {
+            name: 'Exclusion Rules',
+            icon: 'fas fa-filter',
+            description: 'Filter records based on exclusion criteria',
+            count: workflowStats.excluded_count || 0,
+            label: 'Emails Excluded',
+            status: workflowStats.excluded_count !== undefined ? 'complete' : 'pending',
+            color: 'secondary'
+        },
+        {
+            name: 'Whitelist Filtering',
+            icon: 'fas fa-shield-alt',
+            description: 'Remove trusted domain communications',
+            count: workflowStats.whitelisted_count || 0,
+            label: 'Emails Whitelisted',
+            status: workflowStats.whitelisted_count !== undefined ? 'complete' : 'pending',
+            color: 'success'
+        },
+        {
+            name: 'Security Rules',
+            icon: 'fas fa-exclamation-triangle',
+            description: 'Apply security rules and threat detection',
+            count: workflowStats.rules_matched_count || 0,
+            label: 'Rule Matches',
+            status: workflowStats.rules_matched_count !== undefined ? 'complete' : 'pending',
+            color: 'warning'
+        },
+        {
+            name: 'ML Analysis',
+            icon: 'fas fa-brain',
+            description: 'Machine learning anomaly detection',
+            count: workflowStats.critical_cases_count || 0,
+            label: 'Critical Cases',
+            status: workflowStats.critical_cases_count !== undefined ? 'complete' : 'pending',
+            color: 'danger'
+        }
+    ];
+    
+    workflowContainer.innerHTML = stages.map(stage => `
+        <div class="col-md-3 col-6">
+            <div class="card h-100 border-${stage.color}">
+                <div class="card-body text-center">
+                    <div class="mb-2">
+                        <i class="${stage.icon} fa-2x text-${stage.color}"></i>
+                    </div>
+                    <h6 class="card-title">${stage.name}</h6>
+                    <p class="text-muted small">${stage.description}</p>
+                    <h3 class="text-${stage.color}">${stage.count}</h3>
+                    <small class="text-muted">${stage.label}</small>
+                    <div class="mt-2">
+                        ${stage.status === 'complete' ? 
+                            '<span class="badge bg-success"><i class="fas fa-check"></i> Complete</span>' : 
+                            '<span class="badge bg-secondary"><i class="fas fa-clock"></i> Pending</span>'
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function refreshStatus() {
+    checkProcessingStatus();
+}
+
+// Start polling for status updates
+window.statusInterval = setInterval(checkProcessingStatus, 2000);
+
+// Initial status check
+checkProcessingStatus();tus
             document.getElementById('statusText').textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1) + '...';
 
             // Handle completion
