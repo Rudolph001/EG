@@ -172,24 +172,15 @@ def processing_status(session_id):
                     logger.warning(f"Error counting excluded records: {str(e)}")
                     workflow_stats['excluded_count'] = 0
 
-                # Count whitelisted records - use explicit True comparison
+                # Count whitelisted records - check both whitelisted field and case_status
                 try:
                     whitelisted_count = db.session.query(func.count(EmailRecord.id)).filter(
                         EmailRecord.session_id == session_id,
-                        EmailRecord.whitelisted == True
-                    ).scalar() or 0
-                    
-                    # If still 0, try a different approach to check for whitelisted records
-                    if whitelisted_count == 0:
-                        # Check for any records with case_status = 'Whitelisted'
-                        alt_whitelisted_count = db.session.query(func.count(EmailRecord.id)).filter(
-                            EmailRecord.session_id == session_id,
+                        or_(
+                            EmailRecord.whitelisted == True,
                             EmailRecord.case_status == 'Whitelisted'
-                        ).scalar() or 0
-                        
-                        if alt_whitelisted_count > 0:
-                            whitelisted_count = alt_whitelisted_count
-                            logger.info(f"Session {session_id}: Found {alt_whitelisted_count} records with Whitelisted status")
+                        )
+                    ).scalar() or 0
                     
                     workflow_stats['whitelisted_count'] = whitelisted_count
                     logger.info(f"Session {session_id}: {whitelisted_count} whitelisted records")
@@ -212,28 +203,18 @@ def processing_status(session_id):
                     logger.warning(f"Error counting rule matches: {str(e)}")
                     workflow_stats['rules_matched_count'] = 0
 
-                # Count critical cases and also show total ML analyzed
+                # Count ML analyzed records (this shows processing progress)
                 try:
-                    # First count all ML analyzed records
                     ml_analyzed_count = db.session.query(func.count(EmailRecord.id)).filter(
                         EmailRecord.session_id == session_id,
                         EmailRecord.ml_risk_score.isnot(None)
                     ).scalar() or 0
                     
-                    # Count critical cases (exclude whitelisted and excluded records)
-                    critical_cases_count = db.session.query(func.count(EmailRecord.id)).filter(
-                        EmailRecord.session_id == session_id,
-                        EmailRecord.risk_level == 'Critical',
-                        or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
-                        or_(EmailRecord.excluded_by_rule.is_(None), EmailRecord.excluded_by_rule == '', EmailRecord.excluded_by_rule == 'null')
-                    ).scalar() or 0
-                    
-                    # Use ML analyzed count as the workflow stat since it shows processing progress
                     workflow_stats['critical_cases_count'] = ml_analyzed_count
-                    logger.info(f"Session {session_id}: {critical_cases_count} critical cases, {ml_analyzed_count} ML analyzed records")
+                    logger.info(f"Session {session_id}: {ml_analyzed_count} ML analyzed records")
                     
                 except Exception as e:
-                    logger.warning(f"Error counting critical cases: {str(e)}")
+                    logger.warning(f"Error counting ML analyzed records: {str(e)}")
                     workflow_stats['critical_cases_count'] = 0
             else:
                 logger.warning(f"Session {session_id}: No records found in database")
@@ -250,23 +231,25 @@ def processing_status(session_id):
         progress_percent = int((processed_records / max(total_records, 1)) * 100) if total_records > 0 else 0
         chunk_progress_percent = int((current_chunk / max(total_chunks, 1)) * 100) if total_chunks > 0 else 0
         
-        # Force completion if processing appears stuck at 100%
+        # Only force completion if all workflow steps are actually marked as complete
         if (progress_percent >= 100 and 
             session.status == 'processing' and 
             processed_records >= total_records and 
-            total_records > 0):
+            total_records > 0 and
+            session.exclusion_applied and 
+            session.whitelist_applied and 
+            session.rules_applied and 
+            session.ml_applied):
             
-            logger.info(f"Auto-completing stuck session {session_id}")
+            logger.info(f"Auto-completing session {session_id} - all workflow steps complete")
             session.status = 'completed'
-            session.exclusion_applied = True
-            session.whitelist_applied = True
-            session.rules_applied = True
-            session.ml_applied = True
             session.completed_at = datetime.utcnow()
             db.session.commit()
             
             # Log final completion status
             logger.info(f"Session {session_id} auto-completed with workflow stats: {workflow_stats}")
+        elif session.status == 'processing':
+            logger.info(f"Session {session_id} still processing - workflow steps: exclusion={session.exclusion_applied}, whitelist={session.whitelist_applied}, rules={session.rules_applied}, ml={session.ml_applied}")
 
         return jsonify({
             'status': session.status or 'unknown',
