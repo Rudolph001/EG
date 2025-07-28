@@ -147,9 +147,15 @@ def processing_status(session_id):
             'critical_cases_count': 0
         }
         
-        # Get workflow statistics safely - only if session has processed records
-        if session.processed_records and session.processed_records > 0:
-            try:
+        # Get workflow statistics - check if any records exist for this session
+        try:
+            total_records_in_db = db.session.query(func.count(EmailRecord.id)).filter(
+                EmailRecord.session_id == session_id
+            ).scalar() or 0
+            
+            logger.info(f"Session {session_id}: Found {total_records_in_db} records in database")
+            
+            if total_records_in_db > 0:
                 # Use more efficient counting with proper error handling
                 from sqlalchemy import func, and_, or_
                 
@@ -160,6 +166,7 @@ def processing_status(session_id):
                         EmailRecord.excluded_by_rule.isnot(None)
                     ).scalar() or 0
                     workflow_stats['excluded_count'] = excluded_count
+                    logger.info(f"Session {session_id}: {excluded_count} excluded records")
                 except Exception as e:
                     logger.warning(f"Error counting excluded records: {str(e)}")
 
@@ -170,6 +177,7 @@ def processing_status(session_id):
                         EmailRecord.whitelisted == True
                     ).scalar() or 0
                     workflow_stats['whitelisted_count'] = whitelisted_count
+                    logger.info(f"Session {session_id}: {whitelisted_count} whitelisted records")
                 except Exception as e:
                     logger.warning(f"Error counting whitelisted records: {str(e)}")
 
@@ -180,6 +188,7 @@ def processing_status(session_id):
                         EmailRecord.rule_matches.isnot(None)
                     ).scalar() or 0
                     workflow_stats['rules_matched_count'] = rules_matched_count
+                    logger.info(f"Session {session_id}: {rules_matched_count} records with rule matches")
                 except Exception as e:
                     logger.warning(f"Error counting rule matches: {str(e)}")
 
@@ -191,11 +200,14 @@ def processing_status(session_id):
                         or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
                     ).scalar() or 0
                     workflow_stats['critical_cases_count'] = critical_cases_count
+                    logger.info(f"Session {session_id}: {critical_cases_count} critical cases")
                 except Exception as e:
                     logger.warning(f"Error counting critical cases: {str(e)}")
+            else:
+                logger.warning(f"Session {session_id}: No records found in database")
 
-            except Exception as e:
-                logger.warning(f"Could not get workflow stats for session {session_id}: {str(e)}")
+        except Exception as e:
+            logger.warning(f"Could not get workflow stats for session {session_id}: {str(e)}")
 
         # Calculate progress safely
         total_records = session.total_records or 0
@@ -389,29 +401,38 @@ def dashboard(session_id):
     # Get workflow statistics for the dashboard
     workflow_stats = {}
     try:
+        total_records_in_db = EmailRecord.query.filter_by(session_id=session_id).count()
+        logger.info(f"Dashboard - Session {session_id}: Found {total_records_in_db} total records")
+        
         # Count excluded records
         excluded_count = EmailRecord.query.filter(
             EmailRecord.session_id == session_id,
             EmailRecord.excluded_by_rule.isnot(None)
         ).count()
+        logger.info(f"Dashboard - Session {session_id}: {excluded_count} excluded records")
 
         # Count whitelisted records  
         whitelisted_count = EmailRecord.query.filter_by(
             session_id=session_id,
             whitelisted=True
         ).count()
+        logger.info(f"Dashboard - Session {session_id}: {whitelisted_count} whitelisted records")
 
         # Count records with rule matches
         rules_matched_count = EmailRecord.query.filter(
             EmailRecord.session_id == session_id,
             EmailRecord.rule_matches.isnot(None)
         ).count()
+        logger.info(f"Dashboard - Session {session_id}: {rules_matched_count} records with rule matches")
 
-        # Count critical cases
-        critical_cases_count = EmailRecord.query.filter_by(
-            session_id=session_id,
-            risk_level='Critical'
+        # Count critical cases (exclude whitelisted records)
+        critical_cases_count = EmailRecord.query.filter(
+            EmailRecord.session_id == session_id,
+            EmailRecord.risk_level == 'Critical'
+        ).filter(
+            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
         ).count()
+        logger.info(f"Dashboard - Session {session_id}: {critical_cases_count} critical cases")
 
         workflow_stats = {
             'excluded_count': excluded_count,
