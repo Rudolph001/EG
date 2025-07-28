@@ -290,7 +290,8 @@ def dashboard(session_id):
         logger.warning(f"Could not get workflow stats for dashboard: {str(e)}")
 
     return render_template('dashboard.html', 
-                         session=session, 
+                         session=session,
+                         session_id=session_id,
                          stats=stats,
                          ml_insights=ml_insights,
                          bau_analysis=bau_analysis,
@@ -3337,7 +3338,7 @@ def reprocess_session_data(session_id):
 def network_dashboard(session_id):
     """Network analysis dashboard for a specific session"""
     session = ProcessingSession.query.get_or_404(session_id)
-    return render_template('network_dashboard.html', session=session)
+    return render_template('network_dashboard.html', session=session, session_id=session_id)
 
 @app.route('/api/network-data/<session_id>', methods=['POST'])
 def api_network_data(session_id):
