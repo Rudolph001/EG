@@ -112,56 +112,62 @@ def upload_file():
 @app.route('/api/processing-status/<session_id>')
 def processing_status(session_id):
     """Get processing status for session"""
-    session = ProcessingSession.query.get_or_404(session_id)
+    try:
+        session = ProcessingSession.query.get(session_id)
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
 
-    # Get workflow statistics
-    workflow_stats = {}
-    if session.status in ['processing', 'completed']:
-        try:
-            # Count excluded records
-            excluded_count = EmailRecord.query.filter(
-                EmailRecord.session_id == session_id,
-                EmailRecord.excluded_by_rule.isnot(None)
-            ).count()
+        # Get workflow statistics
+        workflow_stats = {}
+        if session.status in ['processing', 'completed']:
+            try:
+                # Count excluded records
+                excluded_count = EmailRecord.query.filter(
+                    EmailRecord.session_id == session_id,
+                    EmailRecord.excluded_by_rule.isnot(None)
+                ).count()
 
-            # Count whitelisted records  
-            whitelisted_count = EmailRecord.query.filter_by(
-                session_id=session_id,
-                whitelisted=True
-            ).count()
+                # Count whitelisted records  
+                whitelisted_count = EmailRecord.query.filter_by(
+                    session_id=session_id,
+                    whitelisted=True
+                ).count()
 
-            # Count records with rule matches
-            rules_matched_count = EmailRecord.query.filter(
-                EmailRecord.session_id == session_id,
-                EmailRecord.rule_matches.isnot(None)
-            ).count()
+                # Count records with rule matches
+                rules_matched_count = EmailRecord.query.filter(
+                    EmailRecord.session_id == session_id,
+                    EmailRecord.rule_matches.isnot(None)
+                ).count()
 
-            # Count critical cases
-            critical_cases_count = EmailRecord.query.filter_by(
-                session_id=session_id,
-                risk_level='Critical'
-            ).count()
+                # Count critical cases
+                critical_cases_count = EmailRecord.query.filter_by(
+                    session_id=session_id,
+                    risk_level='Critical'
+                ).count()
 
-            workflow_stats = {
-                'excluded_count': excluded_count,
-                'whitelisted_count': whitelisted_count,
-                'rules_matched_count': rules_matched_count,
-                'critical_cases_count': critical_cases_count
-            }
-        except Exception as e:
-            logger.warning(f"Could not get workflow stats: {str(e)}")
+                workflow_stats = {
+                    'excluded_count': excluded_count,
+                    'whitelisted_count': whitelisted_count,
+                    'rules_matched_count': rules_matched_count,
+                    'critical_cases_count': critical_cases_count
+                }
+            except Exception as e:
+                logger.warning(f"Could not get workflow stats: {str(e)}")
 
-    return jsonify({
-        'status': session.status,
-        'total_records': session.total_records or 0,
-        'processed_records': session.processed_records or 0,
-        'progress_percent': int((session.processed_records or 0) / max(session.total_records or 1, 1) * 100),
-        'current_chunk': session.current_chunk or 0,
-        'total_chunks': session.total_chunks or 0,
-        'chunk_progress_percent': int((session.current_chunk or 0) / max(session.total_chunks or 1, 1) * 100),
-        'error_message': session.error_message,
-        'workflow_stats': workflow_stats
-    })
+        return jsonify({
+            'status': session.status,
+            'total_records': session.total_records or 0,
+            'processed_records': session.processed_records or 0,
+            'progress_percent': int((session.processed_records or 0) / max(session.total_records or 1, 1) * 100),
+            'current_chunk': session.current_chunk or 0,
+            'total_chunks': session.total_chunks or 0,
+            'chunk_progress_percent': int((session.current_chunk or 0) / max(session.total_chunks or 1, 1) * 100),
+            'error_message': session.error_message,
+            'workflow_stats': workflow_stats
+        })
+    except Exception as e:
+        logger.error(f"Error getting processing status: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/dashboard-stats/<session_id>')
 def dashboard_stats(session_id):
