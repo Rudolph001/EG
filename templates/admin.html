@@ -1165,26 +1165,49 @@ function showError(message) {
 
 function deleteSession(sessionId) {
     if (confirm('Are you sure you want to delete this session? This action cannot be undone and will remove all associated data.')) {
+        const deleteButton = document.querySelector(`button[onclick="deleteSession('${sessionId}')"]`);
+        if (deleteButton) {
+            deleteButton.disabled = true;
+            deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
         fetch(`/admin/session/${sessionId}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.status === 'deleted') {
-                showSuccess('Session deleted successfully');
+                showSuccess(data.message || 'Session deleted successfully');
                 setTimeout(() => location.reload(), 1000);
             } else if (data.error) {
-                showError('Error deleting session: ' + data.error);
+                showError('Error: ' + data.error);
+                if (deleteButton) {
+                    deleteButton.disabled = false;
+                    deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+                }
             } else {
                 showError('Unknown error occurred while deleting session');
+                if (deleteButton) {
+                    deleteButton.disabled = false;
+                    deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+                }
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showError('Network error occurred while deleting session');
+            showError('Network error: ' + error.message);
+            if (deleteButton) {
+                deleteButton.disabled = false;
+                deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+            }
         });
     }
 }
