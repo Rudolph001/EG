@@ -10,13 +10,11 @@ from domain_manager import DomainManager
 from ml_engine import MLEngine
 from performance_config import config
 from app import db
-import threading
-import time
 
 logger = logging.getLogger(__name__)
 
 class DataProcessor:
-    """Enhanced CSV processor with improved workflow handling"""
+    """Handles CSV processing and workflow engine"""
 
     def __init__(self):
         self.chunk_size = config.chunk_size
@@ -37,71 +35,93 @@ class DataProcessor:
         ]
 
     def process_csv(self, session_id, file_path):
-        """Main CSV processing workflow with improved error handling"""
+        """Main CSV processing workflow"""
         try:
-            logger.info(f"Starting enhanced CSV processing for session {session_id}")
+            logger.info(f"Starting CSV processing for session {session_id}")
 
-            # Get session and validate
+            # Update session status
             session = ProcessingSession.query.get(session_id)
-            if not session:
-                logger.error(f"Session {session_id} not found")
-                return
+            if session:
+                session.status = 'processing'
+                db.session.commit()
 
-            # Reset session state for fresh processing
-            self._reset_session_state(session)
-
-            # Step 1: Validate CSV structure
+            # Step 1: Validate CSV structure (quick validation)
             column_mapping = self._validate_csv_structure(file_path)
 
-            # Step 2: Count total records
+            # Step 2: Count total records (optimized)
             total_records = self._count_csv_rows(file_path)
-            session.total_records = total_records
-            db.session.commit()
-
-            if total_records == 0:
-                logger.warning(f"No records found in CSV file for session {session_id}")
-                session.status = 'completed'
+            if session:
+                session.total_records = total_records
                 db.session.commit()
-                return
 
-            # Step 3: Process CSV data in chunks
-            processed_count = self._process_csv_chunks(session_id, file_path, column_mapping, total_records)
+            processed_count = 0
 
-            # Step 4: Apply workflow with enhanced error handling
-            self._apply_enhanced_workflow(session_id)
+            # Use optimized chunk size for performance
+            chunk_size = self.chunk_size if self.enable_fast_mode else min(500, self.chunk_size)
 
-            # Step 5: Mark as completed
-            session.status = 'completed'
-            session.processed_records = processed_count
-            session.completed_at = datetime.utcnow()
-            db.session.commit()
+            # Calculate total chunks
+            total_chunks = (total_records + chunk_size - 1) // chunk_size  # Round up division
+            current_chunk = 0
 
-            logger.info(f"Enhanced CSV processing completed for session {session_id}: {processed_count} records")
+            # Process file in chunks
+            for chunk_df in pd.read_csv(file_path, chunksize=chunk_size):
+                try:
+                    current_chunk += 1
+                    chunk_processed = self._process_chunk(session_id, chunk_df, column_mapping, processed_count)
+                    processed_count += chunk_processed
+
+                    # Update progress with chunk information
+                    if session:
+                        session.processed_records = processed_count
+                        session.current_chunk = current_chunk
+                        session.total_chunks = total_chunks
+                        db.session.commit()
+
+                    logger.info(f"Completed chunk {current_chunk}/{total_chunks} - {chunk_processed} records processed")
+
+                    # Update progress based on configuration
+                    if processed_count % config.progress_update_interval == 0:
+                        logger.info(f"Progress update: {processed_count}/{total_records} records processed")
+
+                except Exception as chunk_error:
+                    logger.warning(f"Error processing chunk {current_chunk}: {str(chunk_error)}")
+                    continue  # Skip problematic chunks but continue processing
+
+            # Step 3: Apply 4-step workflow with robust error handling
+            try:
+                self._apply_workflow(session_id)
+            except Exception as workflow_error:
+                logger.warning(f"Workflow error for session {session_id}: {str(workflow_error)}")
+                # Continue to completion even if workflow has issues
+                if session:
+                    session.error_message = f"Workflow warning: {str(workflow_error)}"
+
+            # Mark as completed
+            if session:
+                session.status = 'completed'
+                session.processed_records = processed_count
+                db.session.commit()
+
+            logger.info(f"CSV processing completed for session {session_id}")
 
         except Exception as e:
-            logger.error(f"Critical error in CSV processing for session {session_id}: {str(e)}")
-            self._handle_processing_error(session_id, str(e))
-
-    def _reset_session_state(self, session):
-        """Reset session state for fresh processing"""
-        session.status = 'processing'
-        session.processed_records = 0
-        session.current_chunk = 0
-        session.total_chunks = 0
-        session.exclusion_applied = False
-        session.whitelist_applied = False
-        session.rules_applied = False
-        session.ml_applied = False
-        session.error_message = None
-        db.session.commit()
-        logger.info(f"Session {session.id} state reset for fresh processing")
+            logger.error(f"Error processing CSV for session {session_id}: {str(e)}")
+            session = ProcessingSession.query.get(session_id)
+            if session:
+                session.status = 'error'
+                session.error_message = str(e)
+                db.session.commit()
+            db.session.commit()
+            raise
 
     def _validate_csv_structure(self, file_path):
-        """Enhanced CSV structure validation"""
+        """Validate CSV structure and create column mapping"""
         try:
-            sample_df = pd.read_csv(file_path, nrows=10)
+            # Read first few rows to check structure
+            sample_df = pd.read_csv(file_path, nrows=5)
             actual_columns = [col.lower().strip() for col in sample_df.columns]
 
+            # Create case-insensitive column mapping
             column_mapping = {}
             missing_columns = []
 
@@ -116,10 +136,11 @@ class DataProcessor:
                 if not found:
                     missing_columns.append(expected_col)
 
+            # Log missing columns but don't fail
             if missing_columns:
                 logger.warning(f"Missing columns: {missing_columns}")
 
-            logger.info(f"CSV validation successful. Mapped {len(column_mapping)} columns")
+            logger.info(f"CSV validation successful. Column mapping: {column_mapping}")
             return column_mapping
 
         except Exception as e:
@@ -127,7 +148,7 @@ class DataProcessor:
             raise ValueError(f"Invalid CSV format: {str(e)}")
 
     def _count_csv_rows(self, file_path):
-        """Fast CSV row counting"""
+        """Count total rows in CSV file"""
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 reader = csv.reader(f)
@@ -137,52 +158,26 @@ class DataProcessor:
             logger.error(f"Error counting CSV rows: {str(e)}")
             return 0
 
-    def _process_csv_chunks(self, session_id, file_path, column_mapping, total_records):
-        """Process CSV in optimized chunks"""
-        processed_count = 0
-        chunk_size = min(self.chunk_size, 2000)  # Optimize chunk size
-        total_chunks = (total_records + chunk_size - 1) // chunk_size
-        current_chunk = 0
-
-        session = ProcessingSession.query.get(session_id)
-        session.total_chunks = total_chunks
-        db.session.commit()
-
+    def _process_chunk(self, session_id, chunk_df, column_mapping, start_index):
+        """Process a chunk of CSV data"""
         try:
-            for chunk_df in pd.read_csv(file_path, chunksize=chunk_size):
-                current_chunk += 1
-                chunk_processed = self._process_single_chunk(session_id, chunk_df, column_mapping, processed_count)
-                processed_count += chunk_processed
+            processed_count = 0
 
-                # Update progress
-                session.processed_records = processed_count
-                session.current_chunk = current_chunk
-                db.session.commit()
-
-                logger.info(f"Processed chunk {current_chunk}/{total_chunks}: {chunk_processed} records")
-
-                # Small delay to prevent overwhelming the system
-                if current_chunk % 5 == 0:
-                    time.sleep(0.1)
-
-        except Exception as e:
-            logger.error(f"Error processing CSV chunks: {str(e)}")
-            raise
-
-        return processed_count
-
-    def _process_single_chunk(self, session_id, chunk_df, column_mapping, start_index):
-        """Process a single chunk with optimized database operations"""
-        processed_count = 0
-        batch_records = []
-
-        try:
             for index, row in chunk_df.iterrows():
                 try:
+                    # Create unique record ID
                     record_id = f"{session_id}_{start_index + processed_count}"
 
-                    # Map and normalize data
-                    record_data = self._map_record_data(row, column_mapping)
+                    # Map columns and normalize data
+                    record_data = {}
+                    for expected_col, actual_col in column_mapping.items():
+                        if actual_col in row:
+                            value = row[actual_col]
+                            # Convert to string but preserve original case for rule matching
+                            if pd.notna(value):
+                                record_data[expected_col] = str(value).strip()
+                            else:
+                                record_data[expected_col] = ''
 
                     # Create EmailRecord
                     email_record = EmailRecord(
@@ -204,33 +199,31 @@ class DataProcessor:
                         user_response=record_data.get('user_response', ''),
                         final_outcome=record_data.get('final_outcome', ''),
                         justification=record_data.get('justification', ''),
-                        policy_name=record_data.get('policy_name', ''),
-                        ml_risk_score=0.0,
-                        risk_level='Low',
-                        whitelisted=False,
-                        case_status='Active'
+                        policy_name=record_data.get('policy_name', '')
                     )
 
-                    batch_records.append(email_record)
+                    db.session.add(email_record)
                     processed_count += 1
 
-                    # Batch insert for performance
-                    if len(batch_records) >= 100:
-                        db.session.add_all(batch_records)
-                        db.session.flush()
-                        batch_records = []
-
                 except Exception as e:
+                    # Log individual record errors
+                    error = ProcessingError(
+                        session_id=session_id,
+                        error_type='record_processing',
+                        error_message=str(e),
+                        record_data={'index': index, 'data': row.to_dict()}
+                    )
+                    db.session.add(error)
                     logger.warning(f"Error processing record at index {index}: {str(e)}")
-                    continue
 
-            # Insert remaining records
-            if batch_records:
-                db.session.add_all(batch_records)
-                db.session.flush()
-
-            db.session.commit()
-            logger.info(f"Successfully processed chunk: {processed_count} records")
+            # Commit chunk with error handling
+            try:
+                db.session.commit()
+                logger.info(f"Processed chunk: {processed_count} records")
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error committing chunk: {str(e)}")
+                raise
             return processed_count
 
         except Exception as e:
@@ -238,170 +231,171 @@ class DataProcessor:
             logger.error(f"Error processing chunk: {str(e)}")
             raise
 
-    def _map_record_data(self, row, column_mapping):
-        """Map and normalize record data"""
-        record_data = {}
-
-        for expected_col, actual_col in column_mapping.items():
-            if actual_col in row:
-                value = row[actual_col]
-                if pd.notna(value):
-                    if expected_col in ['_time', 'termination_date']:
-                        record_data[expected_col] = self._normalize_date_field(str(value).strip())
-                    else:
-                        record_data[expected_col] = str(value).strip()
-                else:
-                    record_data[expected_col] = ''
-            else:
-                record_data[expected_col] = ''
-
-        return record_data
-
-    def _apply_enhanced_workflow(self, session_id):
-        """Apply workflow with improved error handling and atomic operations"""
-        logger.info(f"Applying enhanced workflow for session {session_id}")
-
-        session = ProcessingSession.query.get(session_id)
-        if not session:
-            logger.error(f"Session {session_id} not found during workflow")
-            return
-
-        # Step 1: Exclusion Rules
+    def _apply_workflow(self, session_id):
+        """Apply 4-step processing workflow with robust error handling"""
         try:
-            logger.info(f"Step 1: Applying exclusion rules for session {session_id}")
-            excluded_count = self.rule_engine.apply_exclusion_rules(session_id)
-            session.exclusion_applied = True
-            db.session.commit()
-            logger.info(f"Step 1 completed: {excluded_count} records excluded")
-        except Exception as e:
-            logger.error(f"Step 1 failed: {str(e)}")
-            session.exclusion_applied = True  # Mark as completed to prevent loops
-            db.session.commit()
+            logger.info(f"Applying workflow for session {session_id}")
 
-        # Step 2: Whitelist Filtering  
-        try:
-            logger.info(f"Step 2: Applying whitelist filtering for session {session_id}")
-            whitelisted_count = self.domain_manager.apply_whitelist_filtering(session_id)
-            session.whitelist_applied = True
-            db.session.commit()
-            logger.info(f"Step 2 completed: {whitelisted_count} records whitelisted")
-        except Exception as e:
-            logger.error(f"Step 2 failed: {str(e)}")
-            session.whitelist_applied = True
-            db.session.commit()
-
-        # Step 3: Security Rules
-        try:
-            logger.info(f"Step 3: Applying security rules for session {session_id}")
-            rule_matches = self.rule_engine.apply_security_rules(session_id)
-            session.rules_applied = True
-            db.session.commit()
-            logger.info(f"Step 3 completed: {len(rule_matches)} rule matches")
-        except Exception as e:
-            logger.error(f"Step 3 failed: {str(e)}")
-            session.rules_applied = True
-            db.session.commit()
-
-        # Step 4: ML Analysis
-        try:
-            logger.info(f"Step 4: Applying ML analysis for session {session_id}")
-            analysis_results = self.ml_engine.analyze_session(session_id)
-            session.ml_applied = True
-            session.processing_stats = analysis_results.get('processing_stats', {})
-            db.session.commit()
-            logger.info(f"Step 4 completed: ML analysis finished")
-        except Exception as e:
-            logger.error(f"Step 4 failed: {str(e)}")
-            session.ml_applied = True
-            db.session.commit()
-
-        # Ensure all workflow steps are marked as complete
-        session.exclusion_applied = True
-        session.whitelist_applied = True
-        session.rules_applied = True
-        session.ml_applied = True
-        db.session.commit()
-
-        logger.info(f"Enhanced workflow completed for session {session_id}")
-
-    def _normalize_date_field(self, date_value):
-        """Normalize date fields with better error handling"""
-        if not date_value or date_value.lower() in ['', 'none', 'null', 'n/a', 'na', 'nil']:
-            return ''
-
-        try:
-            from dateutil import parser
-            parsed_date = parser.parse(date_value, fuzzy=True)
-            return parsed_date.strftime('%Y-%m-%d %H:%M:%S')
-        except:
+            # Step 1: Apply Exclusion Rules
             try:
-                parsed_date = pd.to_datetime(date_value, errors='coerce')
-                if pd.notna(parsed_date):
-                    return parsed_date.strftime('%Y-%m-%d %H:%M:%S')
-            except:
-                pass
+                self._apply_exclusion_rules(session_id)
+                logger.info(f"Step 1 completed: Exclusion rules applied for session {session_id}")
+            except Exception as e:
+                logger.warning(f"Step 1 failed for session {session_id}: {str(e)}")
 
-            logger.warning(f"Could not parse date value: {date_value}")
-            return str(date_value)
+            # Step 2: Apply Whitelist Filtering
+            try:
+                self._apply_whitelist_filtering(session_id)
+                logger.info(f"Step 2 completed: Whitelist filtering applied for session {session_id}")
+            except Exception as e:
+                logger.warning(f"Step 2 failed for session {session_id}: {str(e)}")
 
-    def _handle_processing_error(self, session_id, error_message):
-        """Handle processing errors gracefully"""
+            # Step 3: Apply Security Rules
+            try:
+                self._apply_security_rules(session_id)
+                logger.info(f"Step 3 completed: Security rules applied for session {session_id}")
+            except Exception as e:
+                logger.warning(f"Step 3 failed for session {session_id}: {str(e)}")
+
+            # Step 4: Apply ML Analysis
+            try:
+                self._apply_ml_analysis(session_id)
+                logger.info(f"Step 4 completed: ML analysis applied for session {session_id}")
+            except Exception as e:
+                logger.warning(f"Step 4 failed for session {session_id}: {str(e)}")
+
+            logger.info(f"Workflow completed for session {session_id}")
+
+        except Exception as e:
+            logger.error(f"Critical error applying workflow for session {session_id}: {str(e)}")
+            raise
+
+    def _apply_exclusion_rules(self, session_id):
+        """Step 1: Apply exclusion rules to filter records"""
         try:
+            logger.info(f"Applying exclusion rules for session {session_id}")
+
+            # Get all active exclusion rules
+            excluded_count = self.rule_engine.apply_exclusion_rules(session_id)
+
+            # Update session
             session = ProcessingSession.query.get(session_id)
             if session:
-                session.status = 'error'
-                session.error_message = error_message
+                session.exclusion_applied = True
                 db.session.commit()
 
-            # Log error for debugging
-            error_record = ProcessingError(
-                session_id=session_id,
-                error_type='processing_error',
-                error_message=error_message,
-                record_data={'timestamp': datetime.utcnow().isoformat()}
-            )
-            db.session.add(error_record)
+            logger.info(f"Exclusion rules applied: {excluded_count} records excluded")
+
+        except Exception as e:
+            logger.error(f"Error applying exclusion rules: {str(e)}")
+            raise
+
+    def _apply_whitelist_filtering(self, session_id):
+        """Step 2: Apply whitelist filtering"""
+        try:
+            logger.info(f"Applying whitelist filtering for session {session_id}")
+
+            whitelisted_count = self.domain_manager.apply_whitelist_filtering(session_id)
+
+            # Update session
+            session = ProcessingSession.query.get(session_id)
+            if session:
+                session.whitelist_applied = True
+                db.session.commit()
+
+            logger.info(f"Whitelist filtering applied: {whitelisted_count} records whitelisted")
+
+        except Exception as e:
+            logger.error(f"Error applying whitelist filtering: {str(e)}")
+            raise
+
+    def _apply_security_rules(self, session_id):
+        """Step 3: Apply security rules"""
+        try:
+            logger.info(f"Applying security rules for session {session_id}")
+
+            rule_matches = self.rule_engine.apply_security_rules(session_id)
+
+            # Update session
+            session = ProcessingSession.query.get(session_id)
+            if session:
+                session.rules_applied = True
+                db.session.commit()
+
+            logger.info(f"Security rules applied: {len(rule_matches)} rule matches found")
+
+        except Exception as e:
+            logger.error(f"Error applying security rules: {str(e)}")
+            raise
+
+    def _apply_ml_analysis(self, session_id):
+        """Step 4: Apply ML analysis"""
+        try:
+            logger.info(f"Applying ML analysis for session {session_id}")
+
+            # Only analyze non-whitelisted records
+            analysis_results = self.ml_engine.analyze_session(session_id)
+
+            # Update session
+            session = ProcessingSession.query.get(session_id)
+            if session:
+                session.ml_applied = True
+                session.processing_stats = analysis_results.get('processing_stats', {})
+                db.session.commit()
+
+            logger.info(f"ML analysis completed for session {session_id}")
+
+        except Exception as e:
+            logger.error(f"Error applying ML analysis: {str(e)}")
+            raise
+
+    def reprocess_session(self, session_id, skip_stages=None):
+        """Reprocess a session with updated rules"""
+        try:
+            skip_stages = skip_stages or []
+
+            logger.info(f"Reprocessing session {session_id}, skipping stages: {skip_stages}")
+
+            # Reset processing flags
+            session = ProcessingSession.query.get(session_id)
+            if session and 'exclusion' not in skip_stages:
+                session.exclusion_applied = False
+                # Clear exclusion results
+                EmailRecord.query.filter_by(session_id=session_id).update({
+                    'excluded_by_rule': None
+                })
+
+            if session and 'whitelist' not in skip_stages:
+                session.whitelist_applied = False
+                # Clear whitelist results
+                EmailRecord.query.filter_by(session_id=session_id).update({
+                    'whitelisted': False
+                })
+
+            if session and 'rules' not in skip_stages:
+                session.rules_applied = False
+                # Clear rule matches
+                EmailRecord.query.filter_by(session_id=session_id).update({
+                    'rule_matches': None
+                })
+
+            if session and 'ml' not in skip_stages:
+                session.ml_applied = False
+                # Clear ML results
+                EmailRecord.query.filter_by(session_id=session_id).update({
+                    'ml_risk_score': None,
+                    'ml_anomaly_score': None,
+                    'risk_level': None,
+                    'ml_explanation': None
+                })
+
             db.session.commit()
 
-        except Exception as e:
-            logger.error(f"Error handling processing error: {str(e)}")
+            # Apply workflow again
+            self._apply_workflow(session_id)
 
-    def fix_stuck_session(self, session_id):
-        """Fix a stuck processing session"""
-        try:
-            logger.info(f"Attempting to fix stuck session {session_id}")
-
-            session = ProcessingSession.query.get(session_id)
-            if not session:
-                logger.error(f"Session {session_id} not found")
-                return False
-
-            # Check if records exist
-            record_count = EmailRecord.query.filter_by(session_id=session_id).count()
-
-            if record_count > 0:
-                logger.info(f"Found {record_count} records for session {session_id}")
-
-                # Apply workflow if not completed
-                if not all([session.exclusion_applied, session.whitelist_applied, 
-                           session.rules_applied, session.ml_applied]):
-                    self._apply_enhanced_workflow(session_id)
-
-                # Mark as completed
-                session.status = 'completed'
-                session.processed_records = record_count
-                session.completed_at = datetime.utcnow()
-                db.session.commit()
-
-                logger.info(f"Successfully fixed stuck session {session_id}")
-                return True
-            else:
-                logger.warning(f"No records found for session {session_id}, marking as error")
-                session.status = 'error'
-                session.error_message = 'No records processed'
-                db.session.commit()
-                return False
+            logger.info(f"Session {session_id} reprocessed successfully")
 
         except Exception as e:
-            logger.error(f"Error fixing stuck session {session_id}: {str(e)}")
-            return False
+            logger.error(f"Error reprocessing session {session_id}: {str(e)}")
+            raise
