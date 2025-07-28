@@ -45,8 +45,8 @@ class DataProcessor:
                 logger.error(f"Session {session_id} not found")
                 return
                 
-            if session.status == 'processing':
-                logger.warning(f"Session {session_id} is already being processed, skipping")
+            if session.status == 'processing' and session.processed_records > 0:
+                logger.warning(f"Session {session_id} is already being processed with {session.processed_records} records, skipping")
                 return
                 
             if session.status == 'completed':
