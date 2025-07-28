@@ -231,11 +231,11 @@
                                     highlightStage('stage-ml', stats.critical_cases_count > 0);
                                 }
                                 
-                                // Redirect to dashboard when completed
-                                if (data.status === 'completed') {
+                                // Redirect to dashboard when completed or if 100% processed
+                                if (data.status === 'completed' || data.progress_percent >= 100) {
                                     setTimeout(() => {
                                         window.location.href = `/dashboard/${sessionId}`;
-                                    }, 2000);
+                                    }, 1000);
                                 }
                                 
                                 // Show error if failed
