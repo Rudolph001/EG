@@ -3118,9 +3118,11 @@ def debug_whitelist_status(session_id):
         
         # Get unique domains and their whitelist status
         domain_status = {}
+        unique_domains = set()
         for record in all_records:
             domain = record.recipients_email_domain
             if domain:
+                unique_domains.add(domain.lower().strip())
                 if domain not in domain_status:
                     domain_status[domain] = {
                         'total_records': 0,
@@ -3138,12 +3140,30 @@ def debug_whitelist_status(session_id):
         active_whitelist = WhitelistDomain.query.filter_by(is_active=True).all()
         whitelist_domains = [w.domain for w in active_whitelist]
         
+        # Check potential matches
+        potential_matches = []
+        whitelist_set = {domain.lower().strip() for domain in whitelist_domains}
+        
+        for data_domain in unique_domains:
+            for whitelist_domain in whitelist_set:
+                if (data_domain == whitelist_domain or 
+                    data_domain in whitelist_domain or 
+                    whitelist_domain in data_domain or
+                    data_domain.split('.')[0] == whitelist_domain.split('.')[0]):
+                    potential_matches.append({
+                        'data_domain': data_domain,
+                        'whitelist_domain': whitelist_domain,
+                        'match_type': 'exact' if data_domain == whitelist_domain else 'partial'
+                    })
+        
         return jsonify({
             'total_records': len(all_records),
             'whitelisted_records': len(whitelisted_records),
             'case_records': len(case_records),
-            'domain_status': domain_status,
+            'unique_domains_in_data': sorted(list(unique_domains)),
             'active_whitelist_domains': whitelist_domains,
+            'potential_matches': potential_matches,
+            'domain_status': domain_status,
             'sample_whitelisted_records': [
                 {
                     'record_id': r.record_id,

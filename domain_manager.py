@@ -75,7 +75,7 @@ class DomainManager:
 
                 record_domain = record.recipients_email_domain.lower().strip()
 
-                # Check for exact match or subdomain match
+                # Check for exact match or subdomain match with improved logic
                 is_whitelisted = False
                 matched_domain = None
 
@@ -95,11 +95,26 @@ class DomainManager:
                         is_whitelisted = True
                         matched_domain = whitelist_domain
                         break
-                    # Partial match for common corporate domains
-                    elif len(whitelist_domain) > 3 and whitelist_domain in record_domain:
-                        is_whitelisted = True
-                        matched_domain = whitelist_domain
-                        break
+                    # Partial match for common corporate domains - more flexible
+                    elif len(whitelist_domain) > 3:
+                        # Check if whitelist domain is contained in record domain
+                        if whitelist_domain in record_domain:
+                            is_whitelisted = True
+                            matched_domain = whitelist_domain
+                            break
+                        # Check if record domain is contained in whitelist domain
+                        elif record_domain in whitelist_domain:
+                            is_whitelisted = True
+                            matched_domain = whitelist_domain
+                            break
+                        # Check for common variations (e.g., company.com vs company.org)
+                        whitelist_base = whitelist_domain.split('.')[0]
+                        record_base = record_domain.split('.')[0]
+                        if len(whitelist_base) > 3 and len(record_base) > 3:
+                            if whitelist_base == record_base:
+                                is_whitelisted = True
+                                matched_domain = whitelist_domain
+                                break
 
                 if is_whitelisted:
                     record.whitelisted = True
