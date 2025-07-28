@@ -81,28 +81,7 @@
                         <p class="text-muted small mb-3">Email counts for each processing stage</p>
                         
                         <!-- Workflow Status Cards -->
-                        <div class="row g-3" id="workflowStages"></div>
-                        
-                        <!-- Processing Complete Actions -->
-                        <div id="processingComplete" style="display: none;" class="mt-4 text-center">
-                            <div class="alert alert-success">
-                                <h5><i class="fas fa-check-circle"></i> Processing Complete!</h5>
-                                <p class="mb-3">All processing stages have been completed successfully. Review the results above.</p>
-                                <div class="d-flex gap-2 justify-content-center">
-                                    <a href="/dashboard/{{ session.id }}" class="btn btn-primary">
-                                        <i class="fas fa-tachometer-alt"></i> View Dashboard
-                                    </a>
-                                    <a href="/cases/{{ session.id }}" class="btn btn-outline-primary">
-                                        <i class="fas fa-list"></i> View Cases
-                                    </a>
-                                    <button class="btn btn-outline-secondary" onclick="refreshStatus()">
-                                        <i class="fas fa-sync"></i> Refresh Status
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row g-3"></div>
+                        <div class="row g-3" id="workflowStages">
                             <div class="col-md-6 col-lg-3">
                                 <div class="card h-100 stage-card" id="stage-exclusion">
                                     <div class="card-body text-center">
@@ -173,6 +152,25 @@
                                             <small class="text-muted">Waiting...</small>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Processing Complete Actions -->
+                        <div id="processingComplete" style="display: none;" class="mt-4 text-center">
+                            <div class="alert alert-success">
+                                <h5><i class="fas fa-check-circle"></i> Processing Complete!</h5>
+                                <p class="mb-3">All processing stages have been completed successfully. Review the results above.</p>
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <a href="/dashboard/{{ session.id }}" class="btn btn-primary">
+                                        <i class="fas fa-tachometer-alt"></i> View Dashboard
+                                    </a>
+                                    <a href="/cases/{{ session.id }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-list"></i> View Cases
+                                    </a>
+                                    <button class="btn btn-outline-secondary" onclick="refreshStatus()">
+                                        <i class="fas fa-sync"></i> Refresh Status
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -333,11 +331,21 @@
                                     if (forceBtn) forceBtn.style.display = 'none';
                                 }
 
-                                // Redirect to dashboard when completed
+                                // Show completion message when completed
                                 if (data.status === 'completed') {
-                                    setTimeout(() => {
-                                        window.location.href = `/dashboard/${sessionId}`;
-                                    }, 1000);
+                                    document.getElementById('processingComplete').style.display = 'block';
+                                    document.getElementById('statusText').textContent = 'Processing Complete!';
+                                    
+                                    // Mark all stages as completed
+                                    updateStageStatus('exclusion-status', 'Complete', 'success');
+                                    updateStageStatus('whitelist-status', 'Complete', 'success');
+                                    updateStageStatus('rules-status', 'Complete', 'success');
+                                    updateStageStatus('ml-status', 'Complete', 'success');
+                                    
+                                    // Stop auto-refresh
+                                    clearInterval(intervalId);
+                                    
+                                    // Don't auto-redirect, let user choose
                                 }
 
                                 // Show error if failed
@@ -363,6 +371,24 @@
                             });
                     }
 
+                    // Check if session is already completed and set initial values
+                    const sessionStatus = "{{ session.status }}";
+                    if (sessionStatus === 'completed') {
+                        // Set default values for completed session
+                        updateStageCount('excluded-count', {{ session.processed_records or 0 }});
+                        updateStageCount('whitelisted-count', 0);
+                        updateStageCount('rules-matched-count', 0);
+                        updateStageCount('critical-cases-count', 0);
+                        
+                        updateStageStatus('exclusion-status', 'Complete', 'success');
+                        updateStageStatus('whitelist-status', 'Complete', 'success');
+                        updateStageStatus('rules-status', 'Complete', 'success');
+                        updateStageStatus('ml-status', 'Complete', 'success');
+                        
+                        document.getElementById('processingComplete').style.display = 'block';
+                        document.getElementById('statusText').textContent = 'Processing Complete!';
+                    }
+
                     // Update immediately and then every 5 seconds
                     updateProgress();
                     const intervalId = setInterval(updateProgress, 5000);
@@ -376,12 +402,14 @@
 
                     function updateStageCount(elementId, count) {
                         const element = document.getElementById(elementId);
-                        if (element && element.textContent !== count.toString()) {
-                            element.style.transform = 'scale(1.1)';
-                            element.textContent = count;
-                            setTimeout(() => {
-                                element.style.transform = 'scale(1)';
-                            }, 200);
+                        if (element) {
+                            if (element.textContent !== count.toString()) {
+                                element.style.transform = 'scale(1.1)';
+                                element.textContent = count;
+                                setTimeout(() => {
+                                    element.style.transform = 'scale(1)';
+                                }, 200);
+                            }
                         }
                     }
 
@@ -400,6 +428,9 @@
                                 stage.style.borderWidth = '2px';
                             } else {
                                 stage.classList.remove('border-primary', 'shadow-sm');
+                                stage.style.borderWidth = '1px';
+                                // Mark as completed even if no results
+                                stage.classList.add('border-success');
                                 stage.style.borderWidth = '1px';
                             }
                         }
