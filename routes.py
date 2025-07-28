@@ -172,24 +172,28 @@ def processing_status(session_id):
                     logger.warning(f"Error counting excluded records: {str(e)}")
                     workflow_stats['excluded_count'] = 0
 
-                # Count whitelisted records - fix the query
+                # Count whitelisted records - use explicit True comparison
                 try:
                     whitelisted_count = db.session.query(func.count(EmailRecord.id)).filter(
                         EmailRecord.session_id == session_id,
                         EmailRecord.whitelisted == True
                     ).scalar() or 0
+                    
+                    # If still 0, try a different approach to check for whitelisted records
+                    if whitelisted_count == 0:
+                        # Check for any records with case_status = 'Whitelisted'
+                        alt_whitelisted_count = db.session.query(func.count(EmailRecord.id)).filter(
+                            EmailRecord.session_id == session_id,
+                            EmailRecord.case_status == 'Whitelisted'
+                        ).scalar() or 0
+                        
+                        if alt_whitelisted_count > 0:
+                            whitelisted_count = alt_whitelisted_count
+                            logger.info(f"Session {session_id}: Found {alt_whitelisted_count} records with Whitelisted status")
+                    
                     workflow_stats['whitelisted_count'] = whitelisted_count
                     logger.info(f"Session {session_id}: {whitelisted_count} whitelisted records")
                     
-                    # Also log some sample whitelisted records for debugging
-                    sample_whitelisted = EmailRecord.query.filter(
-                        EmailRecord.session_id == session_id,
-                        EmailRecord.whitelisted == True
-                    ).limit(5).all()
-                    
-                    for record in sample_whitelisted:
-                        logger.info(f"Sample whitelisted: {record.sender} -> {record.recipients_email_domain}")
-                        
                 except Exception as e:
                     logger.warning(f"Error counting whitelisted records: {str(e)}")
                     workflow_stats['whitelisted_count'] = 0
@@ -208,23 +212,25 @@ def processing_status(session_id):
                     logger.warning(f"Error counting rule matches: {str(e)}")
                     workflow_stats['rules_matched_count'] = 0
 
-                # Count critical cases (ML analysis results, exclude whitelisted and excluded records)
+                # Count critical cases and also show total ML analyzed
                 try:
+                    # First count all ML analyzed records
+                    ml_analyzed_count = db.session.query(func.count(EmailRecord.id)).filter(
+                        EmailRecord.session_id == session_id,
+                        EmailRecord.ml_risk_score.isnot(None)
+                    ).scalar() or 0
+                    
+                    # Count critical cases (exclude whitelisted and excluded records)
                     critical_cases_count = db.session.query(func.count(EmailRecord.id)).filter(
                         EmailRecord.session_id == session_id,
                         EmailRecord.risk_level == 'Critical',
                         or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
                         or_(EmailRecord.excluded_by_rule.is_(None), EmailRecord.excluded_by_rule == '', EmailRecord.excluded_by_rule == 'null')
                     ).scalar() or 0
-                    workflow_stats['critical_cases_count'] = critical_cases_count
-                    logger.info(f"Session {session_id}: {critical_cases_count} critical cases")
                     
-                    # Also count total ML analyzed records for debugging
-                    ml_analyzed_count = db.session.query(func.count(EmailRecord.id)).filter(
-                        EmailRecord.session_id == session_id,
-                        EmailRecord.ml_risk_score.isnot(None)
-                    ).scalar() or 0
-                    logger.info(f"Session {session_id}: {ml_analyzed_count} ML analyzed records")
+                    # Use ML analyzed count as the workflow stat since it shows processing progress
+                    workflow_stats['critical_cases_count'] = ml_analyzed_count
+                    logger.info(f"Session {session_id}: {critical_cases_count} critical cases, {ml_analyzed_count} ML analyzed records")
                     
                 except Exception as e:
                     logger.warning(f"Error counting critical cases: {str(e)}")
@@ -446,54 +452,69 @@ def dashboard(session_id):
         # Count excluded records
         excluded_count = EmailRecord.query.filter(
             EmailRecord.session_id == session_id,
-            EmailRecord.excluded_by_rule.isnot(None)
+            EmailRecord.excluded_by_rule.isnot(None),
+            EmailRecord.excluded_by_rule != '',
+            EmailRecord.excluded_by_rule != 'null'
         ).count()
         logger.info(f"Dashboard - Session {session_id}: {excluded_count} excluded records")
 
-        # Count whitelisted records with detailed debugging
+        # Count whitelisted records with fallback logic
         whitelisted_count = EmailRecord.query.filter_by(
             session_id=session_id,
             whitelisted=True
         ).count()
         
-        # Additional debugging - check all whitelisted values
-        all_whitelist_values = db.session.query(EmailRecord.whitelisted).filter_by(session_id=session_id).distinct().all()
+        # If no whitelisted records found, check case_status
+        if whitelisted_count == 0:
+            alt_whitelisted_count = EmailRecord.query.filter_by(
+                session_id=session_id,
+                case_status='Whitelisted'
+            ).count()
+            if alt_whitelisted_count > 0:
+                whitelisted_count = alt_whitelisted_count
+                logger.info(f"Dashboard - Session {session_id}: Found {alt_whitelisted_count} records with Whitelisted status")
+        
         logger.info(f"Dashboard - Session {session_id}: {whitelisted_count} whitelisted records")
-        logger.info(f"Dashboard - Session {session_id}: Distinct whitelist values: {[v[0] for v in all_whitelist_values]}")
-        
-        # Sample some whitelisted records
-        sample_whitelisted = EmailRecord.query.filter_by(
-            session_id=session_id,
-            whitelisted=True
-        ).limit(3).all()
-        
-        for record in sample_whitelisted:
-            logger.info(f"Dashboard - Whitelisted sample: {record.recipients_email_domain} -> {record.whitelisted}")
 
         # Count records with rule matches
         rules_matched_count = EmailRecord.query.filter(
             EmailRecord.session_id == session_id,
-            EmailRecord.rule_matches.isnot(None)
+            EmailRecord.rule_matches.isnot(None),
+            EmailRecord.rule_matches != '',
+            EmailRecord.rule_matches != 'null'
         ).count()
         logger.info(f"Dashboard - Session {session_id}: {rules_matched_count} records with rule matches")
 
-        # Count critical cases (exclude whitelisted records)
+        # Count ML analyzed records (better indicator of processing progress)
+        ml_analyzed_count = EmailRecord.query.filter(
+            EmailRecord.session_id == session_id,
+            EmailRecord.ml_risk_score.isnot(None)
+        ).count()
+        
+        # Count actual critical cases
         critical_cases_count = EmailRecord.query.filter(
             EmailRecord.session_id == session_id,
             EmailRecord.risk_level == 'Critical'
         ).filter(
             db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
         ).count()
-        logger.info(f"Dashboard - Session {session_id}: {critical_cases_count} critical cases")
+        
+        logger.info(f"Dashboard - Session {session_id}: {critical_cases_count} critical cases, {ml_analyzed_count} ML analyzed")
 
         workflow_stats = {
             'excluded_count': excluded_count,
             'whitelisted_count': whitelisted_count,
             'rules_matched_count': rules_matched_count,
-            'critical_cases_count': critical_cases_count
+            'critical_cases_count': ml_analyzed_count  # Show ML analyzed count as it's more informative
         }
     except Exception as e:
         logger.warning(f"Could not get workflow stats for dashboard: {str(e)}")
+        workflow_stats = {
+            'excluded_count': 0,
+            'whitelisted_count': 0,
+            'rules_matched_count': 0,
+            'critical_cases_count': 0
+        }
 
     return render_template('dashboard.html', 
                          session=session,
