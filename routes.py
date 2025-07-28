@@ -121,10 +121,27 @@ def processing_status(session_id):
     try:
         session = ProcessingSession.query.get(session_id)
         if not session:
-            return jsonify({'error': 'Session not found'}), 404
+            return jsonify({
+                'error': 'Session not found',
+                'status': 'not_found',
+                'total_records': 0,
+                'processed_records': 0,
+                'progress_percent': 0,
+                'current_chunk': 0,
+                'total_chunks': 0,
+                'chunk_progress_percent': 0,
+                'error_message': 'Session not found',
+                'workflow_stats': {}
+            }), 404
 
-        # Get workflow statistics
-        workflow_stats = {}
+        # Get workflow statistics safely
+        workflow_stats = {
+            'excluded_count': 0,
+            'whitelisted_count': 0,
+            'rules_matched_count': 0,
+            'critical_cases_count': 0
+        }
+        
         if session.status in ['processing', 'completed']:
             try:
                 # Count excluded records
@@ -160,59 +177,128 @@ def processing_status(session_id):
             except Exception as e:
                 logger.warning(f"Could not get workflow stats: {str(e)}")
 
+        # Calculate progress safely
+        total_records = session.total_records or 0
+        processed_records = session.processed_records or 0
+        current_chunk = session.current_chunk or 0
+        total_chunks = session.total_chunks or 0
+        
+        progress_percent = int((processed_records / max(total_records, 1)) * 100) if total_records > 0 else 0
+        chunk_progress_percent = int((current_chunk / max(total_chunks, 1)) * 100) if total_chunks > 0 else 0
+
         return jsonify({
-            'status': session.status,
-            'total_records': session.total_records or 0,
-            'processed_records': session.processed_records or 0,
-            'progress_percent': int((session.processed_records or 0) / max(session.total_records or 1, 1) * 100),
-            'current_chunk': session.current_chunk or 0,
-            'total_chunks': session.total_chunks or 0,
-            'chunk_progress_percent': int((session.current_chunk or 0) / max(session.total_chunks or 1, 1) * 100),
+            'status': session.status or 'unknown',
+            'total_records': total_records,
+            'processed_records': processed_records,
+            'progress_percent': min(progress_percent, 100),
+            'current_chunk': current_chunk,
+            'total_chunks': total_chunks,
+            'chunk_progress_percent': min(chunk_progress_percent, 100),
             'error_message': session.error_message,
-            'workflow_stats': workflow_stats
+            'workflow_stats': workflow_stats,
+            'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        logger.error(f"Error getting processing status: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error getting processing status for session {session_id}: {str(e)}")
+        return jsonify({
+            'error': f'Internal server error: {str(e)}',
+            'status': 'error',
+            'total_records': 0,
+            'processed_records': 0,
+            'progress_percent': 0,
+            'current_chunk': 0,
+            'total_chunks': 0,
+            'chunk_progress_percent': 0,
+            'error_message': str(e),
+            'workflow_stats': {}
+        }), 200  # Return 200 to prevent JS errors
 
 @app.route('/api/dashboard-stats/<session_id>')
 def dashboard_stats(session_id):
     """Get real-time dashboard statistics for animations"""
     try:
         # Get session info
-        session = ProcessingSession.query.get_or_404(session_id)
+        session = ProcessingSession.query.get(session_id)
+        if not session:
+            return jsonify({
+                'error': 'Session not found',
+                'total_records': 0,
+                'critical_cases': 0,
+                'avg_risk_score': 0,
+                'whitelisted_records': 0,
+                'processing_complete': False,
+                'current_chunk': 0,
+                'total_chunks': 0,
+                'chunk_progress': 0,
+                'timestamp': datetime.utcnow().isoformat()
+            }), 200  # Return 200 to prevent JS errors
         
-        # Get basic stats
-        stats = session_manager.get_processing_stats(session_id)
-        ml_insights = ml_engine.get_insights(session_id)
+        # Get basic stats safely
+        try:
+            stats = session_manager.get_processing_stats(session_id)
+        except Exception as e:
+            logger.warning(f"Could not get processing stats: {str(e)}")
+            stats = {}
 
-        # Get real-time counts
-        total_records = EmailRecord.query.filter_by(session_id=session_id).count()
-        critical_cases = EmailRecord.query.filter_by(
-            session_id=session_id, 
-            risk_level='Critical'
-        ).filter(EmailRecord.whitelisted != True).count()
+        try:
+            ml_insights = ml_engine.get_insights(session_id)
+        except Exception as e:
+            logger.warning(f"Could not get ML insights: {str(e)}")
+            ml_insights = {}
 
-        whitelisted_records = EmailRecord.query.filter_by(
-            session_id=session_id,
-            whitelisted=True
-        ).count()
+        # Get real-time counts safely
+        try:
+            total_records = EmailRecord.query.filter_by(session_id=session_id).count()
+        except:
+            total_records = session.processed_records or 0
+
+        try:
+            critical_cases = EmailRecord.query.filter_by(
+                session_id=session_id, 
+                risk_level='Critical'
+            ).filter(EmailRecord.whitelisted != True).count()
+        except:
+            critical_cases = 0
+
+        try:
+            whitelisted_records = EmailRecord.query.filter_by(
+                session_id=session_id,
+                whitelisted=True
+            ).count()
+        except:
+            whitelisted_records = 0
+
+        # Calculate chunk progress safely
+        current_chunk = session.current_chunk or 0
+        total_chunks = session.total_chunks or 0
+        chunk_progress = int((current_chunk / max(total_chunks, 1)) * 100) if total_chunks > 0 else 0
 
         return jsonify({
             'total_records': total_records,
             'critical_cases': critical_cases,
-            'avg_risk_score': ml_insights.get('average_risk_score', 0),
+            'avg_risk_score': ml_insights.get('average_risk_score', 0) or 0,
             'whitelisted_records': whitelisted_records,
-            'processing_complete': stats.get('session_info', {}).get('status') == 'completed',
-            'current_chunk': session.current_chunk or 0,
-            'total_chunks': session.total_chunks or 0,
-            'chunk_progress': int((session.current_chunk or 0) / max(session.total_chunks or 1, 1) * 100),
+            'processing_complete': session.status == 'completed',
+            'current_chunk': current_chunk,
+            'total_chunks': total_chunks,
+            'chunk_progress': min(chunk_progress, 100),
             'timestamp': datetime.utcnow().isoformat()
         })
 
     except Exception as e:
-        logger.error(f"Error getting dashboard stats: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error getting dashboard stats for session {session_id}: {str(e)}")
+        return jsonify({
+            'error': f'Internal server error: {str(e)}',
+            'total_records': 0,
+            'critical_cases': 0,
+            'avg_risk_score': 0,
+            'whitelisted_records': 0,
+            'processing_complete': False,
+            'current_chunk': 0,
+            'total_chunks': 0,
+            'chunk_progress': 0,
+            'timestamp': datetime.utcnow().isoformat()
+        }), 200  # Return 200 to prevent JS errors
 
 @app.route('/dashboard/<session_id>')
 def dashboard(session_id):

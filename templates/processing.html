@@ -26,7 +26,7 @@
                         <h4 class="mt-3" id="statusText">{{ session.status.title() }}...</h4>
                         <p class="text-muted">Session ID: <code>{{ session.id }}</code></p>
                     </div>
-                    
+
                     <div class="progress mb-4" style="height: 25px;">
                         <div class="progress-bar progress-bar-striped progress-bar-animated" 
                              role="progressbar" 
@@ -38,7 +38,7 @@
                             <span id="progressText">0%</span>
                         </div>
                     </div>
-                    
+
                     <div class="row text-center mb-4">
                         <div class="col-md-3">
                             <h5 class="text-primary" id="processedCount">{{ session.processed_records or 0 }}</h5>
@@ -57,7 +57,7 @@
                             <p class="text-muted mb-0">Total Chunks</p>
                         </div>
                     </div>
-                    
+
                     <!-- Chunk Progress Bar -->
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -75,7 +75,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="processing-stages">
                         <h6><i class="fas fa-cogs"></i> Processing Workflow</h6>
                         <p class="text-muted small mb-3">Email counts for each processing stage</p>
@@ -154,7 +154,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="alert alert-info mt-4">
                         <h6><i class="fas fa-info-circle"></i> What's happening?</h6>
                         <ul class="mb-0">
@@ -164,7 +164,7 @@
                             <li>Building insights and recommendations</li>
                         </ul>
                     </div>
-                    
+
                     <div class="text-center mt-4">
                         <button class="btn btn-outline-primary" onclick="location.reload()">
                             <i class="fas fa-sync-alt"></i> Refresh Status
@@ -173,11 +173,11 @@
                             <i class="fas fa-arrow-left"></i> Back to Upload
                         </a>
                     </div>
-                    
+
                     <script>
                     // Auto-refresh processing status every 5 seconds
                     const sessionId = "{{ session.id }}";
-                    
+
                     function updateProgress() {
                         fetch(`/api/processing-status/${sessionId}`)
                             .then(response => {
@@ -194,50 +194,50 @@
                                 const progressBar = document.getElementById('progressBar');
                                 const statusText = document.getElementById('statusText');
                                 const progressText = document.getElementById('progressText');
-                                
+
                                 if (progressBar) {
                                     progressBar.style.width = data.progress_percent + '%';
                                     progressBar.textContent = data.progress_percent + '%';
                                 }
-                                
+
                                 if (statusText) {
                                     statusText.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1) + '...';
                                 }
-                                
+
                                 if (progressText) {
                                     progressText.textContent = data.progress_percent + '%';
                                 }
-                                
+
                                 // Update workflow stage statistics
                                 if (data.workflow_stats) {
                                     const stats = data.workflow_stats;
-                                    
+
                                     // Update counts with animation
                                     updateStageCount('excluded-count', stats.excluded_count || 0);
                                     updateStageCount('whitelisted-count', stats.whitelisted_count || 0);
                                     updateStageCount('rules-matched-count', stats.rules_matched_count || 0);
                                     updateStageCount('critical-cases-count', stats.critical_cases_count || 0);
-                                    
+
                                     // Update stage status indicators
                                     updateStageStatus('exclusion-status', stats.excluded_count > 0 ? 'Complete' : 'No exclusions', 'success');
                                     updateStageStatus('whitelist-status', stats.whitelisted_count > 0 ? 'Complete' : 'No matches', 'success');
                                     updateStageStatus('rules-status', stats.rules_matched_count > 0 ? 'Matches found' : 'No violations', stats.rules_matched_count > 0 ? 'warning' : 'success');
                                     updateStageStatus('ml-status', stats.critical_cases_count > 0 ? 'Threats detected' : 'Analysis complete', stats.critical_cases_count > 0 ? 'danger' : 'success');
-                                    
+
                                     // Highlight stages with significant results
                                     highlightStage('stage-exclusion', stats.excluded_count > 0);
                                     highlightStage('stage-whitelist', stats.whitelisted_count > 0);
                                     highlightStage('stage-rules', stats.rules_matched_count > 0);
                                     highlightStage('stage-ml', stats.critical_cases_count > 0);
                                 }
-                                
+
                                 // Redirect to dashboard when completed or if 100% processed
                                 if (data.status === 'completed' || data.progress_percent >= 100) {
                                     setTimeout(() => {
                                         window.location.href = `/dashboard/${sessionId}`;
                                     }, 1000);
                                 }
-                                
+
                                 // Show error if failed
                                 if (data.status === 'error') {
                                     const errorAlert = document.getElementById('errorAlert');
@@ -253,18 +253,18 @@
                                 // Continue trying even if there are errors - processing might still be running
                             });
                     }
-                    
+
                     // Update immediately and then every 5 seconds
                     updateProgress();
                     const intervalId = setInterval(updateProgress, 5000);
-                    
+
                     // Stop updating when page is hidden/closed
                     document.addEventListener('visibilitychange', function() {
                         if (document.hidden) {
                             clearInterval(intervalId);
                         }
                     });
-                    
+
                     function updateStageCount(elementId, count) {
                         const element = document.getElementById(elementId);
                         if (element && element.textContent !== count.toString()) {
@@ -275,14 +275,14 @@
                             }, 200);
                         }
                     }
-                    
+
                     function updateStageStatus(elementId, message, type) {
                         const element = document.getElementById(elementId);
                         if (element) {
                             element.innerHTML = `<small class="text-${type}"><i class="fas fa-check-circle"></i> ${message}</small>`;
                         }
                     }
-                    
+
                     function highlightStage(stageId, hasResults) {
                         const stage = document.getElementById(stageId);
                         if (stage) {
@@ -296,7 +296,7 @@
                         }
                     }
                     </script>
-                    
+
                     <!-- Error display -->
                     <div id="errorAlert" class="alert alert-danger mt-4" style="display: none;">
                         <h6><i class="fas fa-exclamation-triangle"></i> Processing Error</h6>
@@ -389,40 +389,40 @@ function checkProcessingStatus() {
             document.getElementById('progressBar').style.width = progressPercent + '%';
             document.getElementById('progressBar').setAttribute('aria-valuenow', progressPercent);
             document.getElementById('progressText').textContent = progressPercent + '%';
-            
+
             // Update counters
             document.getElementById('processedCount').textContent = data.processed_records || 0;
             if (data.total_records > 0) {
                 document.getElementById('totalCount').textContent = data.total_records;
             }
-            
+
             // Update chunk information
             document.getElementById('currentChunk').textContent = data.current_chunk || 0;
             if (data.total_chunks > 0) {
                 document.getElementById('totalChunks').textContent = data.total_chunks;
             }
-            
+
             // Update chunk progress bar
             const chunkProgressPercent = data.chunk_progress_percent || 0;
             document.getElementById('chunkProgressBar').style.width = chunkProgressPercent + '%';
             document.getElementById('chunkProgressBar').setAttribute('aria-valuenow', chunkProgressPercent);
             document.getElementById('chunkProgressText').textContent = chunkProgressPercent + '%';
-            
+
             // Update status
             document.getElementById('statusText').textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1) + '...';
-            
+
             // Handle completion
             if (data.status === 'completed') {
                 window.location.href = `/dashboard/{{ session.id }}`;
             }
-            
+
             // Handle errors
             if (data.status === 'error') {
                 document.getElementById('errorAlert').style.display = 'block';
                 document.getElementById('errorMessage').textContent = data.error_message || 'An unknown error occurred';
                 clearInterval(statusInterval);
             }
-            
+
             // Update stage indicators (basic version)
             updateStageIndicators(data);
         })
@@ -434,7 +434,7 @@ function checkProcessingStatus() {
 function updateStageIndicators(data) {
     // Simple stage progression based on progress
     const progress = data.progress_percent || 0;
-    
+
     if (progress > 0) {
         document.getElementById('stage-exclusion').classList.add('active');
         // Update stage stats if available

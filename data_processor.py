@@ -195,8 +195,10 @@ class DataProcessor:
                                 record_data[expected_col] = str(value).strip()
                             else:
                                 record_data[expected_col] = ''
+                        else:
+                            record_data[expected_col] = ''
                     
-                    # Create EmailRecord
+                    # Create EmailRecord with all required fields
                     email_record = EmailRecord(
                         session_id=session_id,
                         record_id=record_id,
@@ -216,31 +218,46 @@ class DataProcessor:
                         user_response=record_data.get('user_response', ''),
                         final_outcome=record_data.get('final_outcome', ''),
                         justification=record_data.get('justification', ''),
-                        policy_name=record_data.get('policy_name', '')
+                        policy_name=record_data.get('policy_name', ''),
+                        # Initialize processing fields
+                        ml_risk_score=0.0,
+                        risk_level='Low',
+                        whitelisted=False,
+                        case_status='Active'
                     )
                     
                     db.session.add(email_record)
                     processed_count += 1
                     
+                    # Flush every 100 records to prevent memory issues
+                    if processed_count % 100 == 0:
+                        db.session.flush()
+                    
                 except Exception as e:
-                    # Log individual record errors
-                    error = ProcessingError(
-                        session_id=session_id,
-                        error_type='record_processing',
-                        error_message=str(e),
-                        record_data={'index': index, 'data': row.to_dict()}
-                    )
-                    db.session.add(error)
+                    # Log individual record errors but continue processing
                     logger.warning(f"Error processing record at index {index}: {str(e)}")
+                    # Create error record
+                    try:
+                        error = ProcessingError(
+                            session_id=session_id,
+                            error_type='record_processing',
+                            error_message=str(e),
+                            record_data={'index': int(index), 'error': str(e)}
+                        )
+                        db.session.add(error)
+                    except:
+                        pass  # Skip error logging if it fails
+                    continue
             
             # Commit chunk with error handling
             try:
                 db.session.commit()
-                logger.info(f"Processed chunk: {processed_count} records")
+                logger.info(f"Successfully processed chunk: {processed_count} records added to database")
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"Error committing chunk: {str(e)}")
                 raise
+            
             return processed_count
             
         except Exception as e:
