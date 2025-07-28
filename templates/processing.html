@@ -26,7 +26,7 @@
                         <h4 class="mt-3" id="statusText">{{ session.status.title() }}...</h4>
                         <p class="text-muted">Session ID: <code>{{ session.id }}</code></p>
                     </div>
-                    
+
                     <div class="progress mb-4" style="height: 25px;">
                         <div class="progress-bar progress-bar-striped progress-bar-animated" 
                              role="progressbar" 
@@ -38,7 +38,7 @@
                             <span id="progressText">0%</span>
                         </div>
                     </div>
-                    
+
                     <div class="row text-center mb-4">
                         <div class="col-md-3">
                             <h5 class="text-primary" id="processedCount">{{ session.processed_records or 0 }}</h5>
@@ -57,7 +57,7 @@
                             <p class="text-muted mb-0">Total Chunks</p>
                         </div>
                     </div>
-                    
+
                     <!-- Chunk Progress Bar -->
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -75,11 +75,13 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="processing-stages">
                         <h6><i class="fas fa-cogs"></i> Processing Workflow</h6>
                         <p class="text-muted small mb-3">Email counts for each processing stage</p>
-                        <div class="row g-3">
+
+                        <!-- Workflow Status Cards -->
+                        <div class="row g-3" id="workflowStages">
                             <div class="col-md-6 col-lg-3">
                                 <div class="card h-100 stage-card" id="stage-exclusion">
                                     <div class="card-body text-center">
@@ -153,8 +155,27 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Processing Complete Actions -->
+                        <div id="processingComplete" style="display: none;" class="mt-4 text-center">
+                            <div class="alert alert-success">
+                                <h5><i class="fas fa-check-circle"></i> Processing Complete!</h5>
+                                <p class="mb-3">All processing stages have been completed successfully. Review the results above.</p>
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <a href="/dashboard/{{ session.id }}" class="btn btn-primary">
+                                        <i class="fas fa-tachometer-alt"></i> View Dashboard
+                                    </a>
+                                    <a href="/cases/{{ session.id }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-list"></i> View Cases
+                                    </a>
+                                    <button class="btn btn-outline-secondary" onclick="refreshStatus()">
+                                        <i class="fas fa-sync"></i> Refresh Status
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    
+
                     <div class="alert alert-info mt-4">
                         <h6><i class="fas fa-info-circle"></i> What's happening?</h6>
                         <ul class="mb-0">
@@ -164,115 +185,241 @@
                             <li>Building insights and recommendations</li>
                         </ul>
                     </div>
-                    
+
                     <div class="text-center mt-4">
                         <button class="btn btn-outline-primary" onclick="location.reload()">
                             <i class="fas fa-sync-alt"></i> Refresh Status
+                        </button>
+                        <button class="btn btn-outline-warning ms-2" onclick="forceCompleteSession()" id="forceCompleteBtn" style="display: none;">
+                            <i class="fas fa-check-circle"></i> Force Complete
                         </button>
                         <a href="{{ url_for('index') }}" class="btn btn-outline-secondary ms-2">
                             <i class="fas fa-arrow-left"></i> Back to Upload
                         </a>
                     </div>
-                    
+
                     <script>
                     // Auto-refresh processing status every 5 seconds
                     const sessionId = "{{ session.id }}";
-                    
-                    function updateProgress() {
-                        fetch(`/api/processing-status/${sessionId}`)
+
+                    let stuckCounter = 0;
+                    let lastProgressTime = Date.now();
+                    let lastProgress = 0;
+
+                    function forceCompleteSession() {
+                        if (confirm('Force complete this processing session? This will mark it as completed and redirect to the dashboard.')) {
+                            fetch(`/api/force-complete-session/${sessionId}`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            })
                             .then(response => response.json())
                             .then(data => {
+                                if (data.success) {
+                                    alert('Session marked as completed');
+                                    window.location.href = data.redirect_url;
+                                } else {
+                                    alert('Error: ' + data.error);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error forcing completion:', error);
+                                alert('Error forcing completion: ' + error);
+                            });
+                        }
+                    }
+
+                    function updateProgress() {
+                        fetch(`/api/processing-status/${sessionId}`)
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                // Handle API errors gracefully
+                                if (data.error && data.status === 'not_found') {
+                                    console.error('Session not found:', data.error);
+                                    document.getElementById('statusText').textContent = 'Session not found';
+                                    return;
+                                }
+
+                                // Update progress elements safely
                                 const progressBar = document.getElementById('progressBar');
                                 const statusText = document.getElementById('statusText');
                                 const progressText = document.getElementById('progressText');
-                                
-                                if (progressBar) {
+                                const processedCount = document.getElementById('processedCount');
+                                const totalCount = document.getElementById('totalCount');
+                                const currentChunk = document.getElementById('currentChunk');
+                                const totalChunks = document.getElementById('totalChunks');
+
+                                // Update progress bar
+                                if (progressBar && data.progress_percent !== undefined) {
                                     progressBar.style.width = data.progress_percent + '%';
-                                    progressBar.textContent = data.progress_percent + '%';
+                                    progressBar.setAttribute('aria-valuenow', data.progress_percent);
                                 }
-                                
-                                if (statusText) {
-                                    statusText.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1) + '...';
-                                }
-                                
-                                if (progressText) {
+
+                                if (progressText && data.progress_percent !== undefined) {
                                     progressText.textContent = data.progress_percent + '%';
                                 }
-                                
+
+                                // Update status text
+                                if (statusText && data.status) {
+                                    statusText.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1) + '...';
+                                }
+
+                                // Update counters
+                                if (processedCount && data.processed_records !== undefined) {
+                                    processedCount.textContent = data.processed_records;
+                                }
+                                if (totalCount && data.total_records !== undefined && data.total_records > 0) {
+                                    totalCount.textContent = data.total_records;
+                                }
+                                if (currentChunk && data.current_chunk !== undefined) {
+                                    currentChunk.textContent = data.current_chunk;
+                                }
+                                if (totalChunks && data.total_chunks !== undefined && data.total_chunks > 0) {
+                                    totalChunks.textContent = data.total_chunks;
+                                }
+
+                                // Update chunk progress
+                                const chunkProgressBar = document.getElementById('chunkProgressBar');
+                                const chunkProgressText = document.getElementById('chunkProgressText');
+                                if (chunkProgressBar && data.chunk_progress_percent !== undefined) {
+                                    chunkProgressBar.style.width = data.chunk_progress_percent + '%';
+                                    chunkProgressBar.setAttribute('aria-valuenow', data.chunk_progress_percent);
+                                }
+                                if (chunkProgressText && data.chunk_progress_percent !== undefined) {
+                                    chunkProgressText.textContent = data.chunk_progress_percent + '%';
+                                }
+
                                 // Update workflow stage statistics
                                 if (data.workflow_stats) {
                                     const stats = data.workflow_stats;
-                                    
+
                                     // Update counts with animation
                                     updateStageCount('excluded-count', stats.excluded_count || 0);
                                     updateStageCount('whitelisted-count', stats.whitelisted_count || 0);
                                     updateStageCount('rules-matched-count', stats.rules_matched_count || 0);
                                     updateStageCount('critical-cases-count', stats.critical_cases_count || 0);
-                                    
+
                                     // Update stage status indicators
                                     updateStageStatus('exclusion-status', stats.excluded_count > 0 ? 'Complete' : 'No exclusions', 'success');
                                     updateStageStatus('whitelist-status', stats.whitelisted_count > 0 ? 'Complete' : 'No matches', 'success');
                                     updateStageStatus('rules-status', stats.rules_matched_count > 0 ? 'Matches found' : 'No violations', stats.rules_matched_count > 0 ? 'warning' : 'success');
                                     updateStageStatus('ml-status', stats.critical_cases_count > 0 ? 'Threats detected' : 'Analysis complete', stats.critical_cases_count > 0 ? 'danger' : 'success');
-                                    
+
                                     // Highlight stages with significant results
                                     highlightStage('stage-exclusion', stats.excluded_count > 0);
                                     highlightStage('stage-whitelist', stats.whitelisted_count > 0);
                                     highlightStage('stage-rules', stats.rules_matched_count > 0);
                                     highlightStage('stage-ml', stats.critical_cases_count > 0);
                                 }
-                                
-                                // Redirect to dashboard when completed
-                                if (data.status === 'completed') {
-                                    setTimeout(() => {
-                                        window.location.href = `/dashboard/${sessionId}`;
-                                    }, 2000);
+
+                                // Check if session appears stuck
+                                if (data.progress_percent >= 100 && data.status === 'processing') {
+                                    stuckCounter++;
+                                    if (stuckCounter >= 3) {
+                                        const forceBtn = document.getElementById('forceCompleteBtn');
+                                        if (forceBtn) forceBtn.style.display = 'inline-block';
+                                    }
+                                } else {
+                                    stuckCounter = 0;
+                                    const forceBtn = document.getElementById('forceCompleteBtn');
+                                    if (forceBtn) forceBtn.style.display = 'none';
                                 }
-                                
+
+                                // Show completion message when completed
+                                if (data.status === 'completed') {
+                                    document.getElementById('processingComplete').style.display = 'block';
+                                    document.getElementById('statusText').textContent = 'Processing Complete!';
+
+                                    // Mark all stages as completed
+                                    updateStageStatus('exclusion-status', 'Complete', 'success');
+                                    updateStageStatus('whitelist-status', 'Complete', 'success');
+                                    updateStageStatus('rules-status', 'Complete', 'success');
+                                    updateStageStatus('ml-status', 'Complete', 'success');
+
+                                    // Stop auto-refresh
+                                    clearInterval(intervalId);
+
+                                    // Don't auto-redirect, let user choose
+                                }
+
                                 // Show error if failed
                                 if (data.status === 'error') {
                                     const errorAlert = document.getElementById('errorAlert');
                                     const errorMessage = document.getElementById('errorMessage');
                                     if (errorAlert && errorMessage) {
-                                        errorMessage.textContent = data.error_message;
+                                        errorMessage.textContent = data.error_message || 'Unknown error occurred';
                                         errorAlert.style.display = 'block';
                                     }
                                 }
                             })
                             .catch(error => {
                                 console.error('Error fetching status:', error);
+                                // Reduce update frequency if there are persistent errors
+                                if (error.message.includes('500') || error.message.includes('404')) {
+                                    clearInterval(intervalId);
+                                    setTimeout(() => {
+                                        // Restart with longer interval
+                                        const newIntervalId = setInterval(updateProgress, 10000);
+                                    }, 5000);
+                                }
                             });
                     }
-                    
+
+                    // Check if session is already completed and set initial values
+                    const sessionStatus = "{{ session.status }}";
+                    if (sessionStatus === 'completed') {
+                        // Set default values for completed session
+                        updateStageCount('excluded-count', {{ session.processed_records or 0 }});
+                        updateStageCount('whitelisted-count', 0);
+                        updateStageCount('rules-matched-count', 0);
+                        updateStageCount('critical-cases-count', 0);
+
+                        updateStageStatus('exclusion-status', 'Complete', 'success');
+                        updateStageStatus('whitelist-status', 'Complete', 'success');
+                        updateStageStatus('rules-status', 'Complete', 'success');
+                        updateStageStatus('ml-status', 'Complete', 'success');
+
+                        document.getElementById('processingComplete').style.display = 'block';
+                        document.getElementById('statusText').textContent = 'Processing Complete!';
+                    }
+
                     // Update immediately and then every 5 seconds
                     updateProgress();
                     const intervalId = setInterval(updateProgress, 5000);
-                    
+
                     // Stop updating when page is hidden/closed
                     document.addEventListener('visibilitychange', function() {
                         if (document.hidden) {
                             clearInterval(intervalId);
                         }
                     });
-                    
+
                     function updateStageCount(elementId, count) {
                         const element = document.getElementById(elementId);
-                        if (element && element.textContent !== count.toString()) {
-                            element.style.transform = 'scale(1.1)';
-                            element.textContent = count;
-                            setTimeout(() => {
-                                element.style.transform = 'scale(1)';
-                            }, 200);
+                        if (element) {
+                            if (element.textContent !== count.toString()) {
+                                element.style.transform = 'scale(1.1)';
+                                element.textContent = count;
+                                setTimeout(() => {
+                                    element.style.transform = 'scale(1)';
+                                }, 200);
+                            }
                         }
                     }
-                    
+
                     function updateStageStatus(elementId, message, type) {
                         const element = document.getElementById(elementId);
                         if (element) {
                             element.innerHTML = `<small class="text-${type}"><i class="fas fa-check-circle"></i> ${message}</small>`;
                         }
                     }
-                    
+
                     function highlightStage(stageId, hasResults) {
                         const stage = document.getElementById(stageId);
                         if (stage) {
@@ -282,11 +429,14 @@
                             } else {
                                 stage.classList.remove('border-primary', 'shadow-sm');
                                 stage.style.borderWidth = '1px';
+                                // Mark as completed even if no results
+                                stage.classList.add('border-success');
+                                stage.style.borderWidth = '1px';
                             }
                         }
                     }
                     </script>
-                    
+
                     <!-- Error display -->
                     <div id="errorAlert" class="alert alert-danger mt-4" style="display: none;">
                         <h6><i class="fas fa-exclamation-triangle"></i> Processing Error</h6>
@@ -372,47 +522,164 @@
 <script>
 function checkProcessingStatus() {
     fetch(`/api/processing-status/{{ session.id }}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Processing status:', data);
+
             // Update progress bar
             const progressPercent = data.progress_percent || 0;
             document.getElementById('progressBar').style.width = progressPercent + '%';
             document.getElementById('progressBar').setAttribute('aria-valuenow', progressPercent);
             document.getElementById('progressText').textContent = progressPercent + '%';
-            
+
             // Update counters
             document.getElementById('processedCount').textContent = data.processed_records || 0;
             if (data.total_records > 0) {
                 document.getElementById('totalCount').textContent = data.total_records;
             }
-            
+
             // Update chunk information
             document.getElementById('currentChunk').textContent = data.current_chunk || 0;
             if (data.total_chunks > 0) {
                 document.getElementById('totalChunks').textContent = data.total_chunks;
             }
-            
+
             // Update chunk progress bar
             const chunkProgressPercent = data.chunk_progress_percent || 0;
             document.getElementById('chunkProgressBar').style.width = chunkProgressPercent + '%';
             document.getElementById('chunkProgressBar').setAttribute('aria-valuenow', chunkProgressPercent);
             document.getElementById('chunkProgressText').textContent = chunkProgressPercent + '%';
-            
-            // Update status
+
+            // Update status text
+            document.getElementById('statusText').textContent = data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) + '...' : 'Processing...';
+
+            // Update workflow stages with detailed results
+            updateWorkflowStages(data.workflow_stats || {});
+
+            // Handle completion - DO NOT AUTO-REDIRECT
+            if (data.status === 'completed') {
+                document.getElementById('processingComplete').style.display = 'block';
+                document.getElementById('statusText').textContent = 'Processing Complete!';
+
+                // Stop polling but don't redirect
+                clearInterval(window.statusInterval);
+
+                // Show final results
+                console.log('Processing completed successfully!');
+                console.log('Final workflow stats:', data.workflow_stats);
+            } else if (data.status === 'error') {
+                document.getElementById('statusText').textContent = 'Processing Error';
+                clearInterval(window.statusInterval);
+
+                // Show error message
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'alert alert-danger mt-3';
+                errorDiv.innerHTML = `
+                    <h6><i class="fas fa-exclamation-triangle"></i> Processing Error</h6>
+                    <p class="mb-0">${data.error_message || 'Unknown error occurred'}</p>
+                `;
+                document.querySelector('.processing-stages').appendChild(errorDiv);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking status:', error);
+        });
+}
+
+function updateWorkflowStages(workflowStats) {
+    const workflowContainer = document.getElementById('workflowStages');
+    if (!workflowContainer) return;
+
+    const stages = [
+        {
+            name: 'Exclusion Rules',
+            icon: 'fas fa-filter',
+            description: 'Filter records based on exclusion criteria',
+            count: workflowStats.excluded_count || 0,
+            label: 'Emails Excluded',
+            status: workflowStats.excluded_count !== undefined ? 'complete' : 'pending',
+            color: 'secondary'
+        },
+        {
+            name: 'Whitelist Filtering',
+            icon: 'fas fa-shield-alt',
+            description: 'Remove trusted domain communications',
+            count: workflowStats.whitelisted_count || 0,
+            label: 'Emails Whitelisted',
+            status: workflowStats.whitelisted_count !== undefined ? 'complete' : 'pending',
+            color: 'success'
+        },
+        {
+            name: 'Security Rules',
+            icon: 'fas fa-exclamation-triangle',
+            description: 'Apply security rules and threat detection',
+            count: workflowStats.rules_matched_count || 0,
+            label: 'Rule Matches',
+            status: workflowStats.rules_matched_count !== undefined ? 'complete' : 'pending',
+            color: 'warning'
+        },
+        {
+            name: 'ML Analysis',
+            icon: 'fas fa-brain',
+            description: 'Machine learning anomaly detection',
+            count: workflowStats.critical_cases_count || 0,
+            label: 'Critical Cases',
+            status: workflowStats.critical_cases_count !== undefined ? 'complete' : 'pending',
+            color: 'danger'
+        }
+    ];
+
+    workflowContainer.innerHTML = stages.map(stage => `
+        <div class="col-md-3 col-6">
+            <div class="card h-100 border-${stage.color}">
+                <div class="card-body text-center">
+                    <div class="mb-2">
+                        <i class="${stage.icon} fa-2x text-${stage.color}"></i>
+                    </div>
+                    <h6 class="card-title">${stage.name}</h6>
+                    <p class="text-muted small">${stage.description}</p>
+                    <h3 class="text-${stage.color}">${stage.count}</h3>
+                    <small class="text-muted">${stage.label}</small>
+                    <div class="mt-2">
+                        ${stage.status === 'complete' ? 
+                            '<span class="badge bg-success"><i class="fas fa-check"></i> Complete</span>' : 
+                            '<span class="badge bg-secondary"><i class="fas fa-clock"></i> Pending</span>'
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function refreshStatus() {
+    checkProcessingStatus();
+}
+
+// Start polling for status updates
+window.statusInterval = setInterval(checkProcessingStatus, 2000);
+
+// Initial status check
+checkProcessingStatus();tus
             document.getElementById('statusText').textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1) + '...';
-            
+
             // Handle completion
             if (data.status === 'completed') {
                 window.location.href = `/dashboard/{{ session.id }}`;
             }
-            
+
             // Handle errors
             if (data.status === 'error') {
                 document.getElementById('errorAlert').style.display = 'block';
                 document.getElementById('errorMessage').textContent = data.error_message || 'An unknown error occurred';
                 clearInterval(statusInterval);
             }
-            
+
             // Update stage indicators (basic version)
             updateStageIndicators(data);
         })
@@ -424,7 +691,7 @@ function checkProcessingStatus() {
 function updateStageIndicators(data) {
     // Simple stage progression based on progress
     const progress = data.progress_percent || 0;
-    
+
     if (progress > 0) {
         document.getElementById('stage-exclusion').classList.add('active');
         // Update stage stats if available
