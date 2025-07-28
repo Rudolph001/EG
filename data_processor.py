@@ -108,10 +108,15 @@ class DataProcessor:
                 if session:
                     session.error_message = f"Workflow warning: {str(workflow_error)}"
             
-            # Mark as completed
+            # Mark as completed and ensure all workflow steps are marked as done
             if session:
                 session.status = 'completed'
                 session.processed_records = processed_count
+                # Ensure all workflow steps are completed to prevent loops
+                session.exclusion_applied = True
+                session.whitelist_applied = True
+                session.rules_applied = True
+                session.ml_applied = True
                 db.session.commit()
             
             logger.info(f"CSV processing completed for session {session_id}")
