@@ -41,48 +41,66 @@ class DomainManager:
     def apply_whitelist_filtering(self, session_id):
         """Apply whitelist filtering to session records"""
         try:
-            logger.info(f"Starting whitelist filtering for session {session_id}")
-
-            # Check if already applied to prevent re-processing
-            session = ProcessingSession.query.get(session_id)
-            if session and session.whitelist_applied:
-                logger.info(f"Whitelist filtering already applied for session {session_id}")
-                return 0
+            logger.info(f"Applying whitelist filtering for session {session_id}")
 
             # Get active whitelist domains
             whitelist_domains = WhitelistDomain.query.filter_by(is_active=True).all()
-            if not whitelist_domains:
-                logger.info("No active whitelist domains found")
+            whitelist_set = {domain.domain.lower().strip() for domain in whitelist_domains}
+
+            logger.info(f"Found {len(whitelist_domains)} active whitelist domains: {whitelist_set}")
+
+            if not whitelist_set:
+                logger.warning("No active whitelist domains found")
                 if session:
                     session.whitelist_applied = True
                     db.session.commit()
                 return 0
-
-            # Create set for faster lookup (case-insensitive)
-            whitelist_set = {domain.domain.lower().strip() for domain in whitelist_domains}
-            logger.info(f"Found {len(whitelist_set)} active whitelist domains")
 
             # Get records to process (not already whitelisted)
             records = EmailRecord.query.filter_by(session_id=session_id).filter(
                 db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
             ).all()
 
+            logger.info(f"Processing {len(records)} non-excluded records for whitelist filtering")
+
             whitelisted_count = 0
 
             for record in records:
-                if self._is_domain_whitelisted(record.recipients_email_domain, whitelist_set):
+                if not record.recipients_email_domain:
+                    continue
+
+                record_domain = record.recipients_email_domain.lower().strip()
+
+                # Check for exact match or subdomain match
+                is_whitelisted = False
+                matched_domain = None
+
+                for whitelist_domain in whitelist_set:
+                    if (record_domain == whitelist_domain or 
+                        record_domain.endswith('.' + whitelist_domain) or 
+                        whitelist_domain.endswith('.' + record_domain) or
+                        whitelist_domain in record_domain or
+                        record_domain in whitelist_domain):
+                        is_whitelisted = True
+                        matched_domain = whitelist_domain
+                        break
+
+                if is_whitelisted:
                     record.whitelisted = True
                     record.case_status = 'Whitelisted'
                     whitelisted_count += 1
-                    if whitelisted_count <= 10:  # Only log first 10 to avoid spam
-                        logger.debug(f"Record {record.record_id} whitelisted for domain: {record.recipients_email_domain}")
+                    logger.info(f"Whitelisted: {record_domain} matches {matched_domain} (Record ID: {record.record_id})")
+                else:
+                    # Log domains that weren't whitelisted for debugging
+                    if whitelisted_count < 10:  # Only log first 10 to avoid spam
+                        logger.info(f"Not whitelisted: {record_domain} (checked against {len(whitelist_set)} domains)")
 
             # Mark as applied to prevent re-processing
             if session:
                 session.whitelist_applied = True
 
             db.session.commit()
-            logger.info(f"Whitelist filtering completed: {whitelisted_count} records whitelisted")
+            logger.info(f"Whitelist filtering complete: {whitelisted_count} records whitelisted out of {len(records)} processed")
             return whitelisted_count
 
         except Exception as e:
@@ -628,7 +646,7 @@ class DomainManager:
         except Exception as e:
             logger.error(f"Error in bulk domain addition: {str(e)}")
             return {'errors': [str(e)]}
-    
+
     def _is_domain_whitelisted(self, domain, whitelist_set):
         """Check if a domain or its subdomain is whitelisted"""
         if not domain:

@@ -37,15 +37,42 @@ class MLEngine:
         try:
             logger.info(f"Starting ML analysis for session {session_id}")
 
+            # Get all records first for debugging
+            all_records = EmailRecord.query.filter_by(session_id=session_id).all()
+            logger.info(f"Total records in session: {len(all_records)}")
+            
+            excluded_records = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.excluded_by_rule.isnot(None)
+            ).all()
+            logger.info(f"Excluded records: {len(excluded_records)}")
+            
+            whitelisted_records = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.whitelisted == True
+            ).all()
+            logger.info(f"Whitelisted records: {len(whitelisted_records)}")
+
             # Get non-excluded, non-whitelisted records
             records = EmailRecord.query.filter(
                 EmailRecord.session_id == session_id,
                 EmailRecord.excluded_by_rule.is_(None),
                 db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
             ).all()
+            
+            logger.info(f"Records eligible for ML analysis: {len(records)}")
 
             if len(records) < 3:  # Reduced minimum for faster processing
-                logger.warning(f"Too few records ({len(records)}) for ML analysis")
+                logger.warning(f"Too few records ({len(records)}) for ML analysis - updating existing records with default risk levels")
+                
+                # Still update records with basic risk assessment even if too few for ML
+                for record in records:
+                    if record.ml_risk_score is None:
+                        record.ml_risk_score = 0.1  # Low risk default
+                        record.risk_level = 'Low'
+                        record.ml_explanation = 'Low risk - insufficient data for ML analysis'
+                
+                db.session.commit()
                 return {'processing_stats': {'ml_records_analyzed': len(records)}}
 
             # Fast mode: limit records for processing speed
