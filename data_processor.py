@@ -123,6 +123,28 @@ class DataProcessor:
                 
                 db.session.commit()
                 logger.info(f"Session {session_id} marked as completed with {processed_count} records")
+                
+                # Log final workflow statistics
+                try:
+                    total_records_final = EmailRecord.query.filter_by(session_id=session_id).count()
+                    excluded_final = EmailRecord.query.filter(
+                        EmailRecord.session_id == session_id,
+                        EmailRecord.excluded_by_rule.isnot(None)
+                    ).count()
+                    whitelisted_final = EmailRecord.query.filter_by(
+                        session_id=session_id, whitelisted=True
+                    ).count()
+                    rule_matches_final = EmailRecord.query.filter(
+                        EmailRecord.session_id == session_id,
+                        EmailRecord.rule_matches.isnot(None)
+                    ).count()
+                    critical_final = EmailRecord.query.filter_by(
+                        session_id=session_id, risk_level='Critical'
+                    ).count()
+                    
+                    logger.info(f"FINAL STATS for {session_id}: Total={total_records_final}, Excluded={excluded_final}, Whitelisted={whitelisted_final}, RuleMatches={rule_matches_final}, Critical={critical_final}")
+                except Exception as e:
+                    logger.warning(f"Could not log final statistics: {str(e)}")
             
             logger.info(f"CSV processing completed for session {session_id}")
             
