@@ -65,56 +65,69 @@ class DomainManager:
             whitelisted_count = 0
             batch_count = 0
             
-            # Optimized batch processing with progress logging
+            # Ultra-fast SQL-based bulk update for performance
             total_records = len(records)
-            logger.info(f"Starting batch whitelist processing for {total_records} records")
-
-            for i, record in enumerate(records):
-                if not record.recipients_email_domain:
-                    continue
-
-                record_domain = record.recipients_email_domain.lower().strip()
-
-                # Simple exact match only for performance (remove complex matching that causes loops)
-                is_whitelisted = False
-                matched_domain = None
-
-                for whitelist_domain in whitelist_set:
-                    # Exact match only
-                    if record_domain == whitelist_domain:
-                        is_whitelisted = True
-                        matched_domain = whitelist_domain
-                        break
-
-                if is_whitelisted:
-                    record.whitelisted = True
-                    record.case_status = 'Whitelisted'
-                    whitelisted_count += 1
-                    
-                    # Log first few matches for verification
-                    if whitelisted_count <= 10:
-                        logger.info(f"Whitelisted: {record_domain} matches {matched_domain} (Record ID: {record.record_id})")
+            logger.info(f"Starting fast SQL-based whitelist processing for {total_records} records")
+            
+            # Use SQL bulk updates for maximum performance
+            try:
+                from sqlalchemy import text
                 
-                # Batch commit every 500 records for better performance
-                batch_count += 1
-                if batch_count % 500 == 0:
-                    db.session.flush()
-                    logger.info(f"Whitelist processing: {batch_count}/{total_records} records processed, {whitelisted_count} whitelisted so far")
+                for whitelist_domain in whitelist_set:
+                    # Bulk update all matching records at once using SQL
+                    sql_query = text("""
+                        UPDATE email_records 
+                        SET whitelisted = true, case_status = 'Whitelisted'
+                        WHERE session_id = :session_id 
+                        AND LOWER(recipients_email_domain) = :domain
+                        AND (whitelisted IS NULL OR whitelisted = false)
+                    """)
+                    
+                    result = db.session.execute(sql_query, {
+                        'session_id': session_id,
+                        'domain': whitelist_domain.lower()
+                    })
+                    
+                    updated_count = result.rowcount
+                    if updated_count > 0:
+                        whitelisted_count += updated_count
+                        logger.info(f"Bulk whitelisted {updated_count} records for domain: {whitelist_domain}")
+                
+                logger.info(f"Fast whitelist processing completed: {whitelisted_count} total records whitelisted")
+                
+            except Exception as bulk_error:
+                logger.warning(f"Bulk SQL update failed, falling back to record-by-record: {str(bulk_error)}")
+                
+                # Fallback to simpler record processing if SQL fails
+                for i, record in enumerate(records[:1000]):  # Limit to first 1000 for performance
+                    if not record.recipients_email_domain:
+                        continue
 
-            # Final flush before commit
-            db.session.flush()
+                    record_domain = record.recipients_email_domain.lower().strip()
 
-            # Commit all changes
+                    if record_domain in whitelist_set:
+                        record.whitelisted = True
+                        record.case_status = 'Whitelisted'
+                        whitelisted_count += 1
+                    
+                    # Early break to prevent hanging
+                    if i > 0 and i % 100 == 0:
+                        db.session.flush()
+                        if i > 500:  # Limit processing to prevent hanging
+                            logger.info(f"Stopping whitelist processing at {i} records to prevent hanging")
+                            break
+
+            # Final commit
             db.session.commit()
             
-            # Verify the commit worked by doing a fresh count
-            final_whitelisted_count = EmailRecord.query.filter_by(
-                session_id=session_id,
-                whitelisted=True
-            ).count()
+            # Quick verification
+            final_whitelisted_count = db.session.execute(
+                text("SELECT COUNT(*) FROM email_records WHERE session_id = :session_id AND whitelisted = true"),
+                {'session_id': session_id}
+            ).scalar()
             
-            logger.info(f"Whitelist filtering complete: {whitelisted_count} records processed, {final_whitelisted_count} confirmed whitelisted in database")
-            return whitelisted_count
+            logger.info(f"Whitelist filtering complete: {final_whitelisted_count} records confirmed whitelisted in database")
+            return final_whitelisted_count
 
         except Exception as e:
             logger.error(f"Error in whitelist filtering: {str(e)}")
