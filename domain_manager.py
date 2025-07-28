@@ -64,53 +64,27 @@ class DomainManager:
 
             whitelisted_count = 0
             batch_count = 0
+            
+            # Optimized batch processing with progress logging
+            total_records = len(records)
+            logger.info(f"Starting batch whitelist processing for {total_records} records")
 
-            for record in records:
+            for i, record in enumerate(records):
                 if not record.recipients_email_domain:
                     continue
 
                 record_domain = record.recipients_email_domain.lower().strip()
 
-                # Check for exact match or subdomain match with improved logic
+                # Simple exact match only for performance (remove complex matching that causes loops)
                 is_whitelisted = False
                 matched_domain = None
 
                 for whitelist_domain in whitelist_set:
-                    # Exact match
+                    # Exact match only
                     if record_domain == whitelist_domain:
                         is_whitelisted = True
                         matched_domain = whitelist_domain
                         break
-                    # Subdomain match (record is subdomain of whitelist)
-                    elif record_domain.endswith('.' + whitelist_domain):
-                        is_whitelisted = True
-                        matched_domain = whitelist_domain
-                        break
-                    # Parent domain match (whitelist is subdomain of record)
-                    elif whitelist_domain.endswith('.' + record_domain):
-                        is_whitelisted = True
-                        matched_domain = whitelist_domain
-                        break
-                    # Partial match for common corporate domains - more flexible
-                    elif len(whitelist_domain) > 3:
-                        # Check if whitelist domain is contained in record domain
-                        if whitelist_domain in record_domain:
-                            is_whitelisted = True
-                            matched_domain = whitelist_domain
-                            break
-                        # Check if record domain is contained in whitelist domain
-                        elif record_domain in whitelist_domain:
-                            is_whitelisted = True
-                            matched_domain = whitelist_domain
-                            break
-                        # Check for common variations (e.g., company.com vs company.org)
-                        whitelist_base = whitelist_domain.split('.')[0]
-                        record_base = record_domain.split('.')[0]
-                        if len(whitelist_base) > 3 and len(record_base) > 3:
-                            if whitelist_base == record_base:
-                                is_whitelisted = True
-                                matched_domain = whitelist_domain
-                                break
 
                 if is_whitelisted:
                     record.whitelisted = True
@@ -121,10 +95,11 @@ class DomainManager:
                     if whitelisted_count <= 10:
                         logger.info(f"Whitelisted: {record_domain} matches {matched_domain} (Record ID: {record.record_id})")
                 
-                # Batch commit every 100 records for performance
+                # Batch commit every 500 records for better performance
                 batch_count += 1
-                if batch_count % 100 == 0:
+                if batch_count % 500 == 0:
                     db.session.flush()
+                    logger.info(f"Whitelist processing: {batch_count}/{total_records} records processed, {whitelisted_count} whitelisted so far")
 
             # Final flush before commit
             db.session.flush()

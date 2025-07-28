@@ -53,12 +53,6 @@ def upload_file():
             flash('Please upload a CSV file', 'error')
             return redirect(url_for('index'))
 
-        # Check if there are any active processing sessions to prevent overloading
-        active_sessions = ProcessingSession.query.filter_by(status='processing').count()
-        if active_sessions > 3:  # Limit concurrent processing sessions
-            flash('System is currently busy processing other files. Please try again in a few minutes.', 'warning')
-            return redirect(url_for('index'))
-
         # Create new session
         session_id = str(uuid.uuid4())
         filename = file.filename
@@ -117,308 +111,104 @@ def upload_file():
 
 @app.route('/api/processing-status/<session_id>')
 def processing_status(session_id):
-    """Get processing status for session with stuck session detection"""
-    try:
-        session = ProcessingSession.query.get(session_id)
-        if not session:
-            return jsonify({
-                'error': 'Session not found',
-                'status': 'not_found',
-                'total_records': 0,
-                'processed_records': 0,
-                'progress_percent': 0,
-                'current_chunk': 0,
-                'total_chunks': 0,
-                'chunk_progress_percent': 0,
-                'error_message': 'Session not found',
-                'workflow_stats': {
-                    'excluded_count': 0,
-                    'whitelisted_count': 0,
-                    'rules_matched_count': 0,
-                    'critical_cases_count': 0
-                }
-            }), 200
+    """Get processing status for session"""
+    session = ProcessingSession.query.get_or_404(session_id)
 
-        # Check for stuck session and attempt to fix
-        if session.status == 'processing':
-            # Check if session has been processing for too long (more than 5 minutes with no progress)
-            if session.upload_time:
-                time_diff = (datetime.utcnow() - session.upload_time).total_seconds()
-                if time_diff > 300:  # 5 minutes
-                    logger.warning(f"Session {session_id} appears stuck, attempting to fix")
-                    try:
-                        if data_processor.fix_stuck_session(session_id):
-                            # Refresh session after fix
-                            session = ProcessingSession.query.get(session_id)
-                    except Exception as e:
-                        logger.error(f"Failed to fix stuck session: {str(e)}")
-
-        # Initialize workflow statistics
-        workflow_stats = {
-            'excluded_count': 0,
-            'whitelisted_count': 0,
-            'rules_matched_count': 0,
-            'critical_cases_count': 0
-        }
-        
-        # Get workflow statistics - check if any records exist for this session
+    # Get workflow statistics
+    workflow_stats = {}
+    if session.status in ['processing', 'completed']:
         try:
-            from sqlalchemy import func, and_, or_
-            
-            total_records_in_db = db.session.query(func.count(EmailRecord.id)).filter(
-                EmailRecord.session_id == session_id
-            ).scalar() or 0
-            
-            logger.info(f"Session {session_id}: Found {total_records_in_db} records in database")
-            
-            # Check workflow step completion status for proper reporting
-            logger.info(f"Session {session_id} workflow steps: exclusion={session.exclusion_applied}, whitelist={session.whitelist_applied}, rules={session.rules_applied}, ml={session.ml_applied}")
-            
-            if total_records_in_db > 0:
-                # Count excluded records (records that have been excluded by rules)
-                try:
-                    excluded_count = db.session.query(func.count(EmailRecord.id)).filter(
-                        EmailRecord.session_id == session_id,
-                        EmailRecord.excluded_by_rule.isnot(None),
-                        EmailRecord.excluded_by_rule != '',
-                        EmailRecord.excluded_by_rule != 'null'
-                    ).scalar() or 0
-                    
-                    # If exclusion step is completed, show the count (even if 0)
-                    if session.exclusion_applied:
-                        workflow_stats['excluded_count'] = excluded_count
-                    logger.info(f"Session {session_id}: {excluded_count} excluded records")
-                except Exception as e:
-                    logger.warning(f"Error counting excluded records: {str(e)}")
-                    if session.exclusion_applied:
-                        workflow_stats['excluded_count'] = 0
+            # Count excluded records
+            excluded_count = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.excluded_by_rule.isnot(None)
+            ).count()
 
-                # Count whitelisted records - check both whitelisted field and case_status
-                try:
-                    whitelisted_count = db.session.query(func.count(EmailRecord.id)).filter(
-                        EmailRecord.session_id == session_id,
-                        or_(
-                            EmailRecord.whitelisted == True,
-                            EmailRecord.case_status == 'Whitelisted'
-                        )
-                    ).scalar() or 0
-                    
-                    # If whitelist step is completed, show the count (even if 0)
-                    if session.whitelist_applied:
-                        workflow_stats['whitelisted_count'] = whitelisted_count
-                    logger.info(f"Session {session_id}: {whitelisted_count} whitelisted records")
-                    
-                except Exception as e:
-                    logger.warning(f"Error counting whitelisted records: {str(e)}")
-                    if session.whitelist_applied:
-                        workflow_stats['whitelisted_count'] = 0
+            # Count whitelisted records  
+            whitelisted_count = EmailRecord.query.filter_by(
+                session_id=session_id,
+                whitelisted=True
+            ).count()
 
-                # Count records with rule matches (security rules)
-                try:
-                    rules_matched_count = db.session.query(func.count(EmailRecord.id)).filter(
-                        EmailRecord.session_id == session_id,
-                        EmailRecord.rule_matches.isnot(None),
-                        EmailRecord.rule_matches != '',
-                        EmailRecord.rule_matches != 'null'
-                    ).scalar() or 0
-                    
-                    # If rules step is completed, show the count (even if 0)
-                    if session.rules_applied:
-                        workflow_stats['rules_matched_count'] = rules_matched_count
-                    logger.info(f"Session {session_id}: {rules_matched_count} records with rule matches")
-                except Exception as e:
-                    logger.warning(f"Error counting rule matches: {str(e)}")
-                    if session.rules_applied:
-                        workflow_stats['rules_matched_count'] = 0
+            # Count records with rule matches
+            rules_matched_count = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.rule_matches.isnot(None)
+            ).count()
 
-                # Count ML analyzed records (this shows processing progress)
-                try:
-                    ml_analyzed_count = db.session.query(func.count(EmailRecord.id)).filter(
-                        EmailRecord.session_id == session_id,
-                        EmailRecord.ml_risk_score.isnot(None)
-                    ).scalar() or 0
-                    
-                    # If ML step is completed, show the count (even if 0)
-                    if session.ml_applied:
-                        workflow_stats['critical_cases_count'] = ml_analyzed_count
-                    logger.info(f"Session {session_id}: {ml_analyzed_count} ML analyzed records")
-                    
-                except Exception as e:
-                    logger.warning(f"Error counting ML analyzed records: {str(e)}")
-                    if session.ml_applied:
-                        workflow_stats['critical_cases_count'] = 0
-            else:
-                logger.warning(f"Session {session_id}: No records found in database")
+            # Count critical cases
+            critical_cases_count = EmailRecord.query.filter_by(
+                session_id=session_id,
+                risk_level='Critical'
+            ).count()
 
-        except Exception as e:
-            logger.warning(f"Could not get workflow stats for session {session_id}: {str(e)}")
-
-        # Calculate progress safely
-        total_records = session.total_records or 0
-        processed_records = session.processed_records or 0
-        current_chunk = session.current_chunk or 0
-        total_chunks = session.total_chunks or 0
-        
-        progress_percent = int((processed_records / max(total_records, 1)) * 100) if total_records > 0 else 0
-        chunk_progress_percent = int((current_chunk / max(total_chunks, 1)) * 100) if total_chunks > 0 else 0
-        
-        # Only force completion if all workflow steps are actually marked as complete
-        if (progress_percent >= 100 and 
-            session.status == 'processing' and 
-            processed_records >= total_records and 
-            total_records > 0 and
-            session.exclusion_applied and 
-            session.whitelist_applied and 
-            session.rules_applied and 
-            session.ml_applied):
-            
-            logger.info(f"Auto-completing session {session_id} - all workflow steps complete")
-            session.status = 'completed'
-            session.completed_at = datetime.utcnow()
-            db.session.commit()
-            
-            # Log final completion status
-            logger.info(f"Session {session_id} auto-completed with workflow stats: {workflow_stats}")
-        elif session.status == 'processing':
-            logger.info(f"Session {session_id} still processing - workflow steps: exclusion={session.exclusion_applied}, whitelist={session.whitelist_applied}, rules={session.rules_applied}, ml={session.ml_applied}")
-
-        return jsonify({
-            'status': session.status or 'unknown',
-            'total_records': total_records,
-            'processed_records': processed_records,
-            'progress_percent': min(progress_percent, 100),
-            'current_chunk': current_chunk,
-            'total_chunks': total_chunks,
-            'chunk_progress_percent': min(chunk_progress_percent, 100),
-            'error_message': session.error_message,
-            'workflow_stats': workflow_stats,
-            'timestamp': datetime.utcnow().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Error getting processing status for session {session_id}: {str(e)}")
-        return jsonify({
-            'error': f'Internal server error: {str(e)}',
-            'status': 'error',
-            'total_records': 0,
-            'processed_records': 0,
-            'progress_percent': 0,
-            'current_chunk': 0,
-            'total_chunks': 0,
-            'chunk_progress_percent': 0,
-            'error_message': str(e),
-            'workflow_stats': {
-                'excluded_count': 0,
-                'whitelisted_count': 0,
-                'rules_matched_count': 0,
-                'critical_cases_count': 0
+            workflow_stats = {
+                'excluded_count': excluded_count,
+                'whitelisted_count': whitelisted_count,
+                'rules_matched_count': rules_matched_count,
+                'critical_cases_count': critical_cases_count
             }
-        }), 200  # Return 200 to prevent JS errors
+        except Exception as e:
+            logger.warning(f"Could not get workflow stats: {str(e)}")
+
+    return jsonify({
+        'status': session.status,
+        'total_records': session.total_records or 0,
+        'processed_records': session.processed_records or 0,
+        'progress_percent': int((session.processed_records or 0) / max(session.total_records or 1, 1) * 100),
+        'current_chunk': session.current_chunk or 0,
+        'total_chunks': session.total_chunks or 0,
+        'chunk_progress_percent': int((session.current_chunk or 0) / max(session.total_chunks or 1, 1) * 100),
+        'error_message': session.error_message,
+        'workflow_stats': workflow_stats
+    })
 
 @app.route('/api/dashboard-stats/<session_id>')
 def dashboard_stats(session_id):
     """Get real-time dashboard statistics for animations"""
     try:
         # Get session info
-        session = ProcessingSession.query.get(session_id)
-        if not session:
-            return jsonify({
-                'error': 'Session not found',
-                'total_records': 0,
-                'critical_cases': 0,
-                'avg_risk_score': 0,
-                'whitelisted_records': 0,
-                'processing_complete': False,
-                'current_chunk': 0,
-                'total_chunks': 0,
-                'chunk_progress': 0,
-                'timestamp': datetime.utcnow().isoformat()
-            }), 200  # Return 200 to prevent JS errors
-        
-        # Get basic stats safely
-        try:
-            stats = session_manager.get_processing_stats(session_id)
-        except Exception as e:
-            logger.warning(f"Could not get processing stats: {str(e)}")
-            stats = {}
+        session = ProcessingSession.query.get_or_404(session_id)
 
-        try:
-            ml_insights = ml_engine.get_insights(session_id)
-        except Exception as e:
-            logger.warning(f"Could not get ML insights: {str(e)}")
-            ml_insights = {}
+        # Get basic stats
+        stats = session_manager.get_processing_stats(session_id)
+        ml_insights = ml_engine.get_insights(session_id)
 
-        # Get real-time counts safely with proper filtering
-        try:
-            total_records = EmailRecord.query.filter_by(session_id=session_id).count()
-        except:
-            total_records = session.processed_records or 0
+        # Get real-time counts
+        total_records = EmailRecord.query.filter_by(session_id=session_id).count()
+        critical_cases = EmailRecord.query.filter_by(
+            session_id=session_id, 
+            risk_level='Critical'
+        ).filter(EmailRecord.whitelisted != True).count()
 
-        try:
-            from sqlalchemy import and_, or_
-            critical_cases = EmailRecord.query.filter(
-                and_(
-                    EmailRecord.session_id == session_id,
-                    EmailRecord.risk_level == 'Critical',
-                    or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
-                    or_(EmailRecord.excluded_by_rule.is_(None), EmailRecord.excluded_by_rule == '')
-                )
-            ).count()
-        except Exception as e:
-            logger.warning(f"Error counting critical cases: {str(e)}")
-            critical_cases = 0
-
-        try:
-            whitelisted_records = EmailRecord.query.filter(
-                and_(
-                    EmailRecord.session_id == session_id,
-                    EmailRecord.whitelisted == True
-                )
-            ).count()
-        except Exception as e:
-            logger.warning(f"Error counting whitelisted records: {str(e)}")
-            whitelisted_records = 0
-
-        # Calculate chunk progress safely
-        current_chunk = session.current_chunk or 0
-        total_chunks = session.total_chunks or 0
-        chunk_progress = int((current_chunk / max(total_chunks, 1)) * 100) if total_chunks > 0 else 0
+        whitelisted_records = EmailRecord.query.filter_by(
+            session_id=session_id,
+            whitelisted=True
+        ).count()
 
         return jsonify({
             'total_records': total_records,
             'critical_cases': critical_cases,
-            'avg_risk_score': ml_insights.get('average_risk_score', 0) or 0,
+            'avg_risk_score': ml_insights.get('average_risk_score', 0),
             'whitelisted_records': whitelisted_records,
-            'processing_complete': session.status == 'completed',
-            'current_chunk': current_chunk,
-            'total_chunks': total_chunks,
-            'chunk_progress': min(chunk_progress, 100),
+            'processing_complete': stats.get('session_info', {}).get('status') == 'completed',
+            'current_chunk': session.current_chunk or 0,
+            'total_chunks': session.total_chunks or 0,
+            'chunk_progress': int((session.current_chunk or 0) / max(session.total_chunks or 1, 1) * 100),
             'timestamp': datetime.utcnow().isoformat()
         })
 
     except Exception as e:
-        logger.error(f"Error getting dashboard stats for session {session_id}: {str(e)}")
-        return jsonify({
-            'error': f'Internal server error: {str(e)}',
-            'total_records': 0,
-            'critical_cases': 0,
-            'avg_risk_score': 0,
-            'whitelisted_records': 0,
-            'processing_complete': False,
-            'current_chunk': 0,
-            'total_chunks': 0,
-            'chunk_progress': 0,
-            'timestamp': datetime.utcnow().isoformat()
-        }), 200  # Return 200 to prevent JS errors
+        logger.error(f"Error getting dashboard stats: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/dashboard/<session_id>')
 def dashboard(session_id):
     """Main dashboard with processing statistics and ML insights"""
     session = ProcessingSession.query.get_or_404(session_id)
 
-    # Only redirect to processing if explicitly not completed
-    # This allows users to manually navigate to dashboard after completion
-    if session.status in ['uploaded', 'processing'] and not request.args.get('force'):
+    # If still processing, show processing view
+    if session.status in ['uploaded', 'processing']:
         return render_template('processing.html', session=session)
 
     # Get processing statistics
@@ -460,79 +250,41 @@ def dashboard(session_id):
     # Get workflow statistics for the dashboard
     workflow_stats = {}
     try:
-        total_records_in_db = EmailRecord.query.filter_by(session_id=session_id).count()
-        logger.info(f"Dashboard - Session {session_id}: Found {total_records_in_db} total records")
-        
         # Count excluded records
         excluded_count = EmailRecord.query.filter(
             EmailRecord.session_id == session_id,
-            EmailRecord.excluded_by_rule.isnot(None),
-            EmailRecord.excluded_by_rule != '',
-            EmailRecord.excluded_by_rule != 'null'
+            EmailRecord.excluded_by_rule.isnot(None)
         ).count()
-        logger.info(f"Dashboard - Session {session_id}: {excluded_count} excluded records")
 
-        # Count whitelisted records with fallback logic
+        # Count whitelisted records  
         whitelisted_count = EmailRecord.query.filter_by(
             session_id=session_id,
             whitelisted=True
         ).count()
-        
-        # If no whitelisted records found, check case_status
-        if whitelisted_count == 0:
-            alt_whitelisted_count = EmailRecord.query.filter_by(
-                session_id=session_id,
-                case_status='Whitelisted'
-            ).count()
-            if alt_whitelisted_count > 0:
-                whitelisted_count = alt_whitelisted_count
-                logger.info(f"Dashboard - Session {session_id}: Found {alt_whitelisted_count} records with Whitelisted status")
-        
-        logger.info(f"Dashboard - Session {session_id}: {whitelisted_count} whitelisted records")
 
         # Count records with rule matches
         rules_matched_count = EmailRecord.query.filter(
             EmailRecord.session_id == session_id,
-            EmailRecord.rule_matches.isnot(None),
-            EmailRecord.rule_matches != '',
-            EmailRecord.rule_matches != 'null'
+            EmailRecord.rule_matches.isnot(None)
         ).count()
-        logger.info(f"Dashboard - Session {session_id}: {rules_matched_count} records with rule matches")
 
-        # Count ML analyzed records (better indicator of processing progress)
-        ml_analyzed_count = EmailRecord.query.filter(
-            EmailRecord.session_id == session_id,
-            EmailRecord.ml_risk_score.isnot(None)
+        # Count critical cases
+        critical_cases_count = EmailRecord.query.filter_by(
+            session_id=session_id,
+            risk_level='Critical'
         ).count()
-        
-        # Count actual critical cases
-        critical_cases_count = EmailRecord.query.filter(
-            EmailRecord.session_id == session_id,
-            EmailRecord.risk_level == 'Critical'
-        ).filter(
-            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
-        ).count()
-        
-        logger.info(f"Dashboard - Session {session_id}: {critical_cases_count} critical cases, {ml_analyzed_count} ML analyzed")
 
         workflow_stats = {
             'excluded_count': excluded_count,
             'whitelisted_count': whitelisted_count,
             'rules_matched_count': rules_matched_count,
-            'critical_cases_count': ml_analyzed_count  # Show ML analyzed count as it's more informative
+            'critical_cases_count': critical_cases_count
         }
     except Exception as e:
         logger.warning(f"Could not get workflow stats for dashboard: {str(e)}")
-        workflow_stats = {
-            'excluded_count': 0,
-            'whitelisted_count': 0,
-            'rules_matched_count': 0,
-            'critical_cases_count': 0
-        }
 
     return render_template('dashboard.html', 
-                         session=session,
-                         session_id=session_id,
+                         session=session, 
                          stats=stats,
                          ml_insights=ml_insights,
                          bau_analysis=bau_analysis,
@@ -544,14 +296,14 @@ def reports_dashboard(session_id):
     """Professional reporting dashboard for email cases"""
     try:
         session = ProcessingSession.query.get_or_404(session_id)
-        
+
         # Get cases from database with comprehensive filtering
         cases_query = EmailRecord.query.filter_by(session_id=session_id).filter(
             db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
         )
-        
+
         cases = cases_query.order_by(EmailRecord.ml_risk_score.desc()).limit(500).all()
-        
+
         # Calculate comprehensive statistics
         total_cases = cases_query.count()
         high_risk_cases = cases_query.filter(EmailRecord.risk_level == 'High').count()
@@ -559,7 +311,7 @@ def reports_dashboard(session_id):
         pending_cases = cases_query.filter(
             db.or_(EmailRecord.case_status.is_(None), EmailRecord.case_status == 'Active')
         ).count()
-        
+
         # Convert database records to display format
         case_records = []
         for case in cases:
@@ -572,7 +324,7 @@ def reports_dashboard(session_id):
                     case_time = datetime.now()
             elif case_time is None:
                 case_time = datetime.now()
-            
+
             case_records.append({
                 'record_id': case.record_id or 'Unknown',
                 'sender_email': case.sender or 'Unknown',
@@ -586,7 +338,7 @@ def reports_dashboard(session_id):
                 'attachments': case.attachments or '',
                 'policy_name': getattr(case, 'policy_name', 'Standard')
             })
-        
+
         context = {
             'session': session,
             'cases': case_records,
@@ -595,9 +347,9 @@ def reports_dashboard(session_id):
             'resolved_cases': resolved_cases,
             'pending_cases': pending_cases
         }
-        
+
         return render_template('reports_dashboard.html', **context)
-        
+
     except Exception as e:
         logger.error(f"Reports dashboard error for session {session_id}: {str(e)}")
         flash('Error loading reports dashboard', 'error')
@@ -614,7 +366,7 @@ def cases(session_id):
     risk_level = request.args.get('risk_level', '')
     case_status = request.args.get('case_status', '')
     search = request.args.get('search', '')
-    
+
     # Handle "show all" functionality
     if per_page_param == 'all':
         # Get total count of records that match the filter criteria
@@ -641,7 +393,7 @@ def cases(session_id):
                     EmailRecord.bunit.ilike(search_term)
                 )
             )
-        
+
         total_records = count_query.count()
         per_page = max(total_records, 1)  # Set per_page to actual total count
         page = 1  # Reset to first page when showing all
@@ -952,62 +704,50 @@ def create_rule():
         if isinstance(conditions, str):
             try:
                 # Validate JSON if it's a string
-                conditions = json.loads(conditions)
+                json.loads(conditions)
             except json.JSONDecodeError:
-                return jsonify({'success': False, 'message': 'Invalid JSON format in conditions'}), 400
+                return jsonify({'success': False, 'message': 'Invalid JSON in conditions'}), 400
+
+        # Process actions
+        actions = data.get('actions', {})
+        if isinstance(actions, str):
+            if actions == 'flag':
+                actions = {'flag': True}
+            else:
+                try:
+                    actions = json.loads(actions)
+                except json.JSONDecodeError:
+                    actions = {'flag': True}
 
         # Create new rule
         rule = Rule(
             name=data['name'],
             rule_type=rule_type,
-            conditions=json.dumps(conditions) if not isinstance(conditions, str) else conditions,
-            priority=data.get('priority', 'Medium'),
-            is_active=data.get('is_active', True),
-            description=data.get('description', '')
+            description=data.get('description', ''),
+            priority=data.get('priority', 50),
+            conditions=conditions,
+            actions=actions,
+            is_active=data.get('is_active', True)
         )
 
         db.session.add(rule)
         db.session.commit()
 
+        logger.info(f"Created new rule: {rule.name} (ID: {rule.id}, Type: {rule_type})")
+        logger.info(f"Rule conditions: {conditions}")
+        logger.info(f"Rule actions: {actions}")
+
         return jsonify({
             'success': True,
-            'message': f'{rule_type.title()} rule created successfully',
-            'rule_id': rule.id
+            'message': 'Rule created successfully',
+            'rule_id': rule.id,
+            'rule_type': rule_type
         })
 
     except Exception as e:
         logger.error(f"Error creating rule: {str(e)}")
         db.session.rollback()
-        return jsonify({'success': False, 'message': f'Error creating rule: {str(e)}'}), 500
-
-@app.route('/api/fix-stuck-session/<session_id>', methods=['POST'])
-def fix_stuck_session(session_id):
-    """Manually fix a stuck processing session"""
-    try:
-        logger.info(f"Manual fix requested for session {session_id}")
-        
-        success = data_processor.fix_stuck_session(session_id)
-        
-        if success:
-            return jsonify({
-                'success': True,
-                'message': f'Session {session_id} has been fixed and marked as completed',
-                'status': 'completed'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': f'Failed to fix session {session_id} - no records found',
-                'status': 'error'
-            })
-            
-    except Exception as e:
-        logger.error(f"Error fixing stuck session {session_id}: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'Error fixing session: {str(e)}',
-            'status': 'error'
-        }), 500
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/rules/<int:rule_id>', methods=['GET'])
 def get_rule(rule_id):
@@ -1109,30 +849,30 @@ def api_cases_data(session_id):
         cases_query = EmailRecord.query.filter_by(session_id=session_id).filter(
             db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
         )
-        
+
         cases = cases_query.order_by(EmailRecord.ml_risk_score.desc()).all()
-        
+
         # Calculate distributions for charts
         status_distribution = {'Active': 0, 'Cleared': 0, 'Escalated': 0}
         risk_distribution = {'High': 0, 'Medium': 0, 'Low': 0}
         domain_counts = {}
         timeline_data = {}
-        
+
         for case in cases:
             # Status distribution
             status = case.case_status or 'Active'
             if status in status_distribution:
                 status_distribution[status] += 1
-            
+
             # Risk distribution
             risk = case.risk_level or 'Low'
             if risk in risk_distribution:
                 risk_distribution[risk] += 1
-            
+
             # Domain counts
             domain = case.recipients_email_domain or 'Unknown'
             domain_counts[domain] = domain_counts.get(domain, 0) + 1
-            
+
             # Timeline data (by date)
             if case.time:
                 try:
@@ -1145,15 +885,15 @@ def api_cases_data(session_id):
                 except:
                     # Skip invalid dates
                     pass
-        
+
         # Prepare top domains (top 10)
         top_domains = sorted(domain_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-        
+
         # Prepare timeline data (last 30 days)
         timeline_sorted = sorted(timeline_data.items())
         timeline_labels = [item[0] for item in timeline_sorted[-30:]]
         timeline_values = [item[1] for item in timeline_sorted[-30:]]
-        
+
         return jsonify({
             'cases': [
                 {
@@ -1179,7 +919,7 @@ def api_cases_data(session_id):
                 'data': timeline_values
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting cases data for session {session_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -1189,28 +929,28 @@ def api_export_cases(session_id):
     """Export selected cases to CSV"""
     try:
         case_ids = json.loads(request.form.get('case_ids', '[]'))
-        
+
         if not case_ids:
             return jsonify({'error': 'No cases selected'}), 400
-        
+
         # Get selected cases
         cases = EmailRecord.query.filter(
             EmailRecord.session_id == session_id,
             EmailRecord.record_id.in_(case_ids)
         ).all()
-        
+
         # Create CSV content
         from io import StringIO
         output = StringIO()
         writer = csv.writer(output)
-        
+
         # Write header
         writer.writerow([
             'Record ID', 'Sender', 'Subject', 'Recipients', 'Domain',
             'Risk Level', 'ML Score', 'Status', 'Time', 'Attachments',
             'Justification', 'Policy Name'
         ])
-        
+
         # Write data
         for case in cases:
             # Handle time formatting safely
@@ -1224,7 +964,7 @@ def api_export_cases(session_id):
                     time_str = case_time.strftime('%Y-%m-%d %H:%M:%S')
                 except:
                     time_str = str(case.time)
-            
+
             writer.writerow([
                 case.record_id,
                 case.sender,
@@ -1239,7 +979,7 @@ def api_export_cases(session_id):
                 case.justification,
                 getattr(case, 'policy_name', 'Standard')
             ])
-        
+
         # Create response
         output.seek(0)
         response = send_file(
@@ -1248,9 +988,9 @@ def api_export_cases(session_id):
             as_attachment=True,
             download_name=f'email_cases_export_{session_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error exporting cases for session {session_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -1262,27 +1002,27 @@ def api_bulk_update_status(session_id):
         data = request.get_json()
         case_ids = data.get('case_ids', [])
         new_status = data.get('new_status', '')
-        
+
         if not case_ids or not new_status:
             return jsonify({'error': 'Missing case IDs or status'}), 400
-        
+
         if new_status not in ['Active', 'Cleared', 'Escalated']:
             return jsonify({'error': 'Invalid status'}), 400
-        
+
         # Update cases
         updated_count = EmailRecord.query.filter(
             EmailRecord.session_id == session_id,
             EmailRecord.record_id.in_(case_ids)
         ).update({'case_status': new_status}, synchronize_session=False)
-        
+
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': f'Updated {updated_count} cases to {new_status}',
             'updated_count': updated_count
         })
-        
+
     except Exception as e:
         logger.error(f"Error bulk updating cases for session {session_id}: {str(e)}")
         db.session.rollback()
@@ -1296,11 +1036,11 @@ def api_generate_report(session_id):
         cases = EmailRecord.query.filter_by(session_id=session_id).filter(
             db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
         ).all()
-        
+
         # Create comprehensive report content
         output = StringIO()
         writer = csv.writer(output)
-        
+
         # Write header with comprehensive fields
         writer.writerow([
             'Record ID', 'Sender', 'Subject', 'Recipients', 'Domain',
@@ -1308,7 +1048,7 @@ def api_generate_report(session_id):
             'Justification', 'User Response', 'Department', 'Business Unit',
             'Policy Name', 'Rule Matches', 'Whitelisted'
         ])
-        
+
         # Write all cases data
         for case in cases:
             # Handle time formatting safely
@@ -1322,7 +1062,7 @@ def api_generate_report(session_id):
                     time_str = case_time.strftime('%Y-%m-%d %H:%M:%S')
                 except:
                     time_str = str(case.time)
-            
+
             writer.writerow([
                 case.record_id,
                 case.sender,
@@ -1342,7 +1082,7 @@ def api_generate_report(session_id):
                 case.rule_matches,
                 case.whitelisted
             ])
-        
+
         # Create response
         output.seek(0)
         response = send_file(
@@ -1351,9 +1091,9 @@ def api_generate_report(session_id):
             as_attachment=True,
             download_name=f'email_security_report_{session_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error generating report for session {session_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -1925,7 +1665,30 @@ def admin_clear_logs():
         logger.error(f"Error clearing logs: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
-# This route is now handled by the delete_session function above
+@app.route('/admin/session/<session_id>', methods=['DELETE'])
+def admin_delete_session(session_id):
+    """Delete a processing session and all associated data"""
+    try:
+        session = ProcessingSession.query.get_or_404(session_id)
+
+        # Delete associated records
+        EmailRecord.query.filter_by(session_id=session_id).delete()
+        ProcessingError.query.filter_by(session_id=session_id).delete()
+
+        # Delete session files
+        session_manager.cleanup_session(session_id)
+
+        # Delete session record
+        db.session.delete(session)
+        db.session.commit()
+
+        logger.info(f"Deleted session {session_id}")
+        return jsonify({'status': 'deleted', 'message': 'Session deleted successfully'})
+
+    except Exception as e:
+        logger.error(f"Error deleting session {session_id}: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 
 
@@ -2179,9 +1942,7 @@ def api_sender_details(session_id, sender_email):
 def delete_session(session_id):
     """Delete a processing session and all associated data"""
     try:
-        session = ProcessingSession.query.get(session_id)
-        if not session:
-            return jsonify({'error': 'Session not found'}), 404
+        session = ProcessingSession.query.get_or_404(session_id)
 
         # Delete associated email records
         EmailRecord.query.filter_by(session_id=session_id).delete()
@@ -2191,33 +1952,25 @@ def delete_session(session_id):
 
         # Delete uploaded file if it exists
         if session.data_path and os.path.exists(session.data_path):
-            try:
-                os.remove(session.data_path)
-            except OSError as e:
-                logger.warning(f"Could not delete data file {session.data_path}: {str(e)}")
+            os.remove(session.data_path)
 
-        # Check for upload files
-        upload_folder = app.config.get('UPLOAD_FOLDER', 'uploads')
-        if os.path.exists(upload_folder):
-            upload_files = [f for f in os.listdir(upload_folder) if f.startswith(session_id)]
-            for file in upload_files:
-                file_path = os.path.join(upload_folder, file)
-                if os.path.exists(file_path):
-                    try:
-                        os.remove(file_path)
-                    except OSError as e:
-                        logger.warning(f"Could not delete upload file {file_path}: {str(e)}")
+        # Check for upload file
+        upload_files = [f for f in os.listdir(app.config.get('UPLOAD_FOLDER', 'uploads')) 
+                       if f.startswith(session_id)]
+        for file in upload_files:
+            file_path = os.path.join(app.config.get('UPLOAD_FOLDER', 'uploads'), file)
+            if os.path.exists(file_path):
+                os.remove(file_path)
 
         # Delete session record
         db.session.delete(session)
         db.session.commit()
 
         logger.info(f"Session {session_id} deleted successfully")
-        return jsonify({'status': 'deleted', 'message': 'Session deleted successfully'})
+        return jsonify({'status': 'deleted'})
 
     except Exception as e:
         logger.error(f"Error deleting session {session_id}: {str(e)}")
-        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/sessions/cleanup', methods=['POST'])
@@ -3037,17 +2790,17 @@ def debug_whitelist_matching(session_id):
         # Get active whitelist domains
         whitelist_domains = WhitelistDomain.query.filter_by(is_active=True).all()
         whitelist_set = {domain.domain.lower().strip() for domain in whitelist_domains}
-        
+
         # Get unique domains from email records
         records = EmailRecord.query.filter_by(session_id=session_id).all()
         email_domains = {record.recipients_email_domain.lower().strip() 
                         for record in records 
                         if record.recipients_email_domain}
-        
+
         # Check matches
         matches = []
         non_matches = []
-        
+
         for email_domain in email_domains:
             matched = False
             for whitelist_domain in whitelist_set:
@@ -3063,10 +2816,10 @@ def debug_whitelist_matching(session_id):
                     })
                     matched = True
                     break
-            
+
             if not matched:
                 non_matches.append(email_domain)
-        
+
         return jsonify({
             'whitelist_domains': list(whitelist_set),
             'email_domains': list(email_domains),
@@ -3076,7 +2829,7 @@ def debug_whitelist_matching(session_id):
             'total_matches': len(matches),
             'total_non_matches': len(non_matches)
         })
-        
+
     except Exception as e:
         logger.error(f"Error in whitelist debug for session {session_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -3087,7 +2840,7 @@ def debug_rules(session_id):
     try:
         # Get all active rules
         all_rules = Rule.query.filter_by(is_active=True).all()
-        
+
         rule_info = []
         for rule in all_rules:
             rule_info.append({
@@ -3099,10 +2852,10 @@ def debug_rules(session_id):
                 'priority': rule.priority,
                 'is_active': rule.is_active
             })
-        
+
         # Get sample records to test against
         sample_records = EmailRecord.query.filter_by(session_id=session_id).limit(5).all()
-        
+
         sample_data = []
         for record in sample_records:
             sample_data.append({
@@ -3113,102 +2866,16 @@ def debug_rules(session_id):
                 'leaver': record.leaver,
                 'attachments': record.attachments
             })
-        
+
         return jsonify({
             'rules': rule_info,
             'total_rules': len(all_rules),
             'sample_records': sample_data,
             'session_id': session_id
         })
-        
+
     except Exception as e:
         logger.error(f"Error in rules debug for session {session_id}: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/debug-whitelist-status/<session_id>')
-def debug_whitelist_status(session_id):
-    """Debug endpoint to check whitelist status of records"""
-    try:
-        # Get all records for this session
-        all_records = EmailRecord.query.filter_by(session_id=session_id).all()
-        
-        # Get whitelisted records
-        whitelisted_records = EmailRecord.query.filter_by(
-            session_id=session_id, 
-            whitelisted=True
-        ).all()
-        
-        # Get records that should appear in cases (non-whitelisted, active)
-        case_records = EmailRecord.query.filter_by(session_id=session_id).filter(
-            EmailRecord.whitelisted != True
-        ).filter(
-            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
-        ).filter(
-            db.or_(
-                EmailRecord.case_status.is_(None),
-                EmailRecord.case_status == 'Active'
-            )
-        ).all()
-        
-        # Get unique domains and their whitelist status
-        domain_status = {}
-        unique_domains = set()
-        for record in all_records:
-            domain = record.recipients_email_domain
-            if domain:
-                unique_domains.add(domain.lower().strip())
-                if domain not in domain_status:
-                    domain_status[domain] = {
-                        'total_records': 0,
-                        'whitelisted_records': 0,
-                        'case_records': 0,
-                        'sample_whitelisted': record.whitelisted
-                    }
-                domain_status[domain]['total_records'] += 1
-                if record.whitelisted:
-                    domain_status[domain]['whitelisted_records'] += 1
-                if record in case_records:
-                    domain_status[domain]['case_records'] += 1
-        
-        # Get active whitelist domains
-        active_whitelist = WhitelistDomain.query.filter_by(is_active=True).all()
-        whitelist_domains = [w.domain for w in active_whitelist]
-        
-        # Check potential matches
-        potential_matches = []
-        whitelist_set = {domain.lower().strip() for domain in whitelist_domains}
-        
-        for data_domain in unique_domains:
-            for whitelist_domain in whitelist_set:
-                if (data_domain == whitelist_domain or 
-                    data_domain in whitelist_domain or 
-                    whitelist_domain in data_domain or
-                    data_domain.split('.')[0] == whitelist_domain.split('.')[0]):
-                    potential_matches.append({
-                        'data_domain': data_domain,
-                        'whitelist_domain': whitelist_domain,
-                        'match_type': 'exact' if data_domain == whitelist_domain else 'partial'
-                    })
-        
-        return jsonify({
-            'total_records': len(all_records),
-            'whitelisted_records': len(whitelisted_records),
-            'case_records': len(case_records),
-            'unique_domains_in_data': sorted(list(unique_domains)),
-            'active_whitelist_domains': whitelist_domains,
-            'potential_matches': potential_matches,
-            'domain_status': domain_status,
-            'sample_whitelisted_records': [
-                {
-                    'record_id': r.record_id,
-                    'domain': r.recipients_email_domain,
-                    'whitelisted': r.whitelisted
-                } for r in whitelisted_records[:10]
-            ]
-        })
-        
-    except Exception as e:
-        logger.error(f"Error in whitelist debug for session {session_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/monthly-report')
@@ -3223,7 +2890,7 @@ def api_monthly_report_sessions():
         sessions = ProcessingSession.query.filter_by(status='completed').order_by(
             ProcessingSession.upload_time.desc()
         ).all()
-        
+
         sessions_data = []
         for session in sessions:
             sessions_data.append({
@@ -3233,12 +2900,12 @@ def api_monthly_report_sessions():
                 'total_records': session.total_records or 0,
                 'status': session.status
             })
-        
+
         return jsonify({
             'sessions': sessions_data,
             'total': len(sessions_data)
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting monthly report sessions: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -3251,30 +2918,30 @@ def api_generate_monthly_report():
         session_ids = data.get('session_ids', [])
         period = data.get('period', 'current_month')
         report_format = data.get('format', 'executive')
-        
+
         if not session_ids:
             return jsonify({'error': 'No sessions selected'}), 400
-        
+
         # Get data from selected sessions
         query = EmailRecord.query.filter(EmailRecord.session_id.in_(session_ids))
-        
+
         # Apply date filtering if custom period
         if period == 'custom':
             start_date = data.get('start_date')
             end_date = data.get('end_date')
             if start_date and end_date:
                 query = query.filter(EmailRecord.time.between(start_date, end_date))
-        
+
         all_records = query.all()
-        
+
         if not all_records:
             return jsonify({'error': 'No data found for selected sessions and period'}), 400
-        
+
         # Generate comprehensive report data
         report_data = generate_monthly_report_data(all_records, session_ids, period, report_format)
-        
+
         return jsonify(report_data)
-        
+
     except Exception as e:
         logger.error(f"Error generating monthly report: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -3284,23 +2951,23 @@ def generate_monthly_report_data(records, session_ids, period, report_format):
     from collections import defaultdict, Counter
     from datetime import datetime, timedelta
     import statistics
-    
+
     total_records = len(records)
-    
+
     # Calculate summary statistics
     risk_counts = Counter([r.risk_level for r in records if r.risk_level])
     status_counts = Counter([r.case_status for r in records if r.case_status])
-    
+
     security_incidents = sum([
         risk_counts.get('Critical', 0),
         risk_counts.get('High', 0)
     ])
-    
+
     cases_resolved = sum([
         status_counts.get('Cleared', 0),
         status_counts.get('Escalated', 0)
     ])
-    
+
     # Calculate trends (simplified for demo)
     summary = {
         'total_emails': total_records,
@@ -3312,7 +2979,7 @@ def generate_monthly_report_data(records, session_ids, period, report_format):
         'emails_growth': 15,  # Simulated growth percentage
         'response_improvement': 8  # Simulated improvement
     }
-    
+
     # Risk trends over time (simplified)
     risk_trends = {
         'labels': ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
@@ -3320,7 +2987,7 @@ def generate_monthly_report_data(records, session_ids, period, report_format):
         'high': [risk_counts.get('High', 0) // 4] * 4,
         'medium': [risk_counts.get('Medium', 0) // 4] * 4
     }
-    
+
     # Risk distribution
     risk_distribution = {
         'critical': risk_counts.get('Critical', 0),
@@ -3328,28 +2995,28 @@ def generate_monthly_report_data(records, session_ids, period, report_format):
         'medium': risk_counts.get('Medium', 0),
         'low': risk_counts.get('Low', 0)
     }
-    
+
     # Department volume analysis
     dept_counts = Counter([r.department for r in records if r.department])
     top_depts = dept_counts.most_common(10)
-    
+
     department_volume = {
         'labels': [dept[0] for dept in top_depts],
         'data': [dept[1] for dept in top_depts]
     }
-    
+
     # Threat domains analysis
     domain_risks = defaultdict(int)
     for record in records:
         if record.recipients_email_domain and record.risk_level in ['Critical', 'High']:
             domain_risks[record.recipients_email_domain] += 1
-    
+
     top_threats = sorted(domain_risks.items(), key=lambda x: x[1], reverse=True)[:10]
     threat_domains = {
         'labels': [domain[0] for domain in top_threats],
         'data': [domain[1] for domain in top_threats]
     }
-    
+
     # ML performance metrics (simulated based on actual data)
     ml_scores = [r.ml_risk_score for r in records if r.ml_risk_score is not None]
     ml_performance = {
@@ -3359,20 +3026,20 @@ def generate_monthly_report_data(records, session_ids, period, report_format):
         'f1_score': 91.0,
         'specificity': 96.1
     }
-    
+
     # Response time analysis
     response_times = {
         'labels': ['Critical', 'High', 'Medium', 'Low'],
         'data': [1.2, 2.5, 4.8, 12.0]  # Average hours by risk level
     }
-    
+
     # Policy effectiveness
     policy_effectiveness = {
         'labels': ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
         'detection_rate': [92, 94, 95, 96],
         'false_positive_rate': [8, 6, 5, 4]
     }
-    
+
     # Top risks analysis
     top_risks = [
         {
@@ -3409,7 +3076,7 @@ def generate_monthly_report_data(records, session_ids, period, report_format):
             'action_priority': 'medium'
         }
     ]
-    
+
     # Recommendations
     recommendations = {
         'security': [
@@ -3441,7 +3108,7 @@ def generate_monthly_report_data(records, session_ids, period, report_format):
             }
         ]
     }
-    
+
     return {
         'summary': summary,
         'risk_trends': risk_trends,
@@ -3466,20 +3133,20 @@ def api_export_monthly_report_pdf():
         # In production, you would use libraries like WeasyPrint or ReportLab
         data = request.get_json()
         session_ids = data.get('session_ids', [])
-        
+
         # Get all records from selected sessions
         records = EmailRecord.query.filter(EmailRecord.session_id.in_(session_ids)).all()
-        
+
         # Create CSV content for now (would be PDF in production)
         output = StringIO()
         writer = csv.writer(output)
-        
+
         # Write header
         writer.writerow([
             'Session ID', 'Record ID', 'Sender', 'Subject', 'Risk Level', 
             'ML Score', 'Status', 'Time', 'Department', 'Attachments'
         ])
-        
+
         # Write data
         for record in records:
             writer.writerow([
@@ -3494,7 +3161,7 @@ def api_export_monthly_report_pdf():
                 record.department,
                 record.attachments
             ])
-        
+
         # Create response
         output.seek(0)
         response = send_file(
@@ -3503,9 +3170,9 @@ def api_export_monthly_report_pdf():
             as_attachment=True,
             download_name=f'monthly_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error exporting monthly report PDF: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -3517,28 +3184,28 @@ def api_export_monthly_report_excel():
         # For now, return a CSV export (would be Excel in production with openpyxl)
         data = request.get_json()
         session_ids = data.get('session_ids', [])
-        
+
         # Get all records from selected sessions
         records = EmailRecord.query.filter(EmailRecord.session_id.in_(session_ids)).all()
-        
+
         # Create comprehensive CSV content
         output = StringIO()
         writer = csv.writer(output)
-        
+
         # Write summary section
         writer.writerow(['MONTHLY EMAIL SECURITY REPORT'])
         writer.writerow(['Generated:', datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
         writer.writerow(['Sessions:', len(session_ids)])
         writer.writerow(['Total Records:', len(records)])
         writer.writerow([])
-        
+
         # Write detailed data
         writer.writerow([
             'Session ID', 'Record ID', 'Sender', 'Subject', 'Recipients Domain',
             'Risk Level', 'ML Score', 'Status', 'Time', 'Department', 
             'Business Unit', 'Attachments', 'Justification', 'Leaver'
         ])
-        
+
         for record in records:
             writer.writerow([
                 record.session_id,
@@ -3556,7 +3223,7 @@ def api_export_monthly_report_excel():
                 record.justification,
                 record.leaver
             ])
-        
+
         # Create response
         output.seek(0)
         response = send_file(
@@ -3565,42 +3232,11 @@ def api_export_monthly_report_excel():
             as_attachment=True,
             download_name=f'monthly_report_detailed_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error exporting monthly report Excel: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/force-complete-session/<session_id>', methods=['POST'])
-def force_complete_session(session_id):
-    """Force complete a stuck processing session"""
-    try:
-        session = ProcessingSession.query.get_or_404(session_id)
-        
-        if session.status != 'processing':
-            return jsonify({'error': 'Session is not in processing state'}), 400
-        
-        # Force completion
-        session.status = 'completed'
-        session.exclusion_applied = True
-        session.whitelist_applied = True
-        session.rules_applied = True
-        session.ml_applied = True
-        session.completed_at = datetime.utcnow()
-        
-        db.session.commit()
-        
-        logger.info(f"Forced completion for session {session_id}")
-        
-        return jsonify({
-            'success': True,
-            'message': f'Session {session_id} marked as completed',
-            'redirect_url': f'/dashboard/{session_id}'
-        })
-        
-    except Exception as e:
-        logger.error(f"Error forcing completion for session {session_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/reprocess-session/<session_id>', methods=['POST'])
@@ -3653,13 +3289,13 @@ def reprocess_session_data(session_id):
             with app.app_context():
                 try:
                     logger.info(f"Starting re-processing for session {session_id}")
-                    
+
                     # Log current rules
                     active_rules = Rule.query.filter_by(is_active=True).all()
                     logger.info(f"Found {len(active_rules)} active rules for re-processing")
                     for rule in active_rules:
                         logger.info(f"Rule: {rule.name} (Type: {rule.rule_type}, Conditions: {rule.conditions})")
-                    
+
                     data_processor.process_csv(session_id, csv_path)
                     logger.info(f"Background re-processing completed for session {session_id}")
                 except Exception as e:
@@ -3695,7 +3331,7 @@ def reprocess_session_data(session_id):
 def network_dashboard(session_id):
     """Network analysis dashboard for a specific session"""
     session = ProcessingSession.query.get_or_404(session_id)
-    return render_template('network_dashboard.html', session=session, session_id=session_id)
+    return render_template('network_dashboard.html', session=session)
 
 @app.route('/api/network-data/<session_id>', methods=['POST'])
 def api_network_data(session_id):
