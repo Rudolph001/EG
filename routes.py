@@ -1899,30 +1899,7 @@ def admin_clear_logs():
         logger.error(f"Error clearing logs: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/admin/session/<session_id>', methods=['DELETE'])
-def admin_delete_session(session_id):
-    """Delete a processing session and all associated data"""
-    try:
-        session = ProcessingSession.query.get_or_404(session_id)
-
-        # Delete associated records
-        EmailRecord.query.filter_by(session_id=session_id).delete()
-        ProcessingError.query.filter_by(session_id=session_id).delete()
-
-        # Delete session files
-        session_manager.cleanup_session(session_id)
-
-        # Delete session record
-        db.session.delete(session)
-        db.session.commit()
-
-        logger.info(f"Deleted session {session_id}")
-        return jsonify({'status': 'deleted', 'message': 'Session deleted successfully'})
-
-    except Exception as e:
-        logger.error(f"Error deleting session {session_id}: {str(e)}")
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+# This route is now handled by the delete_session function above
 
 
 
@@ -2176,7 +2153,9 @@ def api_sender_details(session_id, sender_email):
 def delete_session(session_id):
     """Delete a processing session and all associated data"""
     try:
-        session = ProcessingSession.query.get_or_404(session_id)
+        session = ProcessingSession.query.get(session_id)
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
 
         # Delete associated email records
         EmailRecord.query.filter_by(session_id=session_id).delete()
@@ -2186,25 +2165,33 @@ def delete_session(session_id):
 
         # Delete uploaded file if it exists
         if session.data_path and os.path.exists(session.data_path):
-            os.remove(session.data_path)
+            try:
+                os.remove(session.data_path)
+            except OSError as e:
+                logger.warning(f"Could not delete data file {session.data_path}: {str(e)}")
 
-        # Check for upload file
-        upload_files = [f for f in os.listdir(app.config.get('UPLOAD_FOLDER', 'uploads')) 
-                       if f.startswith(session_id)]
-        for file in upload_files:
-            file_path = os.path.join(app.config.get('UPLOAD_FOLDER', 'uploads'), file)
-            if os.path.exists(file_path):
-                os.remove(file_path)
+        # Check for upload files
+        upload_folder = app.config.get('UPLOAD_FOLDER', 'uploads')
+        if os.path.exists(upload_folder):
+            upload_files = [f for f in os.listdir(upload_folder) if f.startswith(session_id)]
+            for file in upload_files:
+                file_path = os.path.join(upload_folder, file)
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                    except OSError as e:
+                        logger.warning(f"Could not delete upload file {file_path}: {str(e)}")
 
         # Delete session record
         db.session.delete(session)
         db.session.commit()
 
         logger.info(f"Session {session_id} deleted successfully")
-        return jsonify({'status': 'deleted'})
+        return jsonify({'status': 'deleted', 'message': 'Session deleted successfully'})
 
     except Exception as e:
         logger.error(f"Error deleting session {session_id}: {str(e)}")
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/sessions/cleanup', methods=['POST'])
