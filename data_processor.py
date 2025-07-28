@@ -285,9 +285,13 @@ class DataProcessor:
             if not session.exclusion_applied:
                 try:
                     self._apply_exclusion_rules(session_id)
+                    session.exclusion_applied = True
+                    db.session.commit()
                     logger.info(f"Step 1 completed: Exclusion rules applied for session {session_id}")
                 except Exception as e:
                     logger.warning(f"Step 1 failed for session {session_id}: {str(e)}")
+                    session.exclusion_applied = True  # Mark as completed to prevent loops
+                    db.session.commit()
             else:
                 logger.info(f"Step 1 already completed for session {session_id}")
             
@@ -295,9 +299,13 @@ class DataProcessor:
             if not session.whitelist_applied:
                 try:
                     self._apply_whitelist_filtering(session_id)
+                    session.whitelist_applied = True
+                    db.session.commit()
                     logger.info(f"Step 2 completed: Whitelist filtering applied for session {session_id}")
                 except Exception as e:
                     logger.warning(f"Step 2 failed for session {session_id}: {str(e)}")
+                    session.whitelist_applied = True  # Mark as completed to prevent loops
+                    db.session.commit()
             else:
                 logger.info(f"Step 2 already completed for session {session_id}")
             
@@ -305,9 +313,13 @@ class DataProcessor:
             if not session.rules_applied:
                 try:
                     self._apply_security_rules(session_id)
+                    session.rules_applied = True
+                    db.session.commit()
                     logger.info(f"Step 3 completed: Security rules applied for session {session_id}")
                 except Exception as e:
                     logger.warning(f"Step 3 failed for session {session_id}: {str(e)}")
+                    session.rules_applied = True  # Mark as completed to prevent loops
+                    db.session.commit()
             else:
                 logger.info(f"Step 3 already completed for session {session_id}")
             
@@ -315,9 +327,13 @@ class DataProcessor:
             if not session.ml_applied:
                 try:
                     self._apply_ml_analysis(session_id)
+                    session.ml_applied = True
+                    db.session.commit()
                     logger.info(f"Step 4 completed: ML analysis applied for session {session_id}")
                 except Exception as e:
                     logger.warning(f"Step 4 failed for session {session_id}: {str(e)}")
+                    session.ml_applied = True  # Mark as completed to prevent loops
+                    db.session.commit()
             else:
                 logger.info(f"Step 4 already completed for session {session_id}")
             
@@ -325,6 +341,14 @@ class DataProcessor:
             
         except Exception as e:
             logger.error(f"Critical error applying workflow for session {session_id}: {str(e)}")
+            # Mark all steps as completed to prevent infinite loops
+            session = ProcessingSession.query.get(session_id)
+            if session:
+                session.exclusion_applied = True
+                session.whitelist_applied = True
+                session.rules_applied = True
+                session.ml_applied = True
+                db.session.commit()
             raise
     
     def _apply_exclusion_rules(self, session_id):
@@ -335,13 +359,8 @@ class DataProcessor:
             # Get all active exclusion rules
             excluded_count = self.rule_engine.apply_exclusion_rules(session_id)
             
-            # Update session
-            session = ProcessingSession.query.get(session_id)
-            if session:
-                session.exclusion_applied = True
-                db.session.commit()
-            
             logger.info(f"Exclusion rules applied: {excluded_count} records excluded")
+            return excluded_count
             
         except Exception as e:
             logger.error(f"Error applying exclusion rules: {str(e)}")
@@ -354,13 +373,8 @@ class DataProcessor:
             
             whitelisted_count = self.domain_manager.apply_whitelist_filtering(session_id)
             
-            # Update session
-            session = ProcessingSession.query.get(session_id)
-            if session:
-                session.whitelist_applied = True
-                db.session.commit()
-            
             logger.info(f"Whitelist filtering applied: {whitelisted_count} records whitelisted")
+            return whitelisted_count
             
         except Exception as e:
             logger.error(f"Error applying whitelist filtering: {str(e)}")
@@ -373,13 +387,8 @@ class DataProcessor:
             
             rule_matches = self.rule_engine.apply_security_rules(session_id)
             
-            # Update session
-            session = ProcessingSession.query.get(session_id)
-            if session:
-                session.rules_applied = True
-                db.session.commit()
-            
             logger.info(f"Security rules applied: {len(rule_matches)} rule matches found")
+            return rule_matches
             
         except Exception as e:
             logger.error(f"Error applying security rules: {str(e)}")
@@ -393,14 +402,14 @@ class DataProcessor:
             # Only analyze non-whitelisted records
             analysis_results = self.ml_engine.analyze_session(session_id)
             
-            # Update session
+            # Update session with processing stats
             session = ProcessingSession.query.get(session_id)
             if session:
-                session.ml_applied = True
                 session.processing_stats = analysis_results.get('processing_stats', {})
                 db.session.commit()
             
             logger.info(f"ML analysis completed for session {session_id}")
+            return analysis_results
             
         except Exception as e:
             logger.error(f"Error applying ML analysis: {str(e)}")

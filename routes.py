@@ -131,10 +131,15 @@ def processing_status(session_id):
                 'total_chunks': 0,
                 'chunk_progress_percent': 0,
                 'error_message': 'Session not found',
-                'workflow_stats': {}
-            }), 404
+                'workflow_stats': {
+                    'excluded_count': 0,
+                    'whitelisted_count': 0,
+                    'rules_matched_count': 0,
+                    'critical_cases_count': 0
+                }
+            }), 200
 
-        # Get workflow statistics safely
+        # Initialize workflow statistics
         workflow_stats = {
             'excluded_count': 0,
             'whitelisted_count': 0,
@@ -142,40 +147,55 @@ def processing_status(session_id):
             'critical_cases_count': 0
         }
         
-        if session.status in ['processing', 'completed']:
+        # Get workflow statistics safely - only if session has processed records
+        if session.processed_records and session.processed_records > 0:
             try:
-                # Count excluded records
-                excluded_count = EmailRecord.query.filter(
-                    EmailRecord.session_id == session_id,
-                    EmailRecord.excluded_by_rule.isnot(None)
-                ).count()
+                # Use more efficient counting with proper error handling
+                from sqlalchemy import func, and_, or_
+                
+                # Count excluded records (records that have been excluded by rules)
+                try:
+                    excluded_count = db.session.query(func.count(EmailRecord.id)).filter(
+                        EmailRecord.session_id == session_id,
+                        EmailRecord.excluded_by_rule.isnot(None)
+                    ).scalar() or 0
+                    workflow_stats['excluded_count'] = excluded_count
+                except Exception as e:
+                    logger.warning(f"Error counting excluded records: {str(e)}")
 
-                # Count whitelisted records  
-                whitelisted_count = EmailRecord.query.filter_by(
-                    session_id=session_id,
-                    whitelisted=True
-                ).count()
+                # Count whitelisted records
+                try:
+                    whitelisted_count = db.session.query(func.count(EmailRecord.id)).filter(
+                        EmailRecord.session_id == session_id,
+                        EmailRecord.whitelisted == True
+                    ).scalar() or 0
+                    workflow_stats['whitelisted_count'] = whitelisted_count
+                except Exception as e:
+                    logger.warning(f"Error counting whitelisted records: {str(e)}")
 
                 # Count records with rule matches
-                rules_matched_count = EmailRecord.query.filter(
-                    EmailRecord.session_id == session_id,
-                    EmailRecord.rule_matches.isnot(None)
-                ).count()
+                try:
+                    rules_matched_count = db.session.query(func.count(EmailRecord.id)).filter(
+                        EmailRecord.session_id == session_id,
+                        EmailRecord.rule_matches.isnot(None)
+                    ).scalar() or 0
+                    workflow_stats['rules_matched_count'] = rules_matched_count
+                except Exception as e:
+                    logger.warning(f"Error counting rule matches: {str(e)}")
 
-                # Count critical cases
-                critical_cases_count = EmailRecord.query.filter_by(
-                    session_id=session_id,
-                    risk_level='Critical'
-                ).count()
+                # Count critical cases (exclude whitelisted records)
+                try:
+                    critical_cases_count = db.session.query(func.count(EmailRecord.id)).filter(
+                        EmailRecord.session_id == session_id,
+                        EmailRecord.risk_level == 'Critical',
+                        or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+                    ).scalar() or 0
+                    workflow_stats['critical_cases_count'] = critical_cases_count
+                except Exception as e:
+                    logger.warning(f"Error counting critical cases: {str(e)}")
 
-                workflow_stats = {
-                    'excluded_count': excluded_count,
-                    'whitelisted_count': whitelisted_count,
-                    'rules_matched_count': rules_matched_count,
-                    'critical_cases_count': critical_cases_count
-                }
             except Exception as e:
-                logger.warning(f"Could not get workflow stats: {str(e)}")
+                logger.warning(f"Could not get workflow stats for session {session_id}: {str(e)}")
 
         # Calculate progress safely
         total_records = session.total_records or 0
@@ -192,7 +212,7 @@ def processing_status(session_id):
             processed_records >= total_records and 
             total_records > 0):
             
-            logger.info(f"Forcing completion for stuck session {session_id}")
+            logger.info(f"Auto-completing stuck session {session_id}")
             session.status = 'completed'
             session.exclusion_applied = True
             session.whitelist_applied = True
@@ -213,6 +233,7 @@ def processing_status(session_id):
             'workflow_stats': workflow_stats,
             'timestamp': datetime.utcnow().isoformat()
         })
+        
     except Exception as e:
         logger.error(f"Error getting processing status for session {session_id}: {str(e)}")
         return jsonify({
@@ -225,7 +246,12 @@ def processing_status(session_id):
             'total_chunks': 0,
             'chunk_progress_percent': 0,
             'error_message': str(e),
-            'workflow_stats': {}
+            'workflow_stats': {
+                'excluded_count': 0,
+                'whitelisted_count': 0,
+                'rules_matched_count': 0,
+                'critical_cases_count': 0
+            }
         }), 200  # Return 200 to prevent JS errors
 
 @app.route('/api/dashboard-stats/<session_id>')

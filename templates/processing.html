@@ -213,30 +213,65 @@
                         fetch(`/api/processing-status/${sessionId}`)
                             .then(response => {
                                 if (!response.ok) {
-                                    throw new Error(`HTTP ${response.status}`);
+                                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                                 }
                                 return response.json();
                             })
                             .then(data => {
-                                if (data.error) {
-                                    console.error('API Error:', data.error);
+                                // Handle API errors gracefully
+                                if (data.error && data.status === 'not_found') {
+                                    console.error('Session not found:', data.error);
+                                    document.getElementById('statusText').textContent = 'Session not found';
                                     return;
                                 }
+
+                                // Update progress elements safely
                                 const progressBar = document.getElementById('progressBar');
                                 const statusText = document.getElementById('statusText');
                                 const progressText = document.getElementById('progressText');
+                                const processedCount = document.getElementById('processedCount');
+                                const totalCount = document.getElementById('totalCount');
+                                const currentChunk = document.getElementById('currentChunk');
+                                const totalChunks = document.getElementById('totalChunks');
 
-                                if (progressBar) {
+                                // Update progress bar
+                                if (progressBar && data.progress_percent !== undefined) {
                                     progressBar.style.width = data.progress_percent + '%';
-                                    progressBar.textContent = data.progress_percent + '%';
+                                    progressBar.setAttribute('aria-valuenow', data.progress_percent);
                                 }
 
-                                if (statusText) {
+                                if (progressText && data.progress_percent !== undefined) {
+                                    progressText.textContent = data.progress_percent + '%';
+                                }
+
+                                // Update status text
+                                if (statusText && data.status) {
                                     statusText.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1) + '...';
                                 }
 
-                                if (progressText) {
-                                    progressText.textContent = data.progress_percent + '%';
+                                // Update counters
+                                if (processedCount && data.processed_records !== undefined) {
+                                    processedCount.textContent = data.processed_records;
+                                }
+                                if (totalCount && data.total_records !== undefined && data.total_records > 0) {
+                                    totalCount.textContent = data.total_records;
+                                }
+                                if (currentChunk && data.current_chunk !== undefined) {
+                                    currentChunk.textContent = data.current_chunk;
+                                }
+                                if (totalChunks && data.total_chunks !== undefined && data.total_chunks > 0) {
+                                    totalChunks.textContent = data.total_chunks;
+                                }
+
+                                // Update chunk progress
+                                const chunkProgressBar = document.getElementById('chunkProgressBar');
+                                const chunkProgressText = document.getElementById('chunkProgressText');
+                                if (chunkProgressBar && data.chunk_progress_percent !== undefined) {
+                                    chunkProgressBar.style.width = data.chunk_progress_percent + '%';
+                                    chunkProgressBar.setAttribute('aria-valuenow', data.chunk_progress_percent);
+                                }
+                                if (chunkProgressText && data.chunk_progress_percent !== undefined) {
+                                    chunkProgressText.textContent = data.chunk_progress_percent + '%';
                                 }
 
                                 // Update workflow stage statistics
@@ -266,15 +301,17 @@
                                 if (data.progress_percent >= 100 && data.status === 'processing') {
                                     stuckCounter++;
                                     if (stuckCounter >= 3) {
-                                        document.getElementById('forceCompleteBtn').style.display = 'inline-block';
+                                        const forceBtn = document.getElementById('forceCompleteBtn');
+                                        if (forceBtn) forceBtn.style.display = 'inline-block';
                                     }
                                 } else {
                                     stuckCounter = 0;
-                                    document.getElementById('forceCompleteBtn').style.display = 'none';
+                                    const forceBtn = document.getElementById('forceCompleteBtn');
+                                    if (forceBtn) forceBtn.style.display = 'none';
                                 }
 
-                                // Redirect to dashboard when completed or if 100% processed
-                                if (data.status === 'completed' || (data.progress_percent >= 100 && stuckCounter >= 5)) {
+                                // Redirect to dashboard when completed
+                                if (data.status === 'completed') {
                                     setTimeout(() => {
                                         window.location.href = `/dashboard/${sessionId}`;
                                     }, 1000);
@@ -285,14 +322,21 @@
                                     const errorAlert = document.getElementById('errorAlert');
                                     const errorMessage = document.getElementById('errorMessage');
                                     if (errorAlert && errorMessage) {
-                                        errorMessage.textContent = data.error_message;
+                                        errorMessage.textContent = data.error_message || 'Unknown error occurred';
                                         errorAlert.style.display = 'block';
                                     }
                                 }
                             })
                             .catch(error => {
                                 console.error('Error fetching status:', error);
-                                // Continue trying even if there are errors - processing might still be running
+                                // Reduce update frequency if there are persistent errors
+                                if (error.message.includes('500') || error.message.includes('404')) {
+                                    clearInterval(intervalId);
+                                    setTimeout(() => {
+                                        // Restart with longer interval
+                                        const newIntervalId = setInterval(updateProgress, 10000);
+                                    }, 5000);
+                                }
                             });
                     }
 
