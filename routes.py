@@ -446,12 +446,25 @@ def dashboard(session_id):
         ).count()
         logger.info(f"Dashboard - Session {session_id}: {excluded_count} excluded records")
 
-        # Count whitelisted records  
+        # Count whitelisted records with detailed debugging
         whitelisted_count = EmailRecord.query.filter_by(
             session_id=session_id,
             whitelisted=True
         ).count()
+        
+        # Additional debugging - check all whitelisted values
+        all_whitelist_values = db.session.query(EmailRecord.whitelisted).filter_by(session_id=session_id).distinct().all()
         logger.info(f"Dashboard - Session {session_id}: {whitelisted_count} whitelisted records")
+        logger.info(f"Dashboard - Session {session_id}: Distinct whitelist values: {[v[0] for v in all_whitelist_values]}")
+        
+        # Sample some whitelisted records
+        sample_whitelisted = EmailRecord.query.filter_by(
+            session_id=session_id,
+            whitelisted=True
+        ).limit(3).all()
+        
+        for record in sample_whitelisted:
+            logger.info(f"Dashboard - Whitelisted sample: {record.recipients_email_domain} -> {record.whitelisted}")
 
         # Count records with rule matches
         rules_matched_count = EmailRecord.query.filter(
@@ -598,8 +611,6 @@ def cases(session_id):
 
     # Build query with filters - exclude whitelisted, cleared, and escalated records from cases
     query = EmailRecord.query.filter_by(session_id=session_id).filter(
-        EmailRecord.whitelisted != True
-    ).filter(
         db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
     ).filter(
         db.or_(

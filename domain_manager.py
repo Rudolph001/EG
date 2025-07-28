@@ -57,14 +57,17 @@ class DomainManager:
                     db.session.commit()
                 return 0
 
-            # Get records to process (not already whitelisted)
+            # Get records to process (not already whitelisted and not excluded)
             records = EmailRecord.query.filter_by(session_id=session_id).filter(
                 db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+            ).filter(
+                db.or_(EmailRecord.excluded_by_rule.is_(None), EmailRecord.excluded_by_rule == '')
             ).all()
 
-            logger.info(f"Processing {len(records)} non-excluded records for whitelist filtering")
+            logger.info(f"Processing {len(records)} non-excluded, non-whitelisted records for whitelist filtering")
 
             whitelisted_count = 0
+            batch_count = 0
 
             for record in records:
                 if not record.recipients_email_domain:
@@ -102,11 +105,15 @@ class DomainManager:
                     record.whitelisted = True
                     record.case_status = 'Whitelisted'
                     whitelisted_count += 1
-                    logger.info(f"Whitelisted: {record_domain} matches {matched_domain} (Record ID: {record.record_id})")
-                else:
-                    # Log domains that weren't whitelisted for debugging
-                    if whitelisted_count < 10:  # Only log first 10 to avoid spam
-                        logger.info(f"Not whitelisted: {record_domain} (checked against {len(whitelist_set)} domains)")
+                    
+                    # Log first few matches for verification
+                    if whitelisted_count <= 5:
+                        logger.info(f"Whitelisted: {record_domain} matches {matched_domain} (Record ID: {record.record_id})")
+                
+                # Batch commit every 100 records for performance
+                batch_count += 1
+                if batch_count % 100 == 0:
+                    db.session.flush()
 
             # Mark as applied to prevent re-processing
             session = ProcessingSession.query.get(session_id)
