@@ -122,7 +122,7 @@ class DomainManager:
                     whitelisted_count += 1
                     
                     # Log first few matches for verification
-                    if whitelisted_count <= 5:
+                    if whitelisted_count <= 10:
                         logger.info(f"Whitelisted: {record_domain} matches {matched_domain} (Record ID: {record.record_id})")
                 
                 # Batch commit every 100 records for performance
@@ -130,13 +130,24 @@ class DomainManager:
                 if batch_count % 100 == 0:
                     db.session.flush()
 
+            # Final flush before commit
+            db.session.flush()
+
             # Mark as applied to prevent re-processing
             session = ProcessingSession.query.get(session_id)
             if session:
                 session.whitelist_applied = True
 
+            # Commit all changes
             db.session.commit()
-            logger.info(f"Whitelist filtering complete: {whitelisted_count} records whitelisted out of {len(records)} processed")
+            
+            # Verify the commit worked by doing a fresh count
+            final_whitelisted_count = EmailRecord.query.filter_by(
+                session_id=session_id,
+                whitelisted=True
+            ).count()
+            
+            logger.info(f"Whitelist filtering complete: {whitelisted_count} records processed, {final_whitelisted_count} confirmed whitelisted in database")
             return whitelisted_count
 
         except Exception as e:

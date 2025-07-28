@@ -324,10 +324,15 @@ class DataProcessor:
             # Step 2: Apply Whitelist Filtering
             if not session.whitelist_applied:
                 try:
-                    self._apply_whitelist_filtering(session_id)
+                    whitelisted_count = self._apply_whitelist_filtering(session_id)
                     session.whitelist_applied = True
                     db.session.commit()
-                    logger.info(f"Step 2 completed: Whitelist filtering applied for session {session_id}")
+                    
+                    # Add a small delay to ensure database consistency
+                    import time
+                    time.sleep(0.5)
+                    
+                    logger.info(f"Step 2 completed: Whitelist filtering applied for session {session_id} - {whitelisted_count} records whitelisted")
                 except Exception as e:
                     logger.warning(f"Step 2 failed for session {session_id}: {str(e)}")
                     session.whitelist_applied = True  # Mark as completed to prevent loops
