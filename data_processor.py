@@ -39,11 +39,23 @@ class DataProcessor:
         try:
             logger.info(f"Starting CSV processing for session {session_id}")
             
-            # Update session status
+            # Check if session is already being processed (prevent race conditions)
             session = ProcessingSession.query.get(session_id)
-            if session:
-                session.status = 'processing'
-                db.session.commit()
+            if not session:
+                logger.error(f"Session {session_id} not found")
+                return
+                
+            if session.status == 'processing':
+                logger.warning(f"Session {session_id} is already being processed, skipping")
+                return
+                
+            if session.status == 'completed':
+                logger.info(f"Session {session_id} is already completed, skipping")
+                return
+            
+            # Update session status atomically
+            session.status = 'processing'
+            db.session.commit()
             
             # Step 1: Validate CSV structure (quick validation)
             column_mapping = self._validate_csv_structure(file_path)

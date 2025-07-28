@@ -53,6 +53,12 @@ def upload_file():
             flash('Please upload a CSV file', 'error')
             return redirect(url_for('index'))
 
+        # Check if there are any active processing sessions to prevent overloading
+        active_sessions = ProcessingSession.query.filter_by(status='processing').count()
+        if active_sessions > 3:  # Limit concurrent processing sessions
+            flash('System is currently busy processing other files. Please try again in a few minutes.', 'warning')
+            return redirect(url_for('index'))
+
         # Create new session
         session_id = str(uuid.uuid4())
         filename = file.filename
