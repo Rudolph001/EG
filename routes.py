@@ -947,7 +947,38 @@ def create_rule():
         if rule_type not in ['security', 'exclusion']:
             rule_type = 'security'
 
+        # Process conditions - ensure it's stored as JSON
+        conditions = data['conditions']
+        if isinstance(conditions, str):
+            try:
+                # Validate JSON if it's a string
+                conditions = json.loads(conditions)
+            except json.JSONDecodeError:
+                return jsonify({'success': False, 'message': 'Invalid JSON format in conditions'}), 400
 
+        # Create new rule
+        rule = Rule(
+            name=data['name'],
+            rule_type=rule_type,
+            conditions=json.dumps(conditions) if not isinstance(conditions, str) else conditions,
+            priority=data.get('priority', 'Medium'),
+            is_active=data.get('is_active', True),
+            description=data.get('description', '')
+        )
+
+        db.session.add(rule)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'{rule_type.title()} rule created successfully',
+            'rule_id': rule.id
+        })
+
+    except Exception as e:
+        logger.error(f"Error creating rule: {str(e)}")
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error creating rule: {str(e)}'}), 500
 
 @app.route('/api/fix-stuck-session/<session_id>', methods=['POST'])
 def fix_stuck_session(session_id):
@@ -977,56 +1008,6 @@ def fix_stuck_session(session_id):
             'message': f'Error fixing session: {str(e)}',
             'status': 'error'
         }), 500
-
-        # Process conditions - ensure it's stored as JSON
-        conditions = data['conditions']
-        if isinstance(conditions, str):
-            try:
-                # Validate JSON if it's a string
-                json.loads(conditions)
-            except json.JSONDecodeError:
-                return jsonify({'success': False, 'message': 'Invalid JSON in conditions'}), 400
-        
-        # Process actions
-        actions = data.get('actions', {})
-        if isinstance(actions, str):
-            if actions == 'flag':
-                actions = {'flag': True}
-            else:
-                try:
-                    actions = json.loads(actions)
-                except json.JSONDecodeError:
-                    actions = {'flag': True}
-
-        # Create new rule
-        rule = Rule(
-            name=data['name'],
-            rule_type=rule_type,
-            description=data.get('description', ''),
-            priority=data.get('priority', 50),
-            conditions=conditions,
-            actions=actions,
-            is_active=data.get('is_active', True)
-        )
-
-        db.session.add(rule)
-        db.session.commit()
-
-        logger.info(f"Created new rule: {rule.name} (ID: {rule.id}, Type: {rule_type})")
-        logger.info(f"Rule conditions: {conditions}")
-        logger.info(f"Rule actions: {actions}")
-
-        return jsonify({
-            'success': True,
-            'message': 'Rule created successfully',
-            'rule_id': rule.id,
-            'rule_type': rule_type
-        })
-
-    except Exception as e:
-        logger.error(f"Error creating rule: {str(e)}")
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/rules/<int:rule_id>', methods=['GET'])
 def get_rule(rule_id):
