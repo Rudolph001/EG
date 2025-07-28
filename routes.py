@@ -117,7 +117,7 @@ def upload_file():
 
 @app.route('/api/processing-status/<session_id>')
 def processing_status(session_id):
-    """Get processing status for session"""
+    """Get processing status for session with stuck session detection"""
     try:
         session = ProcessingSession.query.get(session_id)
         if not session:
@@ -138,6 +138,20 @@ def processing_status(session_id):
                     'critical_cases_count': 0
                 }
             }), 200
+
+        # Check for stuck session and attempt to fix
+        if session.status == 'processing':
+            # Check if session has been processing for too long (more than 5 minutes with no progress)
+            if session.upload_time:
+                time_diff = (datetime.utcnow() - session.upload_time).total_seconds()
+                if time_diff > 300:  # 5 minutes
+                    logger.warning(f"Session {session_id} appears stuck, attempting to fix")
+                    try:
+                        if data_processor.fix_stuck_session(session_id):
+                            # Refresh session after fix
+                            session = ProcessingSession.query.get(session_id)
+                    except Exception as e:
+                        logger.error(f"Failed to fix stuck session: {str(e)}")
 
         # Initialize workflow statistics
         workflow_stats = {
@@ -932,6 +946,37 @@ def create_rule():
         rule_type = data.get('rule_type', 'security')
         if rule_type not in ['security', 'exclusion']:
             rule_type = 'security'
+
+
+
+@app.route('/api/fix-stuck-session/<session_id>', methods=['POST'])
+def fix_stuck_session(session_id):
+    """Manually fix a stuck processing session"""
+    try:
+        logger.info(f"Manual fix requested for session {session_id}")
+        
+        success = data_processor.fix_stuck_session(session_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Session {session_id} has been fixed and marked as completed',
+                'status': 'completed'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Failed to fix session {session_id} - no records found',
+                'status': 'error'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error fixing stuck session {session_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error fixing session: {str(e)}',
+            'status': 'error'
+        }), 500
 
         # Process conditions - ensure it's stored as JSON
         conditions = data['conditions']

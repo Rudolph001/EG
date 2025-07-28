@@ -79,7 +79,7 @@
                     <div class="processing-stages">
                         <h6><i class="fas fa-cogs"></i> Processing Workflow</h6>
                         <p class="text-muted small mb-3">Email counts for each processing stage</p>
-                        
+
                         <!-- Workflow Status Cards -->
                         <div class="row g-3" id="workflowStages">
                             <div class="col-md-6 col-lg-3">
@@ -155,7 +155,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Processing Complete Actions -->
                         <div id="processingComplete" style="display: none;" class="mt-4 text-center">
                             <div class="alert alert-success">
@@ -335,16 +335,16 @@
                                 if (data.status === 'completed') {
                                     document.getElementById('processingComplete').style.display = 'block';
                                     document.getElementById('statusText').textContent = 'Processing Complete!';
-                                    
+
                                     // Mark all stages as completed
                                     updateStageStatus('exclusion-status', 'Complete', 'success');
                                     updateStageStatus('whitelist-status', 'Complete', 'success');
                                     updateStageStatus('rules-status', 'Complete', 'success');
                                     updateStageStatus('ml-status', 'Complete', 'success');
-                                    
+
                                     // Stop auto-refresh
                                     clearInterval(intervalId);
-                                    
+
                                     // Don't auto-redirect, let user choose
                                 }
 
@@ -379,12 +379,12 @@
                         updateStageCount('whitelisted-count', 0);
                         updateStageCount('rules-matched-count', 0);
                         updateStageCount('critical-cases-count', 0);
-                        
+
                         updateStageStatus('exclusion-status', 'Complete', 'success');
                         updateStageStatus('whitelist-status', 'Complete', 'success');
                         updateStageStatus('rules-status', 'Complete', 'success');
                         updateStageStatus('ml-status', 'Complete', 'success');
-                        
+
                         document.getElementById('processingComplete').style.display = 'block';
                         document.getElementById('statusText').textContent = 'Processing Complete!';
                     }
@@ -530,7 +530,7 @@ function checkProcessingStatus() {
         })
         .then(data => {
             console.log('Processing status:', data);
-            
+
             // Update progress bar
             const progressPercent = data.progress_percent || 0;
             document.getElementById('progressBar').style.width = progressPercent + '%';
@@ -565,17 +565,17 @@ function checkProcessingStatus() {
             if (data.status === 'completed') {
                 document.getElementById('processingComplete').style.display = 'block';
                 document.getElementById('statusText').textContent = 'Processing Complete!';
-                
+
                 // Stop polling but don't redirect
                 clearInterval(window.statusInterval);
-                
+
                 // Show final results
                 console.log('Processing completed successfully!');
                 console.log('Final workflow stats:', data.workflow_stats);
             } else if (data.status === 'error') {
                 document.getElementById('statusText').textContent = 'Processing Error';
                 clearInterval(window.statusInterval);
-                
+
                 // Show error message
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'alert alert-danger mt-3';
@@ -594,7 +594,7 @@ function checkProcessingStatus() {
 function updateWorkflowStages(workflowStats) {
     const workflowContainer = document.getElementById('workflowStages');
     if (!workflowContainer) return;
-    
+
     const stages = [
         {
             name: 'Exclusion Rules',
@@ -633,7 +633,7 @@ function updateWorkflowStages(workflowStats) {
             color: 'danger'
         }
     ];
-    
+
     workflowContainer.innerHTML = stages.map(stage => `
         <div class="col-md-3 col-6">
             <div class="card h-100 border-${stage.color}">
