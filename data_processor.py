@@ -219,7 +219,11 @@ class DataProcessor:
                             value = row[actual_col]
                             # Convert to string but preserve original case for rule matching
                             if pd.notna(value):
-                                record_data[expected_col] = str(value).strip()
+                                # Special handling for date fields
+                                if expected_col in ['_time', 'termination_date']:
+                                    record_data[expected_col] = self._normalize_date_field(str(value).strip())
+                                else:
+                                    record_data[expected_col] = str(value).strip()
                             else:
                                 record_data[expected_col] = ''
                         else:
@@ -487,3 +491,26 @@ class DataProcessor:
         except Exception as e:
             logger.error(f"Error reprocessing session {session_id}: {str(e)}")
             raise
+
+    def _normalize_date_field(self, date_value):
+        """Normalize date fields to handle various formats gracefully"""
+        if not date_value or date_value.lower() in ['', 'null', 'none', 'n/a']:
+            return ''
+        
+        try:
+            # Try common date formats
+            from dateutil import parser
+            parsed_date = parser.parse(date_value, fuzzy=True)
+            return parsed_date.strftime('%Y-%m-%d %H:%M:%S')
+        except:
+            try:
+                # Try pandas date parsing as fallback
+                parsed_date = pd.to_datetime(date_value, errors='coerce')
+                if pd.notna(parsed_date):
+                    return parsed_date.strftime('%Y-%m-%d %H:%M:%S')
+            except:
+                pass
+            
+            # If all parsing fails, return original value but log warning
+            logger.warning(f"Could not parse date value: {date_value}, keeping original")
+            return str(date_value)
