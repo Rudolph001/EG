@@ -117,9 +117,10 @@
 /* Professional Workflow Stages Grid */
 .workflow-stages {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
     margin-top: 20px;
+    max-width: 100%;
 }
 
 /* Stage Cards */
@@ -224,10 +225,7 @@
     font-size: 1.1rem;
     font-weight: 600;
     color: #2c3e50;
-    margin-bottom: 5px;
-}
-
-.stage-description {
+    margin-bottom: 5px;.stage-description {
     font-size: 0.875rem;
     color: #6c757d;
     margin-bottom: 15px;

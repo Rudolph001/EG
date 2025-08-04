@@ -1,4 +1,3 @@
-
 /**
  * Professional Workflow Progress Management for Email Guardian
  * Enhanced 8-stage processing workflow display and interactions
@@ -35,7 +34,7 @@ class WorkflowManager {
                         <span id="overallProgress" class="workflow-progress-badge">0%</span>
                     </div>
                 </div>
-                
+
                 <!-- Enhanced Overall Progress Bar -->
                 <div class="workflow-overall-progress">
                     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -49,7 +48,7 @@ class WorkflowManager {
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Professional Workflow Stages Grid -->
                 <div class="workflow-stages" id="workflowStages">
                     <!-- Stages will be populated dynamically -->
@@ -76,7 +75,7 @@ class WorkflowManager {
             }
 
             this.updateWorkflowDisplay(data);
-            
+
             // Start polling if processing
             if (data.status === 'processing' && !this.isPolling) {
                 this.startPolling();
@@ -97,7 +96,7 @@ class WorkflowManager {
 
         // Update overall status and progress with animations
         this.updateOverallStatus(status, overall_progress, estimated_time_remaining);
-        
+
         // Update individual stages with professional styling
         this.updateStagesDisplay(stages, current_stage);
     }
@@ -114,7 +113,7 @@ class WorkflowManager {
         if (statusElement) {
             const statusClass = this.getStatusClass(status);
             const statusText = this.getStatusText(status);
-            
+
             statusElement.className = `workflow-status-badge ${statusClass}`;
             statusElement.innerHTML = `<i class="${this.getStatusIcon(status)}"></i> ${statusText}`;
         }
@@ -145,17 +144,17 @@ class WorkflowManager {
         const stageDefinitions = this.getStageDefinitions();
         let stagesHtml = '';
 
-        for (let i = 1; i <= 8; i++) {
+        for (let i = 1; i <= 9; i++) {
             const stage = stages[i.toString()];
             const definition = stageDefinitions[i-1];
-            
+
             if (!stage || !definition) continue;
 
             const stageStatus = stage.status || 'waiting';
             const isActive = i === currentStage;
             const stageClass = this.getStageClass(stageStatus, isActive);
             const icon = this.getStageIcon(definition, stageStatus);
-            
+
             // Calculate stage progress percentage
             let stageProgress = 0;
             if (stageStatus === 'complete') {
@@ -205,7 +204,7 @@ class WorkflowManager {
         }
 
         stagesContainer.innerHTML = stagesHtml;
-        
+
         // Add stagger animation to cards
         this.addStaggerAnimation();
     }
@@ -254,6 +253,11 @@ class WorkflowManager {
                 name: 'Final Validation',
                 description: 'Validating and finalizing results',
                 icon: 'fas fa-check-circle'
+            },
+            {
+                name: 'Reporting',
+                description: 'Generating final reports and summaries',
+                icon: 'fas fa-chart-bar'
             }
         ];
     }
@@ -263,7 +267,7 @@ class WorkflowManager {
      */
     getStageClass(status, isActive) {
         const baseClass = 'stage-card';
-        
+
         if (status === 'error') return `${baseClass} stage-error`;
         if (status === 'complete') return `${baseClass} stage-complete`;
         if (status === 'processing' || isActive) return `${baseClass} stage-processing`;
@@ -275,7 +279,7 @@ class WorkflowManager {
      */
     getStageIcon(definition, status) {
         const baseIcon = definition.icon;
-        
+
         if (status === 'error') {
             return `<i class="fas fa-exclamation-triangle text-danger"></i>`;
         } else if (status === 'complete') {
@@ -359,11 +363,11 @@ class WorkflowManager {
      */
     animateProgressBar(progressBar, targetProgress) {
         const currentProgress = parseInt(progressBar.getAttribute('aria-valuenow') || '0');
-        
+
         if (currentProgress !== targetProgress) {
             progressBar.style.width = `${targetProgress}%`;
             progressBar.setAttribute('aria-valuenow', targetProgress);
-            
+
             // Add color transition based on progress
             const colorClass = this.getProgressBarClass(targetProgress);
             progressBar.className = `progress-bar ${colorClass}`;
@@ -377,12 +381,12 @@ class WorkflowManager {
         const currentValue = parseInt(element.textContent) || 0;
         const increment = targetValue > currentValue ? 1 : -1;
         const duration = Math.abs(targetValue - currentValue) * 20;
-        
+
         let current = currentValue;
         const timer = setInterval(() => {
             current += increment;
             element.textContent = current + suffix;
-            
+
             if ((increment > 0 && current >= targetValue) || 
                 (increment < 0 && current <= targetValue)) {
                 clearInterval(timer);
@@ -427,14 +431,14 @@ class WorkflowManager {
      */
     handleWorkflowComplete(data) {
         this.stopPolling();
-        
+
         // Add completion animation
         const workflowSection = document.querySelector('.workflow-progress-section');
         if (workflowSection) {
             workflowSection.style.border = '2px solid #28a745';
             workflowSection.style.boxShadow = '0 4px 20px rgba(40, 167, 69, 0.2)';
         }
-        
+
         // Show completion message
         setTimeout(() => {
             const completionAlert = document.getElementById('processingComplete');
@@ -454,7 +458,7 @@ class WorkflowManager {
             statusElement.className = 'workflow-status-badge bg-danger';
             statusElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Error`;
         }
-        
+
         console.error('Workflow error:', errorMessage);
     }
 
@@ -463,10 +467,10 @@ class WorkflowManager {
      */
     startPolling() {
         if (this.isPolling) return;
-        
+
         this.isPolling = true;
         let pollInterval = 2000; // Start with 2 seconds
-        
+
         const poll = () => {
             this.loadWorkflowStatus().then(() => {
                 if (this.isPolling) {
@@ -480,7 +484,7 @@ class WorkflowManager {
                 }
             });
         };
-        
+
         poll();
     }
 
