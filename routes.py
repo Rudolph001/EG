@@ -152,11 +152,42 @@ def processing_status(session_id):
         except Exception as e:
             logger.warning(f"Could not get workflow stats: {str(e)}")
 
+    # Calculate more detailed progress for workflow stages
+    progress_percent = int((session.processed_records or 0) / max(session.total_records or 1, 1) * 100)
+    
+    # Get detailed workflow statistics
+    try:
+        # Enhance workflow stats with more detailed information
+        if session.status in ['processing', 'completed']:
+            # Total ingested records
+            total_records = EmailRecord.query.filter_by(session_id=session_id).count()
+            
+            # ML analyzed records
+            ml_analyzed_records = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.ml_risk_score.isnot(None)
+            ).count()
+            
+            # Cases generated (records with risk levels)
+            cases_with_risk = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.risk_level.isnot(None)
+            ).count()
+            
+            workflow_stats.update({
+                'ingested_count': total_records,
+                'ml_analyzed_count': ml_analyzed_records,
+                'cases_generated_count': cases_with_risk,
+                'wordlist_matches_count': workflow_stats.get('wordlist_matches_count', 0)
+            })
+    except Exception as e:
+        logger.warning(f"Could not get enhanced workflow stats: {str(e)}")
+
     return jsonify({
         'status': session.status,
         'total_records': session.total_records or 0,
         'processed_records': session.processed_records or 0,
-        'progress_percent': int((session.processed_records or 0) / max(session.total_records or 1, 1) * 100),
+        'progress_percent': progress_percent,
         'current_chunk': session.current_chunk or 0,
         'total_chunks': session.total_chunks or 0,
         'chunk_progress_percent': int((session.current_chunk or 0) / max(session.total_chunks or 1, 1) * 100),

@@ -431,27 +431,22 @@
                                     chunkProgressText.textContent = data.chunk_progress_percent + '%';
                                 }
 
+                                // Update workflow stages sequentially based on progress
+                                updateWorkflowStagesSequentially(data.progress_percent || 0, data.workflow_stats || {});
+
                                 // Update workflow stage statistics
                                 if (data.workflow_stats) {
                                     const stats = data.workflow_stats;
 
                                     // Update counts with animation
+                                    updateStageCount('ingested-count', stats.ingested_count || data.processed_records || 0);
                                     updateStageCount('excluded-count', stats.excluded_count || 0);
                                     updateStageCount('whitelisted-count', stats.whitelisted_count || 0);
                                     updateStageCount('rules-matched-count', stats.rules_matched_count || 0);
-                                    updateStageCount('critical-cases-count', stats.critical_cases_count || 0);
-
-                                    // Update stage status indicators
-                                    updateStageStatus('exclusion-status', stats.excluded_count > 0 ? 'Complete' : 'No exclusions', 'success');
-                                    updateStageStatus('whitelist-status', stats.whitelisted_count > 0 ? 'Complete' : 'No matches', 'success');
-                                    updateStageStatus('rules-status', stats.rules_matched_count > 0 ? 'Matches found' : 'No violations', stats.rules_matched_count > 0 ? 'warning' : 'success');
-                                    updateStageStatus('ml-status', stats.critical_cases_count > 0 ? 'Threats detected' : 'Analysis complete', stats.critical_cases_count > 0 ? 'danger' : 'success');
-
-                                    // Highlight stages with significant results
-                                    highlightStage('stage-exclusion', stats.excluded_count > 0);
-                                    highlightStage('stage-whitelist', stats.whitelisted_count > 0);
-                                    highlightStage('stage-rules', stats.rules_matched_count > 0);
-                                    highlightStage('stage-ml', stats.critical_cases_count > 0);
+                                    updateStageCount('wordlist-matches-count', stats.wordlist_matches_count || 0);
+                                    updateStageCount('ml-analyzed-count', stats.ml_analyzed_count || 0);
+                                    updateStageCount('cases-generated-count', stats.cases_generated_count || 0);
+                                    updateStageCount('validation-score', Math.round((data.progress_percent || 0)) + '%');
                                 }
 
                                 // Check if session appears stuck
@@ -536,12 +531,90 @@
                         }
                     });
 
+                    function updateWorkflowStagesSequentially(progressPercent, workflowStats) {
+                        // Define the 8 stages and their progress thresholds
+                        const stages = [
+                            { id: 'stage-ingestion', name: 'ingestion', threshold: 5, statusId: 'ingestion-status', completeId: 'ingestion-complete' },
+                            { id: 'stage-exclusion', name: 'exclusion', threshold: 20, statusId: 'exclusion-status', completeId: 'exclusion-complete' },
+                            { id: 'stage-whitelist', name: 'whitelist', threshold: 35, statusId: 'whitelist-status', completeId: 'whitelist-complete' },
+                            { id: 'stage-security', name: 'security', threshold: 50, statusId: 'security-status', completeId: 'security-complete' },
+                            { id: 'stage-wordlist', name: 'wordlist', threshold: 65, statusId: 'wordlist-status', completeId: 'wordlist-complete' },
+                            { id: 'stage-ml', name: 'ml', threshold: 80, statusId: 'ml-status', completeId: 'ml-complete' },
+                            { id: 'stage-cases', name: 'cases', threshold: 90, statusId: 'cases-status', completeId: 'cases-complete' },
+                            { id: 'stage-validation', name: 'validation', threshold: 100, statusId: 'validation-status', completeId: 'validation-complete' }
+                        ];
+
+                        // Reset all stages first
+                        stages.forEach(stage => {
+                            const stageEl = document.getElementById(stage.id);
+                            const statusEl = document.getElementById(stage.statusId);
+                            const completeEl = document.getElementById(stage.completeId);
+                            
+                            if (stageEl) {
+                                stageEl.classList.remove('active', 'completed', 'processing');
+                            }
+                            if (completeEl) {
+                                completeEl.style.display = 'none';
+                            }
+                        });
+
+                        // Update stages based on progress
+                        stages.forEach((stage, index) => {
+                            const stageEl = document.getElementById(stage.id);
+                            const statusEl = document.getElementById(stage.statusId);
+                            const completeEl = document.getElementById(stage.completeId);
+                            
+                            if (!stageEl) return;
+
+                            if (progressPercent >= stage.threshold) {
+                                // Stage is complete
+                                stageEl.classList.add('completed');
+                                stageEl.classList.remove('active', 'processing');
+                                
+                                if (statusEl) {
+                                    statusEl.innerHTML = '<small class="text-success"><i class="fas fa-check-circle"></i> Complete</small>';
+                                }
+                                if (completeEl) {
+                                    completeEl.style.display = 'block';
+                                }
+                            } else if (progressPercent >= (stage.threshold - 15)) {
+                                // Stage is currently processing
+                                stageEl.classList.add('processing', 'active');
+                                stageEl.classList.remove('completed');
+                                
+                                if (statusEl) {
+                                    statusEl.innerHTML = '<small class="text-warning"><i class="fas fa-spinner fa-spin"></i> Processing...</small>';
+                                }
+                                if (completeEl) {
+                                    completeEl.style.display = 'none';
+                                }
+                            } else {
+                                // Stage is waiting
+                                stageEl.classList.remove('active', 'completed', 'processing');
+                                
+                                if (statusEl) {
+                                    statusEl.innerHTML = '<small class="text-muted"><i class="fas fa-clock"></i> Waiting...</small>';
+                                }
+                                if (completeEl) {
+                                    completeEl.style.display = 'none';
+                                }
+                            }
+                        });
+
+                        // Update workflow progress bar
+                        const workflowProgressFill = document.querySelector('.workflow-progress-fill');
+                        if (workflowProgressFill) {
+                            workflowProgressFill.style.width = progressPercent + '%';
+                        }
+                    }
+
                     function updateStageCount(elementId, count) {
                         const element = document.getElementById(elementId);
                         if (element) {
-                            if (element.textContent !== count.toString()) {
+                            const countStr = typeof count === 'string' ? count : count.toString();
+                            if (element.textContent !== countStr) {
                                 element.style.transform = 'scale(1.1)';
-                                element.textContent = count;
+                                element.textContent = countStr;
                                 setTimeout(() => {
                                     element.style.transform = 'scale(1)';
                                 }, 200);
@@ -592,24 +665,35 @@
 <style>
         .stage-card {
             transition: all 0.3s ease;
-            border: 2px solid transparent;
+            border: 2px solid #e9ecef;
             position: relative;
+            opacity: 0.6;
         }
 
         .stage-card.active {
             border-color: #007bff;
             box-shadow: 0 4px 8px rgba(0,123,255,0.3);
             transform: translateY(-2px);
+            opacity: 1;
         }
 
         .stage-card.completed {
             border-color: #28a745;
             background-color: #f8fff9;
+            opacity: 1;
         }
 
         .stage-card.processing {
             border-color: #ffc107;
             background-color: #fffdf5;
+            opacity: 1;
+            animation: pulse 2s infinite;
+        }
+
+        .stage-card:not(.active):not(.completed):not(.processing) {
+            border-color: #e9ecef;
+            background-color: #f8f9fa;
+            opacity: 0.6;
         }
 
         .stage-icon-wrapper {
