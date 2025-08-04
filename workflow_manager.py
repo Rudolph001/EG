@@ -304,6 +304,9 @@ class WorkflowManager:
                 self.initialize_workflow(session_id)
                 session = ProcessingSession.query.get(session_id)
             
+            # Get record counts for each stage
+            stage_counts = self._get_stage_record_counts(session_id)
+            
             # Ensure workflow stages are properly structured
             workflow_stages = session.workflow_stages or {}
             current_stage = session.current_stage or 0
@@ -315,6 +318,10 @@ class WorkflowManager:
                     continue
                     
                 stage = workflow_stages[stage_key]
+                
+                # Add record count to stage
+                stage['record_count'] = stage_counts.get(stage_num, 0)
+                stage['record_count_text'] = self._format_record_count(stage_counts.get(stage_num, 0), stage_num)
                 
                 # Mark completed stages
                 if stage_num < current_stage:
@@ -389,6 +396,94 @@ class WorkflowManager:
             logger.warning(f"Error estimating time remaining: {str(e)}")
             return None
     
+    def _get_stage_record_counts(self, session_id):
+        """Get record counts for each workflow stage"""
+        try:
+            from models import EmailRecord
+            
+            # Get total records
+            total_records = EmailRecord.query.filter_by(session_id=session_id).count()
+            
+            # Get excluded records (stage 2)
+            excluded_records = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.excluded_by_rule.isnot(None)
+            ).count()
+            
+            # Get whitelisted records (stage 3)
+            whitelisted_records = EmailRecord.query.filter_by(
+                session_id=session_id,
+                whitelisted=True
+            ).count()
+            
+            # Get records with rule matches (stage 4)
+            rule_matched_records = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.rule_matches.isnot(None)
+            ).count()
+            
+            # Get records with wordlist matches (stage 5)
+            wordlist_records = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                db.or_(
+                    EmailRecord.wordlist_subject.isnot(None),
+                    EmailRecord.wordlist_attachment.isnot(None)
+                )
+            ).count()
+            
+            # Get ML analyzed records (stage 6)
+            ml_analyzed_records = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.ml_risk_score.isnot(None)
+            ).count()
+            
+            # Get security cases (stage 7)
+            security_cases = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.risk_level.in_(['Critical', 'High', 'Medium'])
+            ).count()
+            
+            # Get validated records (stage 8)
+            validated_records = EmailRecord.query.filter_by(
+                session_id=session_id
+            ).count()
+            
+            return {
+                1: total_records,           # Data Ingestion
+                2: excluded_records,        # Exclusion Rules  
+                3: whitelisted_records,     # Whitelist Filtering
+                4: rule_matched_records,    # Security Rules
+                5: wordlist_records,        # Wordlist Analysis
+                6: ml_analyzed_records,     # ML Analysis
+                7: security_cases,          # Case Generation
+                8: validated_records        # Final Validation
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting stage record counts: {str(e)}")
+            return {i: 0 for i in range(1, 9)}
+    
+    def _format_record_count(self, count, stage_num):
+        """Format record count text for display"""
+        stage_labels = {
+            1: 'records loaded',
+            2: 'records excluded', 
+            3: 'records whitelisted',
+            4: 'rule matches',
+            5: 'wordlist matches',
+            6: 'records analyzed',
+            7: 'cases generated',
+            8: 'records validated'
+        }
+        
+        if count == 0:
+            return f"0 {stage_labels.get(stage_num, 'records')}"
+        elif count == 1:
+            label = stage_labels.get(stage_num, 'records').replace('records', 'record')
+            return f"1 {label}"
+        else:
+            return f"{count:,} {stage_labels.get(stage_num, 'records')}"
+
     def reset_workflow(self, session_id):
         """Reset workflow to initial state"""
         try:

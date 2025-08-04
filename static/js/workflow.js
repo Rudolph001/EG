@@ -193,7 +193,7 @@ class WorkflowManager {
                             </div>
                             <div class="stage-progress-text">
                                 <span>${stageProgress}% Complete</span>
-                                ${stage.records_processed ? `<span>${stage.records_processed} processed</span>` : ''}
+                                ${stage.record_count_text ? `<span class="record-count">${stage.record_count_text}</span>` : ''}
                             </div>
                         </div>
                         <div class="stage-status status-${stageStatus}">
