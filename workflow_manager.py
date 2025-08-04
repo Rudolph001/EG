@@ -254,7 +254,7 @@ class WorkflowManager:
             session.stage_progress = self.WORKFLOW_STAGES[stage_number]['progress_end']
 
             # If this is the final stage, mark session as completed
-            if stage_number == 8:
+            if stage_number == 9:
                 session.status = 'completed'
                 session.stage_progress = 100.0
 
@@ -319,7 +319,7 @@ class WorkflowManager:
             current_stage = session.current_stage or 0
 
             # Update stage progress based on current processing state
-            for stage_num in range(1, 9):
+            for stage_num in range(1, 10):
                 stage_key = str(stage_num)
                 if stage_key not in workflow_stages:
                     continue
@@ -429,19 +429,27 @@ class WorkflowManager:
                 EmailRecord.rule_matches.isnot(None)
             ).count()
 
-            # Get records with wordlist matches (stage 5)
-            wordlist_records = EmailRecord.query.filter(
+            # Get records with risk keyword matches (stage 5)
+            risk_keyword_records = EmailRecord.query.filter(
                 EmailRecord.session_id == session_id,
                 db.or_(
                     EmailRecord.wordlist_subject.isnot(None),
                     EmailRecord.wordlist_attachment.isnot(None)
-                )
+                ),
+                db.or_(EmailRecord.excluded_by_rule.is_(None), EmailRecord.excluded_by_rule == '')
             ).count()
 
             # Get exclusion keywords records (stage 6)
             exclusion_keywords = EmailRecord.query.filter(
                 EmailRecord.session_id == session_id,
-                EmailRecord.exclusion_keywords.isnot(None)
+                EmailRecord.excluded_by_rule.isnot(None),
+                EmailRecord.excluded_by_rule.like('%exclusion_keyword%')
+            ).count()
+
+            # Get ML analyzed records (stage 7)
+            ml_analyzed_records = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.ml_risk_score.isnot(None)
             ).count()
 
             # Get security cases (stage 8)
@@ -455,25 +463,21 @@ class WorkflowManager:
                 session_id=session_id
             ).count()
 
-            # Get reports generated (stage 10)
-            reports_generated = 1 if validated_records > 0 else 0
-
             return {
                 1: total_records,           # Data Ingestion
                 2: excluded_records,        # Exclusion Rules  
                 3: whitelisted_records,     # Whitelist Filtering
                 4: rule_matched_records,    # Security Rules
-                5: wordlist_records,        # Wordlist Analysis
+                5: risk_keyword_records,    # Risk Keywords
                 6: exclusion_keywords,      # Exclusion Keywords
                 7: ml_analyzed_records,     # ML Analysis
                 8: security_cases,          # Case Generation
-                9: validated_records,       # Final Validation
-                10: reports_generated       # Reporting
+                9: validated_records        # Final Validation
             }
 
         except Exception as e:
             logger.error(f"Error getting stage record counts: {str(e)}")
-            return {i: 0 for i in range(1, 9)}
+            return {i: 0 for i in range(1, 10)}
 
     def _format_record_count(self, count, stage_num):
         """Format record count text for display"""
@@ -482,10 +486,11 @@ class WorkflowManager:
             2: 'records excluded', 
             3: 'records whitelisted',
             4: 'rule matches',
-            5: 'wordlist matches',
-            6: 'records analyzed',
-            7: 'cases generated',
-            8: 'records validated'
+            5: 'risk keyword matches',
+            6: 'exclusion keywords applied',
+            7: 'ML analyzed',
+            8: 'cases generated',
+            9: 'records validated'
         }
 
         if count == 0:
