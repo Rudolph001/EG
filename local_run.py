@@ -35,9 +35,11 @@ def setup_local_environment():
     os.environ.setdefault('FLASK_DEBUG', 'true')
     os.environ.setdefault('SESSION_SECRET', 'local-dev-secret-key')
     
-    # Use absolute path for SQLite database
-    db_file_path = os.path.abspath("instance/email_guardian.db")
-    os.environ.setdefault('DATABASE_URL', f'sqlite:///{db_file_path}')
+    # Use PostgreSQL if DATABASE_URL is already set (from Replit)
+    if 'DATABASE_URL' not in os.environ:
+        # Fallback to SQLite only if no PostgreSQL available
+        db_file_path = os.path.abspath("instance/email_guardian.db")
+        os.environ.setdefault('DATABASE_URL', f'sqlite:///{db_file_path}')
     
     os.environ.setdefault('FAST_MODE', 'true')
     os.environ.setdefault('CHUNK_SIZE', '1000')
@@ -55,34 +57,40 @@ def main():
     # Setup environment
     setup_local_environment()
     
-    # Verify database file can be created
-    db_path = Path("instance/email_guardian.db")
-    try:
-        # Ensure parent directory exists with proper permissions
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Test database connection
-        import sqlite3
-        conn = sqlite3.connect(str(db_path))
-        conn.execute("SELECT 1")  # Test write access
-        conn.close()
-        print("✓ Database connection test successful")
-    except Exception as e:
-        print(f"✗ Database connection failed: {e}")
-        print("Creating database file...")
+    # Test database connection
+    database_url = os.environ.get('DATABASE_URL', '')
+    if database_url.startswith('postgresql://'):
+        print("✓ Using PostgreSQL database")
+        print("✓ Database connection will be tested when app starts")
+    else:
+        # SQLite fallback
+        db_path = Path("instance/email_guardian.db")
         try:
-            # Force create the database file
-            if db_path.exists():
-                db_path.unlink()  # Remove corrupted file
+            # Ensure parent directory exists with proper permissions
+            db_path.parent.mkdir(parents=True, exist_ok=True)
             
+            # Test database connection
+            import sqlite3
             conn = sqlite3.connect(str(db_path))
-            conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
-            conn.commit()
+            conn.execute("SELECT 1")  # Test write access
             conn.close()
-            print("✓ Database file created successfully")
-        except Exception as create_error:
-            print(f"✗ Failed to create database file: {create_error}")
-            sys.exit(1)
+            print("✓ SQLite database connection test successful")
+        except Exception as e:
+            print(f"✗ SQLite database connection failed: {e}")
+            print("Creating database file...")
+            try:
+                # Force create the database file
+                if db_path.exists():
+                    db_path.unlink()  # Remove corrupted file
+                
+                conn = sqlite3.connect(str(db_path))
+                conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
+                conn.commit()
+                conn.close()
+                print("✓ Database file created successfully")
+            except Exception as create_error:
+                print(f"✗ Failed to create database file: {create_error}")
+                sys.exit(1)
     
     # Import and run the app
     try:
@@ -95,7 +103,11 @@ def main():
             print("✓ Database tables created/verified")
         
         print("Starting local development server...")
-        print("Database: SQLite (instance/email_guardian.db)")
+        database_url = os.environ.get('DATABASE_URL', '')
+        if database_url.startswith('postgresql://'):
+            print("Database: PostgreSQL (Replit Database)")
+        else:
+            print("Database: SQLite (instance/email_guardian.db)")
         print("Access the application at: http://0.0.0.0:5000")
         print("Press Ctrl+C to stop the server")
         print()
