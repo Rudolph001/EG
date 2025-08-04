@@ -4278,3 +4278,80 @@ def update_wordlist_keyword(keyword_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/wordlist/bulk-import", methods=["POST"])
+def bulk_import_wordlist():
+    """Bulk import multiple keywords at once"""
+    try:
+        data = request.get_json()
+        
+        keyword_type = data.get("keyword_type", "risk")
+        category = data.get("category", "Business")
+        risk_score = data.get("risk_score", 3)
+        applies_to = data.get("applies_to", "both")
+        keywords_list = data.get("keywords", [])
+        
+        if not keywords_list:
+            return jsonify({"error": "No keywords provided"}), 400
+        
+        imported_count = 0
+        duplicates = []
+        errors = []
+        
+        for keyword_text in keywords_list:
+            # Clean and validate keyword
+            cleaned_keyword = keyword_text.strip()
+            if not cleaned_keyword:
+                continue
+                
+            # Check if keyword already exists
+            existing = AttachmentKeyword.query.filter_by(
+                keyword=cleaned_keyword,
+                keyword_type=keyword_type
+            ).first()
+            
+            if existing:
+                duplicates.append(cleaned_keyword)
+                continue
+            
+            try:
+                # Create new keyword
+                new_keyword = AttachmentKeyword(
+                    keyword=cleaned_keyword,
+                    category=category if keyword_type == "risk" else None,
+                    keyword_type=keyword_type,
+                    applies_to=applies_to,
+                    risk_score=risk_score if keyword_type == "risk" else None,
+                    is_active=True,
+                    created_at=datetime.utcnow()
+                )
+                
+                db.session.add(new_keyword)
+                imported_count += 1
+                
+            except Exception as e:
+                errors.append(f"Error with '{cleaned_keyword}': {str(e)}")
+                continue
+        
+        # Commit all new keywords
+        db.session.commit()
+        
+        response_data = {
+            "message": f"Bulk import completed successfully",
+            "imported_count": imported_count,
+            "total_provided": len(keywords_list)
+        }
+        
+        if duplicates:
+            response_data["duplicates_skipped"] = len(duplicates)
+            response_data["duplicate_keywords"] = duplicates[:10]  # Show first 10
+            
+        if errors:
+            response_data["errors"] = errors[:10]  # Show first 10 errors
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error in bulk import: {str(e)}")
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+

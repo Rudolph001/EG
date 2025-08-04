@@ -104,9 +104,14 @@
                 <p class="mb-0">Manage risk keywords and exclusion keywords for email analysis</p>
             </div>
             <div class="col-md-4 text-end">
-                <button class="btn btn-light btn-lg" onclick="showAddKeywordModal()">
-                    <i class="fas fa-plus me-2"></i>Add Keyword
-                </button>
+                <div class="btn-group">
+                    <button class="btn btn-light btn-lg" onclick="showAddKeywordModal()">
+                        <i class="fas fa-plus me-2"></i>Add Keyword
+                    </button>
+                    <button class="btn btn-primary btn-lg" onclick="showBulkImportModal()">
+                        <i class="fas fa-upload me-2"></i>Bulk Import
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -344,6 +349,90 @@
     </div>
 </div>
 
+<!-- Bulk Import Modal -->
+<div class="modal fade" id="bulkImportModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-upload me-2"></i>Bulk Import Keywords
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bulkImportForm">
+                    <div class="mb-3">
+                        <label for="bulkKeywordType" class="form-label">Keyword Type</label>
+                        <select class="form-select" id="bulkKeywordType" name="keyword_type" required>
+                            <option value="risk">Risk Keywords</option>
+                            <option value="exclusion">Exclusion Keywords</option>
+                        </select>
+                    </div>
+                    
+                    <div id="bulkRiskOptions" class="mb-3">
+                        <label for="bulkCategory" class="form-label">Category</label>
+                        <select class="form-select" id="bulkCategory" name="category">
+                            <option value="Business">Business</option>
+                            <option value="Personal">Personal</option>
+                            <option value="Suspicious">Suspicious</option>
+                        </select>
+                    </div>
+                    
+                    <div id="bulkRiskOptionsAdvanced" class="mb-3">
+                        <label for="bulkRiskScore" class="form-label">Risk Score (1-5)</label>
+                        <select class="form-select" id="bulkRiskScore" name="risk_score">
+                            <option value="1">1 - Very Low</option>
+                            <option value="2">2 - Low</option>
+                            <option value="3" selected>3 - Medium</option>
+                            <option value="4">4 - High</option>
+                            <option value="5">5 - Critical</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="bulkAppliesTo" class="form-label">Applies To</label>
+                        <select class="form-select" id="bulkAppliesTo" name="applies_to" required>
+                            <option value="both">Both Subject and Attachments</option>
+                            <option value="subject">Subject Only</option>
+                            <option value="attachment">Attachments Only</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="bulkKeywords" class="form-label">Keywords</label>
+                        <textarea class="form-control" id="bulkKeywords" name="keywords" rows="8" 
+                                  placeholder="Enter keywords, one per line or separated by commas.&#10;Examples:&#10;cv&#10;private invoice&#10;confidential, salary, payroll&#10;personal data&#10;resignation letter" required></textarea>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Enter keywords one per line or separated by commas. Multi-word phrases like "private invoice" are supported.
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>Tip:</strong> You can mix single words and phrases. The system will automatically handle both "cv" and "private invoice" correctly.
+                    </div>
+                </form>
+                
+                <div id="bulkPreview" style="display: none;" class="mt-3">
+                    <h6><i class="fas fa-eye me-2"></i>Preview Keywords to Import</h6>
+                    <div id="bulkPreviewList" class="border rounded p-3" style="max-height: 200px; overflow-y: auto;"></div>
+                    <small class="text-muted" id="bulkPreviewCount"></small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info" onclick="previewBulkImport()">
+                    <i class="fas fa-eye me-1"></i>Preview
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveBulkKeywords()">
+                    <i class="fas fa-upload me-1"></i>Import Keywords
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // Show add keyword modal
 function showAddKeywordModal() {
@@ -437,9 +526,138 @@ function deleteKeyword(keywordId) {
     }
 }
 
+// Show bulk import modal
+function showBulkImportModal() {
+    document.getElementById('bulkImportForm').reset();
+    document.getElementById('bulkPreview').style.display = 'none';
+    toggleBulkTypeOptions();
+    new bootstrap.Modal(document.getElementById('bulkImportModal')).show();
+}
+
+// Toggle bulk import options based on keyword type
+function toggleBulkTypeOptions() {
+    const keywordType = document.getElementById('bulkKeywordType').value;
+    const riskOptions = document.getElementById('bulkRiskOptions');
+    const riskOptionsAdvanced = document.getElementById('bulkRiskOptionsAdvanced');
+    
+    if (keywordType === 'risk') {
+        riskOptions.style.display = 'block';
+        riskOptionsAdvanced.style.display = 'block';
+    } else {
+        riskOptions.style.display = 'none';
+        riskOptionsAdvanced.style.display = 'none';
+    }
+}
+
+// Preview bulk import keywords
+function previewBulkImport() {
+    const keywordsText = document.getElementById('bulkKeywords').value.trim();
+    if (!keywordsText) {
+        alert('Please enter some keywords to preview.');
+        return;
+    }
+    
+    // Parse keywords from text (support both line breaks and commas)
+    const keywords = parseKeywords(keywordsText);
+    
+    if (keywords.length === 0) {
+        alert('No valid keywords found. Please check your input.');
+        return;
+    }
+    
+    // Display preview
+    const previewDiv = document.getElementById('bulkPreview');
+    const previewList = document.getElementById('bulkPreviewList');
+    const previewCount = document.getElementById('bulkPreviewCount');
+    
+    previewList.innerHTML = '';
+    keywords.forEach((keyword, index) => {
+        const span = document.createElement('span');
+        span.className = 'badge bg-primary me-2 mb-1';
+        span.textContent = keyword;
+        previewList.appendChild(span);
+    });
+    
+    previewCount.textContent = `Found ${keywords.length} keyword(s) to import`;
+    previewDiv.style.display = 'block';
+}
+
+// Parse keywords from textarea input
+function parseKeywords(text) {
+    const keywords = [];
+    
+    // Split by both newlines and commas, then clean up
+    const rawKeywords = text.split(/[\n,;]+/);
+    
+    rawKeywords.forEach(keyword => {
+        const cleaned = keyword.trim();
+        if (cleaned && cleaned.length > 0) {
+            // Remove quotes if present
+            const finalKeyword = cleaned.replace(/^["']|["']$/g, '');
+            if (finalKeyword && !keywords.includes(finalKeyword)) {
+                keywords.push(finalKeyword);
+            }
+        }
+    });
+    
+    return keywords;
+}
+
+// Save bulk keywords
+async function saveBulkKeywords() {
+    const form = document.getElementById('bulkImportForm');
+    const keywordsText = document.getElementById('bulkKeywords').value.trim();
+    
+    if (!keywordsText) {
+        alert('Please enter some keywords to import.');
+        return;
+    }
+    
+    const keywords = parseKeywords(keywordsText);
+    if (keywords.length === 0) {
+        alert('No valid keywords found. Please check your input.');
+        return;
+    }
+    
+    const formData = new FormData(form);
+    const bulkData = {
+        keyword_type: formData.get('keyword_type'),
+        category: formData.get('category'),
+        risk_score: parseInt(formData.get('risk_score')),
+        applies_to: formData.get('applies_to'),
+        keywords: keywords
+    };
+    
+    try {
+        const response = await fetch('/api/wordlist/bulk-import', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(bulkData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(`Successfully imported ${data.imported_count} keywords!`);
+            bootstrap.Modal.getInstance(document.getElementById('bulkImportModal')).hide();
+            window.location.reload();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error importing keywords');
+    }
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     toggleTypeOptions();
+    
+    // Add event listener for bulk keyword type change
+    document.getElementById('bulkKeywordType').addEventListener('change', toggleBulkTypeOptions);
 });
 </script>
 {% endblock %}
