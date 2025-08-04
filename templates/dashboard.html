@@ -23,6 +23,54 @@
     </div>
 </div>
 
+<!-- Quick Analysis Tools - Moved to top -->
+{% if session.status == 'completed' %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card interactive-card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-lightning-bolt text-primary"></i>
+                    Quick Analysis Tools
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <a href="{{ url_for('network_dashboard', session_id=session.id) }}" class="btn btn-primary btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none">
+                            <i class="fas fa-project-diagram fa-2x mb-2"></i>
+                            <span class="fw-bold">Network Analysis</span>
+                            <small class="text-light mt-1">Visualize email connections</small>
+                        </a>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <a href="{{ url_for('cases', session_id=session.id) }}" class="btn btn-warning btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none">
+                            <i class="fas fa-folder-open fa-2x mb-2"></i>
+                            <span class="fw-bold">Case Management</span>
+                            <small class="text-light mt-1">Review flagged emails</small>
+                        </a>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <a href="{{ url_for('escalations', session_id=session.id) }}" class="btn btn-danger btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                            <span class="fw-bold">Escalations</span>
+                            <small class="text-light mt-1">High-risk cases</small>
+                        </a>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <a href="{{ url_for('sender_analysis', session_id=session.id) }}" class="btn btn-info btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none">
+                            <i class="fas fa-user-friends fa-2x mb-2"></i>
+                            <span class="fw-bold">Sender Analysis</span>
+                            <small class="text-light mt-1">Analyze user patterns</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Processing Status -->
 {% if session.status != 'completed' %}
 <div class="row mb-4">
@@ -532,51 +580,7 @@
     </div>
 </div>
 
-<!-- Quick Actions -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card interactive-card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-lightning-bolt text-primary"></i>
-                    Quick Analysis Tools
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-lg-3 col-md-6 mb-3">
-                        <a href="{{ url_for('network_dashboard', session_id=session.id) }}" class="btn btn-primary btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none">
-                            <i class="fas fa-project-diagram fa-2x mb-2"></i>
-                            <span class="fw-bold">Network Analysis</span>
-                            <small class="text-light mt-1">Visualize email connections</small>
-                        </a>
-                    </div>
-                    <div class="col-lg-3 col-md-6 mb-3">
-                        <a href="{{ url_for('cases', session_id=session.id) }}" class="btn btn-warning btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none">
-                            <i class="fas fa-folder-open fa-2x mb-2"></i>
-                            <span class="fw-bold">Case Management</span>
-                            <small class="text-light mt-1">Review flagged emails</small>
-                        </a>
-                    </div>
-                    <div class="col-lg-3 col-md-6 mb-3">
-                        <a href="{{ url_for('escalations', session_id=session.id) }}" class="btn btn-danger btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none">
-                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                            <span class="fw-bold">Escalations</span>
-                            <small class="text-light mt-1">High-risk cases</small>
-                        </a>
-                    </div>
-                    <div class="col-lg-3 col-md-6 mb-3">
-                        <a href="{{ url_for('sender_analysis', session_id=session.id) }}" class="btn btn-info btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none">
-                            <i class="fas fa-user-friends fa-2x mb-2"></i>
-                            <span class="fw-bold">Sender Analysis</span>
-                            <small class="text-light mt-1">Analyze user patterns</small>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <!-- Advanced Analysis -->
 <div class="row">
