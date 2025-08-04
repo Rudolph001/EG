@@ -897,5 +897,176 @@ function showNotification(message, type) {
         }
     }, 5000);
 }
+
+// Handle View Case button clicks
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners for view case buttons
+    document.querySelectorAll('.view-case-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const recordId = this.getAttribute('data-record-id');
+            const sessionId = '{{ session.id }}';
+            viewCaseDetails(sessionId, recordId);
+        });
+    });
+    
+    // Add event listeners for update status buttons
+    document.querySelectorAll('.update-case-status-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const recordId = this.getAttribute('data-record-id');
+            const newStatus = this.getAttribute('data-new-status');
+            const sessionId = '{{ session.id }}';
+            updateCaseStatus(sessionId, recordId, newStatus);
+        });
+    });
+    
+    // Add event listeners for escalate buttons
+    document.querySelectorAll('.escalate-case-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const recordId = this.getAttribute('data-record-id');
+            const sessionId = '{{ session.id }}';
+            escalateCase(sessionId, recordId);
+        });
+    });
+});
+
+function viewCaseDetails(sessionId, recordId) {
+    showLoading('Loading case details...');
+    
+    fetch(`/api/case/${sessionId}/${recordId}`)
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            showCaseDetailsModal(data);
+        })
+        .catch(error => {
+            hideLoading();
+            showError('Failed to load case details: ' + error.message);
+        });
+}
+
+function showCaseDetailsModal(caseData) {
+    const modalHtml = `
+        <div class="modal fade" id="caseDetailsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Email Case Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Basic Information</h6>
+                                <p><strong>Record ID:</strong> ${caseData.record_id || 'N/A'}</p>
+                                <p><strong>Sender:</strong> ${caseData.sender || 'N/A'}</p>
+                                <p><strong>Subject:</strong> ${caseData.subject || 'N/A'}</p>
+                                <p><strong>Recipients:</strong> ${caseData.recipients || 'N/A'}</p>
+                                <p><strong>Domain:</strong> ${caseData.recipients_email_domain || 'N/A'}</p>
+                                <p><strong>Time:</strong> ${caseData.time ? new Date(caseData.time).toLocaleString() : 'N/A'}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Risk Assessment</h6>
+                                <p><strong>Risk Level:</strong> <span class="risk-${(caseData.risk_level || 'low').toLowerCase()}">${caseData.risk_level || 'Low'}</span></p>
+                                <p><strong>ML Risk Score:</strong> ${caseData.ml_risk_score ? (caseData.ml_risk_score * 100).toFixed(1) + '%' : 'N/A'}</p>
+                                <p><strong>Case Status:</strong> ${caseData.case_status || 'Open'}</p>
+                                <p><strong>Attachments:</strong> ${caseData.attachments || 'None'}</p>
+                                <p><strong>Department:</strong> ${caseData.department || 'N/A'}</p>
+                                <p><strong>Business Unit:</strong> ${caseData.bunit || 'N/A'}</p>
+                            </div>
+                        </div>
+                        ${caseData.ml_explanation ? `
+                        <div class="mt-3">
+                            <h6>ML Analysis</h6>
+                            <p>${caseData.ml_explanation}</p>
+                        </div>
+                        ` : ''}
+                        ${caseData.justification ? `
+                        <div class="mt-3">
+                            <h6>Justification</h6>
+                            <p>${caseData.justification}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-success" onclick="updateCaseStatus('{{ session.id }}', '${caseData.record_id}', 'Cleared')">Mark Cleared</button>
+                        <button type="button" class="btn btn-danger" onclick="escalateCase('{{ session.id }}', '${caseData.record_id}')">Escalate</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('caseDetailsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('caseDetailsModal'));
+    modal.show();
+    
+    // Clean up when modal is hidden
+    document.getElementById('caseDetailsModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+function updateCaseStatus(sessionId, recordId, newStatus) {
+    showLoading('Updating case status...');
+    
+    fetch(`/api/case/${sessionId}/${recordId}/status`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus })
+    })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                showSuccess(`Case ${recordId} marked as ${newStatus}`);
+                // Close modal if open
+                const modal = document.getElementById('caseDetailsModal');
+                if (modal) {
+                    bootstrap.Modal.getInstance(modal).hide();
+                }
+                // Refresh page to show updated status
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showError('Failed to update case status: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            showError('Failed to update case status: ' + error.message);
+        });
+}
+
+function escalateCase(sessionId, recordId) {
+    showLoading('Generating escalation email...');
+    
+    fetch(`/api/escalation/${sessionId}/${recordId}/generate-email`)
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                showSuccess('Escalation email generated successfully');
+                // Show escalation details in modal or alert
+                alert(`Escalation Email Generated:\n\nTo: ${data.to}\nSubject: ${data.subject}\n\nEmail content has been prepared for this case.`);
+            } else {
+                showError('Failed to generate escalation email: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            showError('Failed to generate escalation email: ' + error.message);
+        });
+}
 </script>
 {% endblock %}
