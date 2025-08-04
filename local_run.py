@@ -2,7 +2,7 @@
 #!/usr/bin/env python3
 """
 Local development runner for Email Guardian
-Alternative entry point with development-friendly settings
+Entry point for local development with SQLite database
 """
 
 import os
@@ -24,17 +24,20 @@ def load_env_file():
                     key, value = line.split('=', 1)
                     os.environ[key.strip()] = value.strip()
 
-def setup_development_environment():
-    """Set up development environment variables"""
+def setup_local_environment():
+    """Set up local development environment variables"""
     
     # Load .env file if it exists
     load_env_file()
     
-    # Set default development environment variables
+    # Set default local development environment variables
     os.environ.setdefault('FLASK_ENV', 'development')
     os.environ.setdefault('FLASK_DEBUG', 'true')
-    os.environ.setdefault('SESSION_SECRET', 'dev-secret-change-in-production')
+    os.environ.setdefault('SESSION_SECRET', 'local-dev-secret-key')
+    os.environ.setdefault('DATABASE_URL', 'sqlite:///instance/email_guardian.db')
     os.environ.setdefault('FAST_MODE', 'true')
+    os.environ.setdefault('CHUNK_SIZE', '1000')
+    os.environ.setdefault('MAX_ML_RECORDS', '5000')
     
     # Ensure directories exist
     directories = ['uploads', 'data', 'instance']
@@ -42,16 +45,17 @@ def setup_development_environment():
         Path(directory).mkdir(exist_ok=True)
 
 def main():
-    """Main development runner"""
-    print("=== Email Guardian Development Server ===")
+    """Main local development runner"""
+    print("=== Email Guardian Local Development Server ===")
     
     # Setup environment
-    setup_development_environment()
+    setup_local_environment()
     
     # Import and run the app
     try:
         from app import app
-        print("Starting development server...")
+        print("Starting local development server...")
+        print("Database: SQLite (instance/email_guardian.db)")
         print("Access the application at: http://localhost:5000")
         print("Press Ctrl+C to stop the server")
         print()
@@ -59,7 +63,7 @@ def main():
         # Run the Flask development server
         app.run(
             debug=True,
-            host='0.0.0.0',
+            host='127.0.0.1',
             port=5000,
             use_reloader=True
         )

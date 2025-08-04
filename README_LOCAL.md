@@ -1,7 +1,7 @@
 
 # Email Guardian - Local Setup Guide
 
-This guide helps you run Email Guardian on your local Windows or Mac machine.
+This guide helps you run Email Guardian on your local machine with SQLite database.
 
 ## Prerequisites
 
@@ -15,27 +15,28 @@ This guide helps you run Email Guardian on your local Windows or Mac machine.
    python local_setup.py
    ```
 
-2. **Configure environment (optional):**
-   ```bash
-   cp .env.example .env
-   # Edit .env file with your preferences
-   ```
-
-3. **Start the application:**
+2. **Start the application:**
    ```bash
    python local_run.py
    ```
    
-   Or use the original entry point:
+   Or use the simple runner:
    ```bash
-   python main.py
+   python run_local.py
    ```
 
-4. **Open your browser to:** http://localhost:5000
+3. **Open your browser to:** http://localhost:5000
+
+## What Gets Set Up
+
+- **SQLite Database**: Located at `instance/email_guardian.db`
+- **Upload Directory**: `uploads/` for CSV files
+- **Data Directory**: `data/` for session data
+- **Basic Configuration**: Sample rules, domains, and keywords
 
 ## Manual Setup (Alternative)
 
-If the setup script doesn't work, you can set up manually:
+If the setup script doesn't work:
 
 ### 1. Install Dependencies
 ```bash
@@ -47,72 +48,90 @@ pip install -r requirements.txt
 mkdir uploads data instance
 ```
 
-### 3. Set Environment Variables (Windows)
+### 3. Set Environment Variables
+
+**Windows:**
 ```cmd
 set FLASK_ENV=development
-set SESSION_SECRET=your-secret-key
+set DATABASE_URL=sqlite:///instance/email_guardian.db
 ```
 
-### 3. Set Environment Variables (Mac/Linux)
+**Mac/Linux:**
 ```bash
 export FLASK_ENV=development
-export SESSION_SECRET=your-secret-key
+export DATABASE_URL=sqlite:///instance/email_guardian.db
 ```
 
 ### 4. Run the Application
 ```bash
-python main.py
+python local_run.py
 ```
-
-## Production Deployment
-
-For production use:
-
-```bash
-gunicorn --bind 0.0.0.0:5000 main:app
-```
-
-## Configuration
-
-The application uses these environment variables:
-
-- `SESSION_SECRET`: Flask session secret key
-- `DATABASE_URL`: Database connection string (defaults to SQLite)
-- `FAST_MODE`: Enable performance optimizations (recommended: true)
-- `FLASK_DEBUG`: Enable debug mode for development
 
 ## File Structure
 
 ```
 email-guardian/
-├── main.py                 # Application entry point
 ├── local_setup.py          # Setup script
 ├── local_run.py            # Development runner
-├── requirements.txt        # Python dependencies
-├── .env.example           # Environment variables template
-├── app.py                 # Flask app configuration
-├── models.py              # Database models
-├── routes.py              # Web routes
-├── uploads/               # File upload directory
-├── data/                  # Session data storage
-└── instance/              # SQLite database location
+├── run_local.py            # Simple runner
+├── app.py                  # Flask app configuration
+├── models.py               # Database models
+├── routes.py               # Web routes
+├── uploads/                # File upload directory
+├── data/                   # Session data storage
+├── instance/               # SQLite database location
+│   └── email_guardian.db   # SQLite database file
+└── requirements.txt        # Python dependencies
 ```
+
+## Database
+
+The application uses SQLite by default for local development:
+- **Location**: `instance/email_guardian.db`
+- **No additional setup required**
+- **Automatically created on first run**
+
+## Configuration Files
+
+- **`.env`**: Created automatically by setup script
+- **`requirements.txt`**: Python dependencies
+- **`setup_basic_config.py`**: Populates database with sample data
 
 ## Troubleshooting
 
-### Database Issues
-The app uses SQLite by default, which requires no additional setup. The database file will be created automatically in `instance/email_guardian.db`.
+### Common Issues
 
-### Port Already in Use
-If port 5000 is busy, you can change it by modifying the port number in `main.py` or `local_run.py`.
+1. **Port 5000 in use**: Change port in `local_run.py`
+2. **Database errors**: Delete `instance/email_guardian.db` and restart
+3. **Import errors**: Run `python local_setup.py` again
+4. **Permission errors**: Ensure you have write access to the directory
 
-### Missing Dependencies
-Run `pip install -r requirements.txt` to install all required packages.
+### Performance
+
+- Application runs in fast mode by default for local development
+- Processing is optimized for smaller datasets
+- Use SSD storage for better performance with large CSV files
+
+## Features Available Locally
+
+- **CSV Upload & Processing**: Full email data analysis
+- **ML Risk Analysis**: Machine learning threat detection
+- **Domain Management**: Whitelist and categorization
+- **Case Management**: Investigation workflows
+- **Real-time Dashboards**: Analytics and visualizations
+- **Rule Engine**: Custom security rules
+
+## Data Privacy
+
+- All processing happens locally on your machine
+- No external server connections required
+- Data stored in local SQLite database
+- CSV files remain on your local system
 
 ## Support
 
-For issues with local setup, check:
-1. Python version (3.8+ required)
-2. All dependencies installed
-3. Required directories exist
-4. Environment variables set correctly
+For local setup issues:
+1. Verify Python 3.8+ is installed
+2. Check that all dependencies installed successfully
+3. Ensure write permissions in application directory
+4. Review console output for specific error messages

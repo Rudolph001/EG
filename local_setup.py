@@ -36,6 +36,9 @@ def setup_database():
     print("Setting up SQLite database...")
     db_path = "instance/email_guardian.db"
     
+    # Create instance directory if it doesn't exist
+    Path("instance").mkdir(exist_ok=True)
+    
     # Create empty database file if it doesn't exist
     if not os.path.exists(db_path):
         Path(db_path).touch()
@@ -43,31 +46,34 @@ def setup_database():
     print("✓ Database setup complete")
 
 def create_env_file():
-    """Create a sample .env file"""
-    print("Creating sample environment file...")
+    """Create a local .env file"""
+    print("Creating local environment file...")
     
     env_content = """# Email Guardian Local Configuration
-# Copy this to .env and modify as needed
-
-# Flask Configuration
 FLASK_ENV=development
 FLASK_DEBUG=true
-SESSION_SECRET=your-secret-key-change-this-in-production
-
-# Database Configuration (optional - defaults to SQLite)
-# DATABASE_URL=sqlite:///email_guardian.db
-
-# Performance Configuration
+SESSION_SECRET=local-dev-secret-key-change-in-production
+DATABASE_URL=sqlite:///instance/email_guardian.db
 FAST_MODE=true
 CHUNK_SIZE=1000
 MAX_ML_RECORDS=5000
 """
     
-    with open(".env.example", "w") as f:
+    # Create .env file for local development
+    with open(".env", "w") as f:
         f.write(env_content)
     
-    print("✓ Sample environment file created (.env.example)")
-    print("  Copy .env.example to .env and modify as needed")
+    print("✓ Local environment file created (.env)")
+
+def setup_basic_config():
+    """Run basic configuration setup"""
+    print("Setting up basic configuration...")
+    try:
+        subprocess.check_call([sys.executable, "setup_basic_config.py"])
+        print("✓ Basic configuration setup complete")
+    except subprocess.CalledProcessError as e:
+        print(f"✗ Failed to setup basic configuration: {e}")
+        print("You can run 'python setup_basic_config.py' manually later")
 
 def main():
     """Main setup function"""
@@ -86,17 +92,16 @@ def main():
     create_directories()
     setup_database()
     create_env_file()
+    setup_basic_config()
     
     print()
     print("=== Setup Complete! ===")
     print()
     print("To run the application:")
-    print("1. Copy .env.example to .env and modify as needed")
-    print("2. Run: python main.py")
-    print("3. Open your browser to http://localhost:5000")
+    print("1. Run: python local_run.py")
+    print("2. Open your browser to http://localhost:5000")
     print()
-    print("For production deployment, use:")
-    print("gunicorn --bind 0.0.0.0:5000 main:app")
+    print("The application is configured to use SQLite database locally.")
 
 if __name__ == "__main__":
     main()
