@@ -118,9 +118,227 @@
 /* Professional Workflow Stages Grid */
 .workflow-stages {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 20px;
     margin-top: 20px;
+}
+
+/* Stage Cards */
+.stage-card {
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    animation: slideInUp 0.6s ease-out;
+}
+
+.stage-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stage-card.stage-processing {
+    border-color: #ffc107;
+    background: linear-gradient(135deg, #fff9e6 0%, #ffffff 100%);
+    box-shadow: 0 4px 15px rgba(255,193,7,0.2);
+}
+
+.stage-card.stage-complete {
+    border-color: #28a745;
+    background: linear-gradient(135deg, #f0f9f0 0%, #ffffff 100%);
+}
+
+.stage-card.stage-error {
+    border-color: #dc3545;
+    background: linear-gradient(135deg, #fdf2f2 0%, #ffffff 100%);
+}
+
+.stage-card.stage-waiting {
+    border-color: #dee2e6;
+    background: #f8f9fa;
+}
+
+/* Stage Header */
+.stage-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.stage-icon-container {
+    position: relative;
+    margin-right: 15px;
+}
+
+.stage-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.stage-processing .stage-icon {
+    background: #fff3cd;
+    border-color: #ffc107;
+    color: #856404;
+}
+
+.stage-complete .stage-icon {
+    background: #d1eddd;
+    border-color: #28a745;
+    color: #155724;
+}
+
+.stage-error .stage-icon {
+    background: #f8d7da;
+    border-color: #dc3545;
+    color: #721c24;
+}
+
+.stage-number {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    width: 20px;
+    height: 20px;
+    background: #007bff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+/* Stage Content */
+.stage-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.stage-description {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
+/* Stage Progress */
+.stage-progress {
+    margin-bottom: 15px;
+}
+
+.stage-progress-bar-container .progress {
+    height: 8px;
+    border-radius: 4px;
+    background: #e9ecef;
+    overflow: hidden;
+}
+
+.stage-progress-bar-container .progress-bar {
+    transition: width 0.6s ease;
+    border-radius: 4px;
+}
+
+.stage-progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 8px;
+}
+
+.stage-progress-text span:first-child {
+    font-weight: 600;
+}
+
+/* Stage Status */
+.stage-status {
+    font-size: 0.875rem;
+    padding: 8px 12px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stage-status.status-waiting {
+    background: #f8f9fa;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
+
+.stage-status.status-processing {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.stage-status.status-complete {
+    background: #d1eddd;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.stage-status.status-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Animations */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.stage-processing .stage-icon {
+    animation: pulse 2s infinite;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .workflow-stages {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .stage-card {
+        padding: 15px;
+    }
+    
+    .stage-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+    }
 }
 
 /* Enhanced Stage Cards */

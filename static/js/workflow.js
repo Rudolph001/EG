@@ -155,6 +155,16 @@ class WorkflowManager {
             const isActive = i === currentStage;
             const stageClass = this.getStageClass(stageStatus, isActive);
             const icon = this.getStageIcon(definition, stageStatus);
+            
+            // Calculate stage progress percentage
+            let stageProgress = 0;
+            if (stageStatus === 'complete') {
+                stageProgress = 100;
+            } else if (stageStatus === 'processing') {
+                stageProgress = stage.progress || 50; // Default to 50% if processing but no specific progress
+            } else if (stageStatus === 'waiting' && i < currentStage) {
+                stageProgress = 100; // Previous stages should show as complete
+            }
 
             stagesHtml += `
                 <div class="stage-card ${stageClass}" data-stage="${i}">
@@ -172,11 +182,17 @@ class WorkflowManager {
                         <div class="stage-progress">
                             <div class="stage-progress-bar-container">
                                 <div class="progress">
-                                    <div class="progress-bar" style="width: ${stage.progress || 0}%"></div>
+                                    <div class="progress-bar ${this.getProgressBarClass(stageProgress)}" 
+                                         style="width: ${stageProgress}%"
+                                         role="progressbar"
+                                         aria-valuenow="${stageProgress}"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                    </div>
                                 </div>
                             </div>
                             <div class="stage-progress-text">
-                                <span>${stage.progress || 0}% Complete</span>
+                                <span>${stageProgress}% Complete</span>
                                 ${stage.records_processed ? `<span>${stage.records_processed} processed</span>` : ''}
                             </div>
                         </div>
@@ -279,10 +295,20 @@ class WorkflowManager {
             return `<i class="fas fa-exclamation-triangle"></i> Error: ${stage.error_message}`;
         }
 
+        // Add timing information if available
+        let timeInfo = '';
+        if (stage.started_at && status === 'processing') {
+            const startTime = new Date(stage.started_at);
+            const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
+            timeInfo = ` (${elapsed}s elapsed)`;
+        } else if (stage.completed_at && status === 'complete') {
+            timeInfo = ` (completed)`;
+        }
+
         const statusContent = {
             'waiting': '<i class="fas fa-clock"></i> Waiting to start',
-            'processing': '<i class="fas fa-spinner fa-spin"></i> Processing...',
-            'complete': '<i class="fas fa-check"></i> Completed successfully',
+            'processing': `<i class="fas fa-spinner fa-spin"></i> Processing...${timeInfo}`,
+            'complete': `<i class="fas fa-check"></i> Completed successfully${timeInfo}`,
             'error': '<i class="fas fa-times"></i> Processing failed'
         };
 
@@ -379,11 +405,12 @@ class WorkflowManager {
      * Get progress bar color class
      */
     getProgressBarClass(progress) {
-        if (progress >= 100) return 'bg-success';
-        if (progress >= 75) return 'bg-info';
-        if (progress >= 50) return 'bg-warning';
-        if (progress >= 25) return 'bg-primary';
-        return 'bg-secondary';
+        if (progress >= 100) return 'bg-success progress-bar-striped';
+        if (progress >= 75) return 'bg-info progress-bar-striped progress-bar-animated';
+        if (progress >= 50) return 'bg-warning progress-bar-striped progress-bar-animated';
+        if (progress >= 25) return 'bg-primary progress-bar-striped progress-bar-animated';
+        if (progress > 0) return 'bg-secondary progress-bar-striped progress-bar-animated';
+        return 'bg-light';
     }
 
     /**

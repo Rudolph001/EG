@@ -304,17 +304,89 @@ class WorkflowManager:
                 self.initialize_workflow(session_id)
                 session = ProcessingSession.query.get(session_id)
             
+            # Ensure workflow stages are properly structured
+            workflow_stages = session.workflow_stages or {}
+            current_stage = session.current_stage or 0
+            
+            # Update stage progress based on current processing state
+            for stage_num in range(1, 9):
+                stage_key = str(stage_num)
+                if stage_key not in workflow_stages:
+                    continue
+                    
+                stage = workflow_stages[stage_key]
+                
+                # Mark completed stages
+                if stage_num < current_stage:
+                    stage['status'] = 'complete'
+                    stage['progress'] = 100
+                    if not stage.get('completed_at'):
+                        stage['completed_at'] = datetime.utcnow().isoformat()
+                
+                # Mark current stage as processing
+                elif stage_num == current_stage:
+                    if session.status == 'processing':
+                        stage['status'] = 'processing'
+                        # Calculate progress within stage based on overall progress
+                        stage_info = self.WORKFLOW_STAGES.get(stage_num, {})
+                        progress_start = stage_info.get('progress_start', 0)
+                        progress_end = stage_info.get('progress_end', 100)
+                        overall_progress = session.stage_progress or 0
+                        
+                        if progress_end > progress_start:
+                            stage_progress = ((overall_progress - progress_start) / (progress_end - progress_start)) * 100
+                            stage['progress'] = max(0, min(100, stage_progress))
+                        else:
+                            stage['progress'] = 50  # Default processing progress
+                        
+                        if not stage.get('started_at'):
+                            stage['started_at'] = datetime.utcnow().isoformat()
+                    elif session.status == 'completed':
+                        stage['status'] = 'complete'
+                        stage['progress'] = 100
+                        if not stage.get('completed_at'):
+                            stage['completed_at'] = datetime.utcnow().isoformat()
+                
+                # Future stages remain waiting
+                else:
+                    if stage['status'] not in ['complete', 'processing']:
+                        stage['status'] = 'waiting'
+                        stage['progress'] = 0
+            
             return {
                 'session_id': session_id,
-                'current_stage': session.current_stage,
-                'overall_progress': session.stage_progress,
+                'current_stage': current_stage,
+                'overall_progress': round(session.stage_progress or 0, 1),
                 'status': session.status,
-                'stages': session.workflow_stages,
-                'total_stages': len(self.WORKFLOW_STAGES)
+                'stages': workflow_stages,
+                'total_stages': len(self.WORKFLOW_STAGES),
+                'estimated_time_remaining': self._estimate_time_remaining(session)
             }
             
         except Exception as e:
             logger.error(f"Error getting workflow status for session {session_id}: {str(e)}")
+            return None
+    
+    def _estimate_time_remaining(self, session):
+        """Estimate remaining processing time"""
+        try:
+            if not session.upload_time or session.status != 'processing':
+                return None
+                
+            elapsed_time = (datetime.utcnow() - session.upload_time).total_seconds()
+            progress = session.stage_progress or 0
+            
+            if progress <= 0:
+                return None
+                
+            # Estimate total time based on current progress
+            estimated_total_time = elapsed_time / (progress / 100)
+            remaining_time = max(0, estimated_total_time - elapsed_time)
+            
+            return int(remaining_time)
+            
+        except Exception as e:
+            logger.warning(f"Error estimating time remaining: {str(e)}")
             return None
     
     def reset_workflow(self, session_id):
