@@ -173,8 +173,9 @@ class DataProcessor:
                 self._keywords_cached = True
                 logger.info(f"Cached {len(self._risk_keywords_cache)} risk keywords and {len(self._exclusion_keywords_cache)} exclusion keywords")
 
-            risk_keywords = self._risk_keywords_cache
-            exclusion_keywords = self._exclusion_keywords_cache
+            # Ensure keywords are never None to prevent iteration errors
+            risk_keywords = self._risk_keywords_cache or []
+            exclusion_keywords = self._exclusion_keywords_cache or []
 
             # Initialize wordlist fields
             subject_matches = []
@@ -288,47 +289,88 @@ class DataProcessor:
             domain_manager = DomainManager()
             ml_engine = MLEngine()
 
-            # Step 1: Apply exclusion rules
-            if not self._is_workflow_step_completed(session_id, 'exclusion_applied'):
-                excluded_count = rule_engine.apply_exclusion_rules(session_id)
-                logger.info(f"Exclusion rules applied: {excluded_count} records excluded")
-                self._mark_workflow_step_completed(session_id, 'exclusion_applied')
+            # Step 1: Apply exclusion rules with error handling
+            try:
+                if not self._is_workflow_step_completed(session_id, 'exclusion_applied'):
+                    excluded_count = rule_engine.apply_exclusion_rules(session_id)
+                    logger.info(f"Exclusion rules applied: {excluded_count} records excluded")
+                    self._mark_workflow_step_completed(session_id, 'exclusion_applied')
+            except Exception as e:
+                logger.error(f"Error in exclusion rules step: {str(e)}")
+                db.session.rollback()
+                # Continue with next step
 
-            # Step 2: Apply domain whitelist
-            if not self._is_workflow_step_completed(session_id, 'whitelist_applied'):
-                whitelisted_count = domain_manager.apply_whitelist(session_id)
-                logger.info(f"Domain whitelist applied: {whitelisted_count} records whitelisted")
-                self._mark_workflow_step_completed(session_id, 'whitelist_applied')
+            # Step 2: Apply domain whitelist with error handling
+            try:
+                if not self._is_workflow_step_completed(session_id, 'whitelist_applied'):
+                    whitelisted_count = domain_manager.apply_whitelist(session_id)
+                    logger.info(f"Domain whitelist applied: {whitelisted_count} records whitelisted")
+                    self._mark_workflow_step_completed(session_id, 'whitelist_applied')
+            except Exception as e:
+                logger.error(f"Error in whitelist step: {str(e)}")
+                db.session.rollback()
+                # Continue with next step
 
-            # Step 3: Apply security rules
-            if not self._is_workflow_step_completed(session_id, 'rules_applied'):
-                flagged_count = rule_engine.apply_security_rules(session_id)
-                logger.info(f"Security rules applied: {flagged_count} records flagged")
-                self._mark_workflow_step_completed(session_id, 'rules_applied')
+            # Step 3: Apply security rules with error handling
+            try:
+                if not self._is_workflow_step_completed(session_id, 'rules_applied'):
+                    flagged_count = rule_engine.apply_security_rules(session_id)
+                    logger.info(f"Security rules applied: {flagged_count} records flagged")
+                    self._mark_workflow_step_completed(session_id, 'rules_applied')
+            except Exception as e:
+                logger.error(f"Error in security rules step: {str(e)}")
+                db.session.rollback()
+                # Continue with next step
 
-            # Step 4: Apply ML analysis
-            if not self._is_workflow_step_completed(session_id, 'ml_applied'):
-                analyzed_count = ml_engine.analyze_session(session_id)
-                logger.info(f"ML analysis applied: {analyzed_count} records analyzed")
-                self._mark_workflow_step_completed(session_id, 'ml_applied')
+            # Step 4: Apply ML analysis with error handling
+            try:
+                if not self._is_workflow_step_completed(session_id, 'ml_applied'):
+                    analyzed_count = ml_engine.analyze_session(session_id)
+                    logger.info(f"ML analysis applied: {analyzed_count} records analyzed")
+                    self._mark_workflow_step_completed(session_id, 'ml_applied')
+            except Exception as e:
+                logger.error(f"Error in ML analysis step: {str(e)}")
+                db.session.rollback()
+                # Continue processing
 
         except Exception as e:
             logger.error(f"Error in processing workflow for session {session_id}: {str(e)}")
             raise
 
     def _is_workflow_step_completed(self, session_id, step_name):
-        """Check if a workflow step has been completed"""
-        from models import ProcessingSession
-        session = ProcessingSession.query.get(session_id)
-        return getattr(session, step_name, False) if session else False
+        """Check if a workflow step has been completed with proper error handling"""
+        try:
+            from models import ProcessingSession
+            # Use fresh session query to avoid stale data
+            session = db.session.get(ProcessingSession, session_id)
+            return getattr(session, step_name, False) if session else False
+        except Exception as e:
+            logger.error(f"Error checking workflow step '{step_name}': {str(e)}")
+            # Assume not completed if we can't check
+            return False
 
     def _mark_workflow_step_completed(self, session_id, step_name):
-        """Mark a workflow step as completed"""
-        from models import ProcessingSession
-        session = ProcessingSession.query.get(session_id)
-        if session:
-            setattr(session, step_name, True)
-            db.session.commit()
+        """Mark a workflow step as completed with proper error handling"""
+        try:
+            from models import ProcessingSession
+            # Refresh session to avoid stale object issues
+            session = db.session.get(ProcessingSession, session_id)
+            if session:
+                setattr(session, step_name, True)
+                db.session.commit()
+                logger.debug(f"Marked workflow step '{step_name}' as completed for session {session_id}")
+        except Exception as e:
+            logger.error(f"Error marking workflow step '{step_name}' as completed: {str(e)}")
+            db.session.rollback()
+            # Try again with fresh session
+            try:
+                session = db.session.get(ProcessingSession, session_id)
+                if session:
+                    setattr(session, step_name, True)
+                    db.session.commit()
+            except Exception as retry_error:
+                logger.error(f"Retry failed for workflow step '{step_name}': {str(retry_error)}")
+                db.session.rollback()
 
     def _log_processing_error(self, session_id, error_type, error_message, record_data=None):
         """Log processing error to database"""
