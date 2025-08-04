@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import json
 import logging
-import signal
 from datetime import datetime
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN
@@ -37,15 +36,7 @@ class MLEngine:
 
     def analyze_session(self, session_id):
         """Perform comprehensive ML analysis on session data"""
-        def timeout_handler(signum, frame):
-            raise TimeoutError("ML analysis timed out")
-            
         try:
-            # Set timeout for ML analysis (5 minutes max)
-            if hasattr(signal, 'SIGALRM'):
-                signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(300)  # 5 minute timeout
-            
             logger.info(f"Starting ML analysis for session {session_id}")
 
             # Get all records first for debugging
@@ -110,10 +101,6 @@ class MLEngine:
             insights = self._generate_insights(df, anomaly_scores, risk_scores)
 
             logger.info(f"ML analysis completed for session {session_id}")
-            
-            # Clear timeout
-            if hasattr(signal, 'SIGALRM'):
-                signal.alarm(0)
 
             return {
                 'processing_stats': {
@@ -125,38 +112,51 @@ class MLEngine:
                 'insights': insights
             }
 
-        except TimeoutError as e:
-            logger.error(f"ML analysis timed out for session {session_id}")
-            # Clear timeout
-            if hasattr(signal, 'SIGALRM'):
-                signal.alarm(0)
-            # Return basic analysis with timeout info
-            return {
-                'processing_stats': {
-                    'ml_records_analyzed': 0,
-                    'anomalies_detected': 0,
-                    'critical_cases': 0,
-                    'high_risk_cases': 0,
-                    'timeout': True
-                },
-                'insights': {'timeout': 'ML analysis timed out - using basic risk assessment'}
-            }
         except Exception as e:
             logger.error(f"Error in ML analysis for session {session_id}: {str(e)}")
-            # Clear timeout
-            if hasattr(signal, 'SIGALRM'):
-                signal.alarm(0)
-            # Return basic analysis instead of raising
-            return {
-                'processing_stats': {
-                    'ml_records_analyzed': 0,
-                    'anomalies_detected': 0,
-                    'critical_cases': 0,
-                    'high_risk_cases': 0,
-                    'error': str(e)
-                },
-                'insights': {'error': f'ML analysis failed: {str(e)}'}
-            }
+            
+            # When ML fails, still assign basic risk scores to all records
+            try:
+                records = EmailRecord.query.filter(
+                    EmailRecord.session_id == session_id,
+                    EmailRecord.excluded_by_rule.is_(None),
+                    db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+                ).all()
+                
+                logger.info(f"Applying basic risk scoring to {len(records)} records after ML failure")
+                
+                for record in records:
+                    # Calculate basic risk score without ML
+                    basic_risk = self._calculate_basic_risk_score(record)
+                    record.ml_risk_score = basic_risk
+                    record.risk_level = self._get_risk_level(basic_risk)
+                    record.ml_explanation = f'Basic risk assessment (ML failed): {record.risk_level} risk'
+                
+                db.session.commit()
+                logger.info(f"Applied basic risk scores to {len(records)} records")
+                
+                return {
+                    'processing_stats': {
+                        'ml_records_analyzed': len(records),
+                        'anomalies_detected': 0,
+                        'critical_cases': sum(1 for r in records if r.ml_risk_score > self.risk_thresholds['critical']),
+                        'high_risk_cases': sum(1 for r in records if r.ml_risk_score > self.risk_thresholds['high']),
+                        'basic_scoring_used': True
+                    },
+                    'insights': {'info': f'Used basic risk scoring due to ML error: {str(e)}'}
+                }
+            except Exception as fallback_error:
+                logger.error(f"Fallback basic scoring also failed: {str(fallback_error)}")
+                return {
+                    'processing_stats': {
+                        'ml_records_analyzed': 0,
+                        'anomalies_detected': 0,
+                        'critical_cases': 0,
+                        'high_risk_cases': 0,
+                        'error': str(e)
+                    },
+                    'insights': {'error': f'ML analysis and fallback failed: {str(e)}'}
+                }
 
     def _records_to_dataframe(self, records):
         """Convert EmailRecord objects to pandas DataFrame"""
@@ -530,3 +530,45 @@ class MLEngine:
                 'processing_complete': False,
                 'error': str(e)
             }
+    
+    def _calculate_basic_risk_score(self, record):
+        """Calculate basic risk score without ML analysis"""
+        risk_score = 0.0
+        
+        # Leaver status (30% of risk)
+        if record.leaver and record.leaver.lower() in ['yes', 'true', '1']:
+            risk_score += 0.3
+        
+        # External domain (20% of risk)
+        if record.recipients_email_domain:
+            domain = record.recipients_email_domain.lower()
+            if any(pub in domain for pub in ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com']):
+                risk_score += 0.2
+        
+        # Attachment risk (25% of risk)
+        if record.attachments:
+            attachment_risk = self._calculate_attachment_risk(record.attachments)
+            risk_score += attachment_risk * 0.25
+        
+        # Wordlist matches (15% of risk)
+        if record.wordlist_attachment or record.wordlist_subject:
+            risk_score += 0.15
+        
+        # Subject length (10% of risk) - very long or very short subjects can be suspicious
+        if record.subject:
+            subject_len = len(record.subject)
+            if subject_len < 5 or subject_len > 100:
+                risk_score += 0.1
+        
+        return min(risk_score, 1.0)  # Cap at 1.0
+    
+    def _get_risk_level(self, risk_score):
+        """Convert numeric risk score to risk level string"""
+        if risk_score >= self.risk_thresholds['critical']:
+            return 'Critical'
+        elif risk_score >= self.risk_thresholds['high']:
+            return 'High'
+        elif risk_score >= self.risk_thresholds['medium']:
+            return 'Medium'
+        else:
+            return 'Low'
