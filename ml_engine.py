@@ -55,11 +55,12 @@ class MLEngine:
             ).all()
             logger.info(f"Whitelisted records: {len(whitelisted_records)}")
 
-            # Get non-excluded, non-whitelisted records
+            # Get non-excluded, non-whitelisted records that haven't been analyzed yet
             records = EmailRecord.query.filter(
                 EmailRecord.session_id == session_id,
                 EmailRecord.excluded_by_rule.is_(None),
-                db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+                db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
+                db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
             ).all()
             
             logger.info(f"Records eligible for ML analysis: {len(records)}")
