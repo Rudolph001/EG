@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import json
 import logging
+import os
+import time
 from datetime import datetime
 from sqlalchemy import text
 from models import ProcessingSession, EmailRecord, ProcessingError, Rule, WhitelistDomain, AttachmentKeyword
@@ -23,18 +25,25 @@ class DataProcessor:
         logger.info(f"DataProcessor initialized with config: {config.__dict__}")
     
     def process_csv(self, session_id, file_path):
-        """Process CSV file with comprehensive 8-stage workflow"""
+        """Process CSV file with comprehensive 8-stage workflow and improved error handling"""
+        session = None
         try:
             logger.info(f"Starting CSV processing for session {session_id}")
             
-            # Initialize workflow
-            session = ProcessingSession.query.get(session_id)
+            # Initialize workflow with database connection validation
+            session = self._get_session_with_retry(session_id)
             if not session:
                 raise Exception(f"Session {session_id} not found")
             
+            # Check if processing can be resumed
+            if session.status == 'processing' and session.processed_records > 0:
+                logger.info(f"Resuming processing for session {session_id} from record {session.processed_records}")
+                return self._resume_processing(session_id, file_path)
+            
             session.status = 'processing'
             session.data_path = file_path
-            db.session.commit()
+            session.error_message = None
+            self._commit_with_retry()
             
             # Initialize 8-stage workflow
             self.workflow_manager.initialize_workflow(session_id)
@@ -42,68 +51,217 @@ class DataProcessor:
             # Stage 1: Data Ingestion (0-5%)
             self.workflow_manager.start_stage(session_id, 1)
             
-            # Count total records first
-            total_records = self._count_csv_records(file_path)
+            # Count total records first with validation
+            total_records = self._count_csv_records_with_validation(file_path)
             session.total_records = total_records
-            db.session.commit()
+            self._commit_with_retry()
             
             logger.info(f"Processing {total_records} records in chunks of {self.chunk_size}")
             
             processed_count = 0
             current_chunk = 0
             
-            # Process file in chunks (Data Ingestion stage)
-            for chunk_df in pd.read_csv(file_path, chunksize=self.chunk_size):
-                current_chunk += 1
-                session.current_chunk = current_chunk
-                session.total_chunks = (total_records // self.chunk_size) + 1
-                
-                chunk_processed = self._process_chunk(session_id, chunk_df, processed_count)
-                processed_count += chunk_processed
-                
-                # Update progress within Data Ingestion stage (0-5%)
-                progress = min(100, (processed_count / total_records) * 100) if total_records > 0 else 100
-                self.workflow_manager.update_stage_progress(session_id, 1, progress)
-                
-                session.processed_records = processed_count
-                db.session.commit()
-                
-                logger.info(f"Processed chunk {current_chunk}: {processed_count}/{total_records} records")
+            # Process file in chunks with enhanced error handling
+            try:
+                for chunk_df in pd.read_csv(file_path, chunksize=self.chunk_size):
+                    current_chunk += 1
+                    
+                    # Process chunk with retry mechanism
+                    chunk_processed = self._process_chunk_with_retry(session_id, chunk_df, processed_count, current_chunk)
+                    processed_count += chunk_processed
+                    
+                    # Update session with retry
+                    session = self._get_session_with_retry(session_id)
+                    session.current_chunk = current_chunk
+                    session.total_chunks = (total_records // self.chunk_size) + 1
+                    session.processed_records = processed_count
+                    
+                    # Update progress within Data Ingestion stage (0-5%)
+                    progress = min(100, (processed_count / total_records) * 100) if total_records > 0 else 100
+                    self.workflow_manager.update_stage_progress(session_id, 1, progress)
+                    
+                    self._commit_with_retry()
+                    
+                    logger.info(f"Processed chunk {current_chunk}: {processed_count}/{total_records} records")
+                    
+                    # Yield control to prevent blocking
+                    if current_chunk % 5 == 0:
+                        import time
+                        time.sleep(0.1)
+                        
+            except Exception as chunk_error:
+                logger.error(f"Error processing chunks: {str(chunk_error)}")
+                raise Exception(f"Data ingestion failed at chunk {current_chunk}: {str(chunk_error)}")
             
             # Complete Data Ingestion
             self.workflow_manager.complete_stage(session_id, 1)
+            logger.info(f"Data Ingestion completed: {processed_count} records processed")
             
-            # Apply 8-stage processing workflow
+            # Apply remaining 7-stage processing workflow
             self._apply_8_stage_workflow(session_id)
             
             # Final completion
+            session = self._get_session_with_retry(session_id)
             session.processed_records = processed_count
-            db.session.commit()
+            session.status = 'completed'
+            self._commit_with_retry()
             
             logger.info(f"8-stage CSV processing completed for session {session_id}: {processed_count} records")
             
         except Exception as e:
             logger.error(f"Error processing CSV for session {session_id}: {str(e)}")
-            session = ProcessingSession.query.get(session_id)
-            if session:
-                # Mark current stage as error
-                if hasattr(self, 'workflow_manager') and session.current_stage > 0:
-                    self.workflow_manager.error_stage(session_id, session.current_stage, str(e))
+            try:
+                if not session:
+                    session = self._get_session_with_retry(session_id)
+                
+                if session:
+                    # Mark current stage as error with detailed message
+                    if hasattr(self, 'workflow_manager') and session.current_stage > 0:
+                        error_msg = f"Stage {session.current_stage} failed: {str(e)}"
+                        self.workflow_manager.error_stage(session_id, session.current_stage, error_msg)
+                    else:
+                        session.status = 'error'
+                        session.error_message = f"Processing failed: {str(e)}"
+                    self._commit_with_retry()
+            except Exception as error_handling_exception:
+                logger.error(f"Failed to handle error properly: {str(error_handling_exception)}")
+            raise
+    
+    def _get_session_with_retry(self, session_id, max_retries=3):
+        """Get session with database retry mechanism"""
+        for attempt in range(max_retries):
+            try:
+                session = ProcessingSession.query.get(session_id)
+                return session
+            except Exception as e:
+                logger.warning(f"Database connection attempt {attempt + 1} failed: {str(e)}")
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(1)
+                    continue
                 else:
-                    session.status = 'error'
-                    session.error_message = str(e)
-                    db.session.commit()
+                    raise Exception(f"Failed to connect to database after {max_retries} attempts")
+    
+    def _commit_with_retry(self, max_retries=3):
+        """Commit database changes with retry mechanism"""
+        for attempt in range(max_retries):
+            try:
+                db.session.commit()
+                return True
+            except Exception as e:
+                logger.warning(f"Database commit attempt {attempt + 1} failed: {str(e)}")
+                db.session.rollback()
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(1)
+                    continue
+                else:
+                    raise Exception(f"Failed to commit to database after {max_retries} attempts")
+    
+    def _count_csv_records_with_validation(self, file_path):
+        """Count total records in CSV file with validation"""
+        try:
+            # Validate file exists and is readable
+            if not os.path.exists(file_path):
+                raise Exception(f"File not found: {file_path}")
+            
+            # Count records efficiently
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return sum(1 for line in f) - 1  # Subtract header
+                
+        except Exception as e:
+            logger.warning(f"Could not count CSV records efficiently: {e}")
+            try:
+                # Fallback to pandas with validation
+                df = pd.read_csv(file_path, nrows=0)  # Just read header first
+                df = pd.read_csv(file_path)  # Then read full file
+                return len(df)
+            except Exception as pandas_error:
+                raise Exception(f"Failed to read CSV file: {str(pandas_error)}")
+    
+    def _process_chunk_with_retry(self, session_id, chunk_df, start_index, chunk_number, max_retries=3):
+        """Process a chunk with retry mechanism"""
+        for attempt in range(max_retries):
+            try:
+                return self._process_chunk(session_id, chunk_df, start_index)
+            except Exception as e:
+                logger.warning(f"Chunk {chunk_number} processing attempt {attempt + 1} failed: {str(e)}")
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(2)
+                    db.session.rollback()  # Rollback failed transaction
+                    continue
+                else:
+                    raise Exception(f"Failed to process chunk {chunk_number} after {max_retries} attempts: {str(e)}")
+    
+    def _resume_processing(self, session_id, file_path):
+        """Resume processing from where it left off"""
+        try:
+            logger.info(f"Attempting to resume processing for session {session_id}")
+            
+            session = self._get_session_with_retry(session_id)
+            if not session:
+                raise Exception(f"Session {session_id} not found for resume")
+            
+            # Get current processing state
+            processed_records = session.processed_records or 0
+            total_records = session.total_records or self._count_csv_records_with_validation(file_path)
+            
+            # Check if data ingestion is complete
+            if processed_records >= total_records:
+                logger.info(f"Data ingestion already complete, proceeding to workflow stages")
+                self.workflow_manager.complete_stage(session_id, 1)
+                self._apply_8_stage_workflow(session_id)
+                return
+            
+            # Resume data ingestion from current position
+            current_chunk = session.current_chunk or 0
+            
+            logger.info(f"Resuming from record {processed_records}, chunk {current_chunk}")
+            
+            # Skip to the correct position in file
+            chunk_iterator = pd.read_csv(file_path, chunksize=self.chunk_size)
+            
+            # Skip already processed chunks
+            for i in range(current_chunk):
+                try:
+                    next(chunk_iterator)
+                except StopIteration:
+                    break
+            
+            # Continue processing from current position
+            for chunk_df in chunk_iterator:
+                current_chunk += 1
+                
+                chunk_processed = self._process_chunk_with_retry(session_id, chunk_df, processed_records, current_chunk)
+                processed_records += chunk_processed
+                
+                # Update session
+                session = self._get_session_with_retry(session_id)
+                session.current_chunk = current_chunk
+                session.processed_records = processed_records
+                
+                # Update progress
+                progress = min(100, (processed_records / total_records) * 100) if total_records > 0 else 100
+                self.workflow_manager.update_stage_progress(session_id, 1, progress)
+                
+                self._commit_with_retry()
+                
+                logger.info(f"Resumed chunk {current_chunk}: {processed_records}/{total_records} records")
+            
+            # Complete data ingestion and continue with workflow
+            self.workflow_manager.complete_stage(session_id, 1)
+            self._apply_8_stage_workflow(session_id)
+            
+            logger.info(f"Resume processing completed for session {session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error resuming processing: {str(e)}")
             raise
     
     def _count_csv_records(self, file_path):
-        """Count total records in CSV file"""
-        try:
-            return sum(1 for line in open(file_path, 'r', encoding='utf-8')) - 1  # Subtract header
-        except Exception as e:
-            logger.warning(f"Could not count CSV records efficiently: {e}")
-            # Fallback to pandas
-            df = pd.read_csv(file_path)
-            return len(df)
+        """Count total records in CSV file (legacy method)"""
+        return self._count_csv_records_with_validation(file_path)
     
     def _process_chunk(self, session_id, chunk_df, start_index):
         """Process a chunk of data with custom wordlist matching"""

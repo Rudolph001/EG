@@ -59,7 +59,10 @@ def main():
     db_path = Path("instance/email_guardian.db")
     try:
         # Ensure parent directory exists with proper permissions
-        db_path.parent.mkdir(parents=True, exist_ok=True)
+        db_path.parent.mkdir(parents=True, exist_ok=True, mode=0o755)
+        
+        # Set proper permissions for the instance directory
+        os.chmod(str(db_path.parent), 0o755)
         
         # Test database connection
         import sqlite3
@@ -67,6 +70,7 @@ def main():
         conn.execute("SELECT 1")  # Test write access
         conn.close()
         print("✓ Database connection test successful")
+        print(f"✓ Database file accessible: {db_path}")
     except Exception as e:
         print(f"✗ Database connection failed: {e}")
         print("Creating database file...")
@@ -75,14 +79,34 @@ def main():
             if db_path.exists():
                 db_path.unlink()  # Remove corrupted file
             
+            # Create database with proper permissions
             conn = sqlite3.connect(str(db_path))
             conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
             conn.commit()
             conn.close()
+            
+            # Set proper file permissions
+            os.chmod(str(db_path), 0o644)
+            
             print("✓ Database file created successfully")
         except Exception as create_error:
             print(f"✗ Failed to create database file: {create_error}")
-            sys.exit(1)
+            
+            # Try alternative database location
+            alt_db_path = Path("email_guardian_temp.db")
+            try:
+                print("Trying alternative database location...")
+                conn = sqlite3.connect(str(alt_db_path))
+                conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
+                conn.commit()
+                conn.close()
+                
+                # Update environment variable to use alternative path
+                os.environ['DATABASE_URL'] = f'sqlite:///{alt_db_path.absolute()}'
+                print(f"✓ Alternative database created: {alt_db_path}")
+            except Exception as alt_error:
+                print(f"✗ Failed to create alternative database: {alt_error}")
+                sys.exit(1)
     
     # Import and run the app
     try:

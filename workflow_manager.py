@@ -112,16 +112,47 @@ class WorkflowManager:
             logger.error(f"Error initializing workflow for session {session_id}: {str(e)}")
             return False
     
+    def _commit_with_retry(self, max_retries=3):
+        """Commit database changes with retry mechanism"""
+        for attempt in range(max_retries):
+            try:
+                db.session.commit()
+                return True
+            except Exception as e:
+                logger.warning(f"Database commit attempt {attempt + 1} failed: {str(e)}")
+                db.session.rollback()
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(1)
+                    continue
+                else:
+                    raise Exception(f"Failed to commit to database after {max_retries} attempts")
+    
+    def _get_session_with_retry(self, session_id, max_retries=3):
+        """Get session with database retry mechanism"""
+        for attempt in range(max_retries):
+            try:
+                session = ProcessingSession.query.get(session_id)
+                return session
+            except Exception as e:
+                logger.warning(f"Database connection attempt {attempt + 1} failed: {str(e)}")
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(1)
+                    continue
+                else:
+                    raise Exception(f"Failed to connect to database after {max_retries} attempts")
+    
     def start_stage(self, session_id, stage_number):
-        """Start a specific workflow stage"""
+        """Start a specific workflow stage with improved error handling"""
         try:
-            session = ProcessingSession.query.get(session_id)
+            session = self._get_session_with_retry(session_id)
             if not session:
                 raise Exception(f"Session {session_id} not found")
             
             if not session.workflow_stages:
                 self.initialize_workflow(session_id)
-                session = ProcessingSession.query.get(session_id)
+                session = self._get_session_with_retry(session_id)
             
             workflow_stages = session.workflow_stages.copy()
             stage_key = str(stage_number)
@@ -145,7 +176,7 @@ class WorkflowManager:
             session.current_stage = stage_number
             session.workflow_stages = workflow_stages
             session.stage_progress = self.WORKFLOW_STAGES[stage_number]['progress_start']
-            db.session.commit()
+            self._commit_with_retry()
             
             logger.info(f"Started stage {stage_number} ({self.WORKFLOW_STAGES[stage_number]['name']}) for session {session_id}")
             return True
@@ -155,9 +186,9 @@ class WorkflowManager:
             return False
     
     def update_stage_progress(self, session_id, stage_number, progress_percent):
-        """Update progress within a specific stage"""
+        """Update progress within a specific stage with improved error handling"""
         try:
-            session = ProcessingSession.query.get(session_id)
+            session = self._get_session_with_retry(session_id)
             if not session:
                 return False
             
@@ -182,7 +213,7 @@ class WorkflowManager:
             # Update session
             session.workflow_stages = workflow_stages
             session.stage_progress = overall_progress
-            db.session.commit()
+            self._commit_with_retry()
             
             return True
             
@@ -191,9 +222,9 @@ class WorkflowManager:
             return False
     
     def complete_stage(self, session_id, stage_number):
-        """Complete a workflow stage"""
+        """Complete a workflow stage with improved error handling"""
         try:
-            session = ProcessingSession.query.get(session_id)
+            session = self._get_session_with_retry(session_id)
             if not session:
                 return False
             
@@ -220,7 +251,7 @@ class WorkflowManager:
                 session.status = 'completed'
                 session.stage_progress = 100.0
             
-            db.session.commit()
+            self._commit_with_retry()
             
             logger.info(f"Completed stage {stage_number} ({self.WORKFLOW_STAGES[stage_number]['name']}) for session {session_id}")
             return True
