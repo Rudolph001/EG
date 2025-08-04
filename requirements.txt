@@ -65,3 +65,8 @@ flask-sqlalchemy
 gunicorn
 psycopg2-binary
 python-dateutil
+email_validator
+flask
+flask-sqlalchemy
+gunicorn
+psycopg2-binary
