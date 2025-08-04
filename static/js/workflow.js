@@ -1,6 +1,7 @@
+
 /**
- * Workflow Progress Management for Email Guardian
- * Handles the 8-stage processing workflow display and updates
+ * Professional Workflow Progress Management for Email Guardian
+ * Enhanced 8-stage processing workflow display and interactions
  */
 
 class WorkflowManager {
@@ -8,10 +9,12 @@ class WorkflowManager {
         this.sessionId = sessionId;
         this.updateInterval = null;
         this.isPolling = false;
+        this.lastUpdateTime = Date.now();
+        this.animationQueue = [];
     }
 
     /**
-     * Initialize workflow display
+     * Initialize professional workflow display
      */
     initializeWorkflow() {
         const workflowContainer = document.getElementById('workflowContainer');
@@ -22,25 +25,33 @@ class WorkflowManager {
 
         const workflowHtml = `
             <div class="workflow-progress-section">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0">
-                        <i class="fas fa-cogs text-primary"></i> Processing Workflow
+                <div class="workflow-header">
+                    <h5 class="workflow-title">
+                        <i class="fas fa-cogs"></i>
+                        Processing Workflow
                     </h5>
                     <div class="workflow-controls">
-                        <span id="workflowStatus" class="badge bg-secondary">Initializing</span>
-                        <span id="overallProgress" class="badge bg-info ms-2">0%</span>
+                        <span id="workflowStatus" class="workflow-status-badge bg-secondary">Initializing</span>
+                        <span id="overallProgress" class="workflow-progress-badge">0%</span>
                     </div>
                 </div>
                 
-                <!-- Overall Progress Bar -->
-                <div class="progress mb-4" style="height: 8px;">
-                    <div id="overallProgressBar" class="progress-bar bg-gradient" 
-                         role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                <!-- Enhanced Overall Progress Bar -->
+                <div class="workflow-overall-progress">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted fw-semibold">Overall Progress</span>
+                        <span id="progressTimeEstimate" class="text-muted small"></span>
+                    </div>
+                    <div class="progress">
+                        <div id="overallProgressBar" class="progress-bar" 
+                             role="progressbar" style="width: 0%" 
+                             aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Workflow Stages -->
-                <div class="workflow-stages row g-2" id="workflowStages">
+                <!-- Professional Workflow Stages Grid -->
+                <div class="workflow-stages" id="workflowStages">
                     <!-- Stages will be populated dynamically -->
                 </div>
             </div>
@@ -51,7 +62,7 @@ class WorkflowManager {
     }
 
     /**
-     * Load current workflow status from API
+     * Load current workflow status from API with error handling
      */
     async loadWorkflowStatus() {
         try {
@@ -60,90 +71,117 @@ class WorkflowManager {
 
             if (data.error) {
                 console.error('Error loading workflow status:', data.error);
+                this.handleWorkflowError(data.error);
                 return;
             }
 
             this.updateWorkflowDisplay(data);
             
             // Start polling if processing
-            if (data.status === 'processing') {
+            if (data.status === 'processing' && !this.isPolling) {
                 this.startPolling();
+            } else if (data.status === 'completed') {
+                this.handleWorkflowComplete(data);
             }
         } catch (error) {
             console.error('Error fetching workflow status:', error);
+            this.handleWorkflowError('Network error occurred');
         }
     }
 
     /**
-     * Update workflow display with current status
+     * Update workflow display with enhanced animations and styling
      */
     updateWorkflowDisplay(workflowData) {
-        const { current_stage, overall_progress, status, stages } = workflowData;
+        const { current_stage, overall_progress, status, stages, estimated_time_remaining } = workflowData;
 
-        // Update overall status and progress
-        const statusElement = document.getElementById('workflowStatus');
-        const progressElement = document.getElementById('overallProgress');
-        const progressBar = document.getElementById('overallProgressBar');
-
-        if (statusElement) {
-            const statusClass = this.getStatusClass(status);
-            statusElement.className = `badge ${statusClass}`;
-            statusElement.textContent = this.getStatusText(status);
-        }
-
-        if (progressElement) {
-            progressElement.textContent = `${Math.round(overall_progress)}%`;
-        }
-
-        if (progressBar) {
-            progressBar.style.width = `${overall_progress}%`;
-            progressBar.setAttribute('aria-valuenow', overall_progress);
-            
-            // Change color based on progress
-            progressBar.className = `progress-bar ${this.getProgressBarClass(overall_progress)}`;
-        }
-
-        // Update individual stages
+        // Update overall status and progress with animations
+        this.updateOverallStatus(status, overall_progress, estimated_time_remaining);
+        
+        // Update individual stages with professional styling
         this.updateStagesDisplay(stages, current_stage);
     }
 
     /**
-     * Update individual stages display
+     * Update overall status with professional styling
+     */
+    updateOverallStatus(status, progress, estimatedTime) {
+        const statusElement = document.getElementById('workflowStatus');
+        const progressElement = document.getElementById('overallProgress');
+        const progressBar = document.getElementById('overallProgressBar');
+        const timeEstimate = document.getElementById('progressTimeEstimate');
+
+        if (statusElement) {
+            const statusClass = this.getStatusClass(status);
+            const statusText = this.getStatusText(status);
+            
+            statusElement.className = `workflow-status-badge ${statusClass}`;
+            statusElement.innerHTML = `<i class="${this.getStatusIcon(status)}"></i> ${statusText}`;
+        }
+
+        if (progressElement) {
+            const roundedProgress = Math.round(progress);
+            if (progressElement.textContent !== `${roundedProgress}%`) {
+                this.animateCounter(progressElement, roundedProgress, '%');
+            }
+        }
+
+        if (progressBar) {
+            this.animateProgressBar(progressBar, progress);
+        }
+
+        if (timeEstimate && estimatedTime) {
+            timeEstimate.textContent = `Est. ${this.formatTimeRemaining(estimatedTime)}`;
+        }
+    }
+
+    /**
+     * Update individual stages with professional styling and animations
      */
     updateStagesDisplay(stages, currentStage) {
         const stagesContainer = document.getElementById('workflowStages');
         if (!stagesContainer || !stages) return;
 
+        const stageDefinitions = this.getStageDefinitions();
         let stagesHtml = '';
 
         for (let i = 1; i <= 8; i++) {
             const stage = stages[i.toString()];
-            if (!stage) continue;
+            const definition = stageDefinitions[i-1];
+            
+            if (!stage || !definition) continue;
 
-            const stageStatus = stage.status;
+            const stageStatus = stage.status || 'waiting';
             const isActive = i === currentStage;
             const stageClass = this.getStageClass(stageStatus, isActive);
-            const icon = this.getStageIcon(stage, stageStatus);
+            const icon = this.getStageIcon(definition, stageStatus);
 
             stagesHtml += `
-                <div class="col-md-3 col-sm-6 mb-3">
-                    <div class="stage-card ${stageClass}" data-stage="${i}">
-                        <div class="stage-header">
+                <div class="stage-card ${stageClass}" data-stage="${i}">
+                    <div class="stage-header">
+                        <div class="stage-icon-container">
                             <div class="stage-icon">
                                 ${icon}
                             </div>
                             <div class="stage-number">${i}</div>
                         </div>
-                        <div class="stage-content">
-                            <h6 class="stage-title">${stage.name}</h6>
-                            <p class="stage-description">${stage.description}</p>
-                            <div class="stage-progress">
-                                <div class="progress" style="height: 4px;">
-                                    <div class="progress-bar" style="width: ${stage.progress}%"></div>
+                    </div>
+                    <div class="stage-content">
+                        <h6 class="stage-title">${definition.name}</h6>
+                        <p class="stage-description">${definition.description}</p>
+                        <div class="stage-progress">
+                            <div class="stage-progress-bar-container">
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: ${stage.progress || 0}%"></div>
                                 </div>
-                                <small class="text-muted">${stage.progress}%</small>
                             </div>
-                            ${this.getStageStatus(stage, stageStatus)}
+                            <div class="stage-progress-text">
+                                <span>${stage.progress || 0}% Complete</span>
+                                ${stage.records_processed ? `<span>${stage.records_processed} processed</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="stage-status status-${stageStatus}">
+                            ${this.getStageStatusContent(stage, stageStatus)}
                         </div>
                     </div>
                 </div>
@@ -151,28 +189,79 @@ class WorkflowManager {
         }
 
         stagesContainer.innerHTML = stagesHtml;
+        
+        // Add stagger animation to cards
+        this.addStaggerAnimation();
     }
 
     /**
-     * Get stage card CSS class based on status
+     * Get stage definitions with professional descriptions
+     */
+    getStageDefinitions() {
+        return [
+            {
+                name: 'Data Ingestion',
+                description: 'Loading and parsing CSV file with validation',
+                icon: 'fas fa-upload'
+            },
+            {
+                name: 'Exclusion Rules',
+                description: 'Applying exclusion rules and filters',
+                icon: 'fas fa-filter'
+            },
+            {
+                name: 'Whitelist Filtering',
+                description: 'Processing domain whitelist',
+                icon: 'fas fa-shield-alt'
+            },
+            {
+                name: 'Security Rules',
+                description: 'Applying security rules engine',
+                icon: 'fas fa-gavel'
+            },
+            {
+                name: 'Wordlist Analysis',
+                description: 'Analyzing keywords and content',
+                icon: 'fas fa-search'
+            },
+            {
+                name: 'ML Analysis',
+                description: 'Machine learning risk assessment',
+                icon: 'fas fa-brain'
+            },
+            {
+                name: 'Case Generation',
+                description: 'Creating security cases',
+                icon: 'fas fa-folder-open'
+            },
+            {
+                name: 'Final Validation',
+                description: 'Validating and finalizing results',
+                icon: 'fas fa-check-circle'
+            }
+        ];
+    }
+
+    /**
+     * Get professional stage card CSS class
      */
     getStageClass(status, isActive) {
-        const baseClass = 'card h-100 stage-card';
+        const baseClass = 'stage-card';
         
-        if (status === 'error') return `${baseClass} border-danger`;
-        if (status === 'complete') return `${baseClass} border-success`;
-        if (status === 'processing' || isActive) return `${baseClass} border-warning shadow-sm`;
-        return `${baseClass} border-light`;
+        if (status === 'error') return `${baseClass} stage-error`;
+        if (status === 'complete') return `${baseClass} stage-complete`;
+        if (status === 'processing' || isActive) return `${baseClass} stage-processing`;
+        return `${baseClass} stage-waiting`;
     }
 
     /**
-     * Get stage icon based on status
+     * Get stage icon with status styling
      */
-    getStageIcon(stage, status) {
-        const baseIcon = stage.icon || 'fas fa-circle';
+    getStageIcon(definition, status) {
+        const baseIcon = definition.icon;
         
         if (status === 'error') {
-            return `<i class="${baseIcon} text-danger"></i>`;
+            return `<i class="fas fa-exclamation-triangle text-danger"></i>`;
         } else if (status === 'complete') {
             return `<i class="fas fa-check-circle text-success"></i>`;
         } else if (status === 'processing') {
@@ -183,30 +272,30 @@ class WorkflowManager {
     }
 
     /**
-     * Get stage status text
+     * Get stage status content with professional styling
      */
-    getStageStatus(stage, status) {
+    getStageStatusContent(stage, status) {
         if (stage.error_message) {
-            return `<small class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${stage.error_message}</small>`;
+            return `<i class="fas fa-exclamation-triangle"></i> Error: ${stage.error_message}`;
         }
 
-        const statusTexts = {
-            'waiting': '<small class="text-muted"><i class="fas fa-clock"></i> Waiting</small>',
-            'processing': '<small class="text-warning"><i class="fas fa-spinner fa-spin"></i> Processing</small>',
-            'complete': '<small class="text-success"><i class="fas fa-check"></i> Complete</small>',
-            'error': '<small class="text-danger"><i class="fas fa-times"></i> Error</small>'
+        const statusContent = {
+            'waiting': '<i class="fas fa-clock"></i> Waiting to start',
+            'processing': '<i class="fas fa-spinner fa-spin"></i> Processing...',
+            'complete': '<i class="fas fa-check"></i> Completed successfully',
+            'error': '<i class="fas fa-times"></i> Processing failed'
         };
 
-        return statusTexts[status] || '<small class="text-muted">Unknown</small>';
+        return statusContent[status] || '<i class="fas fa-question"></i> Unknown status';
     }
 
     /**
-     * Get status CSS class
+     * Get status CSS class for badges
      */
     getStatusClass(status) {
         const statusClasses = {
             'uploaded': 'bg-secondary',
-            'processing': 'bg-warning',
+            'processing': 'bg-warning text-dark',
             'completed': 'bg-success',
             'error': 'bg-danger'
         };
@@ -223,56 +312,188 @@ class WorkflowManager {
             'completed': 'Completed',
             'error': 'Error'
         };
-        return statusTexts[status] || 'Unknown';
+        return statusTexts[status] || 'Initializing';
     }
 
     /**
-     * Get progress bar class based on progress
+     * Get status icon
+     */
+    getStatusIcon(status) {
+        const statusIcons = {
+            'uploaded': 'fas fa-cloud-upload-alt',
+            'processing': 'fas fa-spinner fa-spin',
+            'completed': 'fas fa-check-circle',
+            'error': 'fas fa-exclamation-triangle'
+        };
+        return statusIcons[status] || 'fas fa-circle';
+    }
+
+    /**
+     * Animate progress bar with smooth transitions
+     */
+    animateProgressBar(progressBar, targetProgress) {
+        const currentProgress = parseInt(progressBar.getAttribute('aria-valuenow') || '0');
+        
+        if (currentProgress !== targetProgress) {
+            progressBar.style.width = `${targetProgress}%`;
+            progressBar.setAttribute('aria-valuenow', targetProgress);
+            
+            // Add color transition based on progress
+            const colorClass = this.getProgressBarClass(targetProgress);
+            progressBar.className = `progress-bar ${colorClass}`;
+        }
+    }
+
+    /**
+     * Animate counter with smooth transitions
+     */
+    animateCounter(element, targetValue, suffix = '') {
+        const currentValue = parseInt(element.textContent) || 0;
+        const increment = targetValue > currentValue ? 1 : -1;
+        const duration = Math.abs(targetValue - currentValue) * 20;
+        
+        let current = currentValue;
+        const timer = setInterval(() => {
+            current += increment;
+            element.textContent = current + suffix;
+            
+            if ((increment > 0 && current >= targetValue) || 
+                (increment < 0 && current <= targetValue)) {
+                clearInterval(timer);
+                element.textContent = targetValue + suffix;
+            }
+        }, Math.max(duration / Math.abs(targetValue - currentValue), 10));
+    }
+
+    /**
+     * Add stagger animation to stage cards
+     */
+    addStaggerAnimation() {
+        const cards = document.querySelectorAll('.stage-card');
+        cards.forEach((card, index) => {
+            card.style.animationDelay = `${index * 0.1}s`;
+        });
+    }
+
+    /**
+     * Get progress bar color class
      */
     getProgressBarClass(progress) {
         if (progress >= 100) return 'bg-success';
-        if (progress >= 80) return 'bg-info';
+        if (progress >= 75) return 'bg-info';
         if (progress >= 50) return 'bg-warning';
-        return 'bg-primary';
+        if (progress >= 25) return 'bg-primary';
+        return 'bg-secondary';
     }
 
     /**
-     * Start polling for workflow updates
+     * Format time remaining
+     */
+    formatTimeRemaining(seconds) {
+        if (seconds < 60) return `${seconds}s remaining`;
+        if (seconds < 3600) return `${Math.ceil(seconds / 60)}m remaining`;
+        return `${Math.ceil(seconds / 3600)}h remaining`;
+    }
+
+    /**
+     * Handle workflow completion
+     */
+    handleWorkflowComplete(data) {
+        this.stopPolling();
+        
+        // Add completion animation
+        const workflowSection = document.querySelector('.workflow-progress-section');
+        if (workflowSection) {
+            workflowSection.style.border = '2px solid #28a745';
+            workflowSection.style.boxShadow = '0 4px 20px rgba(40, 167, 69, 0.2)';
+        }
+        
+        // Show completion message
+        setTimeout(() => {
+            const completionAlert = document.getElementById('processingComplete');
+            if (completionAlert) {
+                completionAlert.style.display = 'block';
+                completionAlert.scrollIntoView({ behavior: 'smooth' });
+            }
+        }, 1000);
+    }
+
+    /**
+     * Handle workflow errors
+     */
+    handleWorkflowError(errorMessage) {
+        const statusElement = document.getElementById('workflowStatus');
+        if (statusElement) {
+            statusElement.className = 'workflow-status-badge bg-danger';
+            statusElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Error`;
+        }
+        
+        console.error('Workflow error:', errorMessage);
+    }
+
+    /**
+     * Start enhanced polling with exponential backoff
      */
     startPolling() {
         if (this.isPolling) return;
         
         this.isPolling = true;
-        this.updateInterval = setInterval(() => {
-            this.loadWorkflowStatus();
-        }, 2000); // Poll every 2 seconds
+        let pollInterval = 2000; // Start with 2 seconds
+        
+        const poll = () => {
+            this.loadWorkflowStatus().then(() => {
+                if (this.isPolling) {
+                    this.updateInterval = setTimeout(poll, pollInterval);
+                }
+            }).catch(() => {
+                // Exponential backoff on errors
+                pollInterval = Math.min(pollInterval * 1.5, 10000);
+                if (this.isPolling) {
+                    this.updateInterval = setTimeout(poll, pollInterval);
+                }
+            });
+        };
+        
+        poll();
     }
 
     /**
-     * Stop polling for workflow updates
+     * Stop polling with cleanup
      */
     stopPolling() {
         if (this.updateInterval) {
-            clearInterval(this.updateInterval);
+            clearTimeout(this.updateInterval);
             this.updateInterval = null;
         }
         this.isPolling = false;
     }
 
     /**
-     * Cleanup when workflow is complete or page is unloaded
+     * Enhanced cleanup
      */
     cleanup() {
         this.stopPolling();
+        this.animationQueue = [];
     }
 }
 
 // Global workflow manager instance
 window.WorkflowManager = WorkflowManager;
 
-// Auto-cleanup on page unload
+// Enhanced auto-cleanup
 window.addEventListener('beforeunload', () => {
     if (window.currentWorkflowManager) {
         window.currentWorkflowManager.cleanup();
+    }
+});
+
+// Page visibility handling for performance
+document.addEventListener('visibilitychange', () => {
+    if (window.currentWorkflowManager) {
+        if (document.hidden) {
+            window.currentWorkflowManager.stopPolling();
+        } else {
+            window.currentWorkflowManager.startPolling();
+        }
     }
 });
