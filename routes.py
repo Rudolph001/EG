@@ -112,58 +112,50 @@ def upload_file():
 
 @app.route('/api/processing-status/<session_id>')
 def processing_status(session_id):
-    """Get processing status for session"""
+    """Get processing status for session with sequential workflow tracking"""
     session = ProcessingSession.query.get_or_404(session_id)
 
-    # Get workflow statistics
+    # Map processing status to current workflow step
+    current_step = 'ingestion'
+    if session.status == 'processing_exclusion':
+        current_step = 'exclusion'
+    elif session.status == 'processing_whitelist':
+        current_step = 'whitelist'
+    elif session.status == 'processing_security':
+        current_step = 'security'
+    elif session.status == 'processing_ml':
+        current_step = 'ml'
+    elif session.status == 'completed':
+        current_step = 'completed'
+
+    # Get workflow statistics with sequential completion tracking
     workflow_stats = {}
-    if session.status in ['processing', 'completed']:
+    if session.status in ['processing', 'processing_exclusion', 'processing_whitelist', 
+                         'processing_security', 'processing_ml', 'completed']:
         try:
-            # Count excluded records
+            # Total ingested records
+            total_records = EmailRecord.query.filter_by(session_id=session_id).count()
+            
+            # Count excluded records (Step 1)
             excluded_count = EmailRecord.query.filter(
                 EmailRecord.session_id == session_id,
                 EmailRecord.excluded_by_rule.isnot(None)
             ).count()
 
-            # Count whitelisted records  
+            # Count whitelisted records (Step 2)
             whitelisted_count = EmailRecord.query.filter_by(
                 session_id=session_id,
                 whitelisted=True
             ).count()
 
-            # Count records with rule matches
+            # Count records with rule matches (Step 3)
             rules_matched_count = EmailRecord.query.filter(
                 EmailRecord.session_id == session_id,
                 EmailRecord.rule_matches.isnot(None)
             ).count()
 
-            # Count critical cases
-            critical_cases_count = EmailRecord.query.filter_by(
-                session_id=session_id,
-                risk_level='Critical'
-            ).count()
-
-            workflow_stats = {
-                'excluded_count': excluded_count,
-                'whitelisted_count': whitelisted_count,
-                'rules_matched_count': rules_matched_count,
-                'critical_cases_count': critical_cases_count
-            }
-        except Exception as e:
-            logger.warning(f"Could not get workflow stats: {str(e)}")
-
-    # Calculate more detailed progress for workflow stages
-    progress_percent = int((session.processed_records or 0) / max(session.total_records or 1, 1) * 100)
-    
-    # Get detailed workflow statistics
-    try:
-        # Enhance workflow stats with more detailed information
-        if session.status in ['processing', 'completed']:
-            # Total ingested records
-            total_records = EmailRecord.query.filter_by(session_id=session_id).count()
-            
-            # ML analyzed records
-            ml_analyzed_records = EmailRecord.query.filter(
+            # Count ML analyzed records (Step 4)
+            ml_analyzed_count = EmailRecord.query.filter(
                 EmailRecord.session_id == session_id,
                 EmailRecord.ml_risk_score.isnot(None)
             ).count()
@@ -173,15 +165,52 @@ def processing_status(session_id):
                 EmailRecord.session_id == session_id,
                 EmailRecord.risk_level.isnot(None)
             ).count()
-            
-            workflow_stats.update({
+
+            # Count wordlist matches
+            wordlist_matches_count = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                db.or_(
+                    EmailRecord.wordlist_subject.isnot(None),
+                    EmailRecord.wordlist_attachment.isnot(None)
+                )
+            ).count()
+
+            workflow_stats = {
                 'ingested_count': total_records,
-                'ml_analyzed_count': ml_analyzed_records,
+                'excluded_count': excluded_count,
+                'whitelisted_count': whitelisted_count,
+                'rules_matched_count': rules_matched_count,
+                'ml_analyzed_count': ml_analyzed_count,
                 'cases_generated_count': cases_with_risk,
-                'wordlist_matches_count': workflow_stats.get('wordlist_matches_count', 0)
-            })
-    except Exception as e:
-        logger.warning(f"Could not get enhanced workflow stats: {str(e)}")
+                'wordlist_matches_count': wordlist_matches_count,
+                'validation_score': progress_percent if session.status == 'completed' else 0,
+                # Step completion flags
+                'exclusion_applied': session.exclusion_applied or False,
+                'whitelist_applied': session.whitelist_applied or False,
+                'rules_applied': session.rules_applied or False,
+                'ml_applied': session.ml_applied or False,
+                'current_step': current_step
+            }
+        except Exception as e:
+            logger.warning(f"Could not get workflow stats: {str(e)}")
+            workflow_stats = {
+                'ingested_count': 0,
+                'excluded_count': 0,
+                'whitelisted_count': 0,
+                'rules_matched_count': 0,
+                'ml_analyzed_count': 0,
+                'cases_generated_count': 0,
+                'wordlist_matches_count': 0,
+                'validation_score': 0,
+                'exclusion_applied': False,
+                'whitelist_applied': False,
+                'rules_applied': False,
+                'ml_applied': False,
+                'current_step': current_step
+            }
+
+    # Calculate overall progress
+    progress_percent = int((session.processed_records or 0) / max(session.total_records or 1, 1) * 100)
 
     return jsonify({
         'status': session.status,
@@ -192,7 +221,8 @@ def processing_status(session_id):
         'total_chunks': session.total_chunks or 0,
         'chunk_progress_percent': int((session.current_chunk or 0) / max(session.total_chunks or 1, 1) * 100),
         'error_message': session.error_message,
-        'workflow_stats': workflow_stats
+        'workflow_stats': workflow_stats,
+        'current_step': current_step
     })
 
 @app.route('/api/dashboard-stats/<session_id>')

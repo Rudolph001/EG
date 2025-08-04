@@ -275,9 +275,9 @@ class DataProcessor:
             return None
 
     def _apply_processing_workflow(self, session_id):
-        """Apply complete processing workflow"""
+        """Apply complete processing workflow in strict sequential order"""
         try:
-            logger.info(f"Starting processing workflow for session {session_id}")
+            logger.info(f"Starting sequential processing workflow for session {session_id}")
 
             # Import required engines and models
             from models import ProcessingSession
@@ -289,68 +289,151 @@ class DataProcessor:
             domain_manager = DomainManager()
             ml_engine = MLEngine()
 
-            # Step 1: Apply exclusion rules with error handling
+            # Get session for status updates
+            session = ProcessingSession.query.get(session_id)
+            if not session:
+                raise Exception(f"Session {session_id} not found")
+
+            # Step 1: Apply exclusion rules - MUST complete before Step 2
             try:
                 if not self._is_workflow_step_completed(session_id, 'exclusion_applied'):
-                    logger.info(f"Starting Step 1: Exclusion Rules for session {session_id}")
+                    logger.info(f"=== STEP 1: EXCLUSION RULES ===")
+                    logger.info(f"Starting exclusion rules processing for session {session_id}")
+                    
+                    # Update session to show current step
+                    session.status = 'processing_exclusion'
+                    db.session.commit()
+                    
                     excluded_count = rule_engine.apply_exclusion_rules(session_id)
-                    logger.info(f"Exclusion rules applied: {excluded_count} records excluded")
+                    logger.info(f"Exclusion rules completed: {excluded_count} records excluded")
+                    
+                    # Mark step as completed and commit immediately
                     self._mark_workflow_step_completed(session_id, 'exclusion_applied')
-                    logger.info(f"Step 1 completed: Exclusion Rules")
+                    db.session.commit()
+                    
+                    logger.info(f"✓ STEP 1 COMPLETED: Exclusion Rules ({excluded_count} records)")
                 else:
-                    logger.info(f"Step 1 already completed: Exclusion Rules")
+                    logger.info(f"✓ STEP 1 ALREADY COMPLETED: Exclusion Rules")
             except Exception as e:
-                logger.error(f"Error in exclusion rules step: {str(e)}")
-                db.session.rollback()
-                # Continue with next step
+                logger.error(f"✗ STEP 1 FAILED: {str(e)}")
+                session.status = 'error'
+                session.error_message = f"Step 1 failed: {str(e)}"
+                db.session.commit()
+                raise
 
-            # Step 2: Apply domain whitelist with error handling
+            # Wait for Step 1 completion confirmation
+            db.session.refresh(session)
+            if not session.exclusion_applied:
+                raise Exception("Step 1 (Exclusion Rules) did not complete properly")
+
+            # Step 2: Apply domain whitelist - ONLY after Step 1 is complete
             try:
                 if not self._is_workflow_step_completed(session_id, 'whitelist_applied'):
-                    logger.info(f"Starting Step 2: Domain Whitelist for session {session_id}")
+                    logger.info(f"=== STEP 2: DOMAIN WHITELIST ===")
+                    logger.info(f"Starting domain whitelist processing for session {session_id}")
+                    
+                    # Update session to show current step
+                    session.status = 'processing_whitelist'
+                    db.session.commit()
+                    
                     whitelisted_count = domain_manager.apply_whitelist(session_id)
-                    logger.info(f"Domain whitelist applied: {whitelisted_count} records whitelisted")
+                    logger.info(f"Domain whitelist completed: {whitelisted_count} records whitelisted")
+                    
+                    # Mark step as completed and commit immediately
                     self._mark_workflow_step_completed(session_id, 'whitelist_applied')
-                    logger.info(f"Step 2 completed: Domain Whitelist")
+                    db.session.commit()
+                    
+                    logger.info(f"✓ STEP 2 COMPLETED: Domain Whitelist ({whitelisted_count} records)")
                 else:
-                    logger.info(f"Step 2 already completed: Domain Whitelist")
+                    logger.info(f"✓ STEP 2 ALREADY COMPLETED: Domain Whitelist")
             except Exception as e:
-                logger.error(f"Error in whitelist step: {str(e)}")
-                db.session.rollback()
-                # Continue with next step
+                logger.error(f"✗ STEP 2 FAILED: {str(e)}")
+                session.status = 'error'
+                session.error_message = f"Step 2 failed: {str(e)}"
+                db.session.commit()
+                raise
 
-            # Step 3: Apply security rules with error handling
+            # Wait for Step 2 completion confirmation
+            db.session.refresh(session)
+            if not session.whitelist_applied:
+                raise Exception("Step 2 (Domain Whitelist) did not complete properly")
+
+            # Step 3: Apply security rules - ONLY after Step 2 is complete
             try:
                 if not self._is_workflow_step_completed(session_id, 'rules_applied'):
-                    logger.info(f"Starting Step 3: Security Rules for session {session_id}")
+                    logger.info(f"=== STEP 3: SECURITY RULES ===")
+                    logger.info(f"Starting security rules processing for session {session_id}")
+                    
+                    # Update session to show current step
+                    session.status = 'processing_security'
+                    db.session.commit()
+                    
                     flagged_count = rule_engine.apply_security_rules(session_id)
-                    logger.info(f"Security rules applied: {flagged_count} records flagged")
+                    logger.info(f"Security rules completed: {flagged_count} records flagged")
+                    
+                    # Mark step as completed and commit immediately
                     self._mark_workflow_step_completed(session_id, 'rules_applied')
-                    logger.info(f"Step 3 completed: Security Rules")
+                    db.session.commit()
+                    
+                    logger.info(f"✓ STEP 3 COMPLETED: Security Rules ({flagged_count} records)")
                 else:
-                    logger.info(f"Step 3 already completed: Security Rules")
+                    logger.info(f"✓ STEP 3 ALREADY COMPLETED: Security Rules")
             except Exception as e:
-                logger.error(f"Error in security rules step: {str(e)}")
-                db.session.rollback()
-                # Continue with next step
+                logger.error(f"✗ STEP 3 FAILED: {str(e)}")
+                session.status = 'error'
+                session.error_message = f"Step 3 failed: {str(e)}"
+                db.session.commit()
+                raise
 
-            # Step 4: Apply ML analysis with error handling
+            # Wait for Step 3 completion confirmation
+            db.session.refresh(session)
+            if not session.rules_applied:
+                raise Exception("Step 3 (Security Rules) did not complete properly")
+
+            # Step 4: Apply ML analysis - ONLY after Step 3 is complete
             try:
                 if not self._is_workflow_step_completed(session_id, 'ml_applied'):
-                    logger.info(f"Starting Step 4: ML Analysis for session {session_id}")
+                    logger.info(f"=== STEP 4: ML ANALYSIS ===")
+                    logger.info(f"Starting ML analysis processing for session {session_id}")
+                    
+                    # Update session to show current step
+                    session.status = 'processing_ml'
+                    db.session.commit()
+                    
                     analyzed_count = ml_engine.analyze_session(session_id)
-                    logger.info(f"ML analysis applied: {analyzed_count} records analyzed")
+                    logger.info(f"ML analysis completed: {analyzed_count} records analyzed")
+                    
+                    # Mark step as completed and commit immediately
                     self._mark_workflow_step_completed(session_id, 'ml_applied')
-                    logger.info(f"Step 4 completed: ML Analysis")
+                    db.session.commit()
+                    
+                    logger.info(f"✓ STEP 4 COMPLETED: ML Analysis ({analyzed_count} records)")
                 else:
-                    logger.info(f"Step 4 already completed: ML Analysis")
+                    logger.info(f"✓ STEP 4 ALREADY COMPLETED: ML Analysis")
             except Exception as e:
-                logger.error(f"Error in ML analysis step: {str(e)}")
-                db.session.rollback()
-                # Continue processing
+                logger.error(f"✗ STEP 4 FAILED: {str(e)}")
+                session.status = 'error'
+                session.error_message = f"Step 4 failed: {str(e)}"
+                db.session.commit()
+                raise
+
+            # Final verification - all steps must be complete
+            db.session.refresh(session)
+            if not (session.exclusion_applied and session.whitelist_applied and 
+                   session.rules_applied and session.ml_applied):
+                raise Exception("Workflow verification failed - not all steps completed")
+
+            logger.info(f"✓ ALL WORKFLOW STEPS COMPLETED SUCCESSFULLY for session {session_id}")
+            session.status = 'processing'  # Reset to processing for final completion
+            db.session.commit()
 
         except Exception as e:
-            logger.error(f"Error in processing workflow for session {session_id}: {str(e)}")
+            logger.error(f"Error in sequential processing workflow for session {session_id}: {str(e)}")
+            session = ProcessingSession.query.get(session_id)
+            if session:
+                session.status = 'error'
+                session.error_message = str(e)
+                db.session.commit()
             raise
 
     def _is_workflow_step_completed(self, session_id, step_name):

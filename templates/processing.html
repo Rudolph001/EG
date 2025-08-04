@@ -532,30 +532,78 @@
                     });
 
                     function updateWorkflowStagesFromStatus(workflowStats, sessionStatus) {
-                        // Define the 8 stages in order
+                        // Define the 8 stages in strict sequential order
                         const stages = [
-                            { id: 'stage-ingestion', name: 'ingestion', statusId: 'ingestion-status', completeId: 'ingestion-complete', 
-                              isComplete: () => workflowStats.ingested_count !== undefined && workflowStats.ingested_count > 0 },
-                            { id: 'stage-exclusion', name: 'exclusion', statusId: 'exclusion-status', completeId: 'exclusion-complete',
-                              isComplete: () => workflowStats.exclusion_applied === true },
-                            { id: 'stage-whitelist', name: 'whitelist', statusId: 'whitelist-status', completeId: 'whitelist-complete',
-                              isComplete: () => workflowStats.whitelist_applied === true },
-                            { id: 'stage-security', name: 'security', statusId: 'security-status', completeId: 'security-complete',
-                              isComplete: () => workflowStats.rules_applied === true },
-                            { id: 'stage-wordlist', name: 'wordlist', statusId: 'wordlist-status', completeId: 'wordlist-complete',
-                              isComplete: () => workflowStats.wordlist_matches_count !== undefined },
-                            { id: 'stage-ml', name: 'ml', statusId: 'ml-status', completeId: 'ml-complete',
-                              isComplete: () => workflowStats.ml_applied === true },
-                            { id: 'stage-cases', name: 'cases', statusId: 'cases-status', completeId: 'cases-complete',
-                              isComplete: () => workflowStats.cases_generated_count !== undefined },
-                            { id: 'stage-validation', name: 'validation', statusId: 'validation-status', completeId: 'validation-complete',
-                              isComplete: () => sessionStatus === 'completed' }
+                            { 
+                                id: 'stage-ingestion', 
+                                name: 'ingestion', 
+                                statusId: 'ingestion-status', 
+                                completeId: 'ingestion-complete',
+                                isComplete: () => workflowStats.ingested_count > 0,
+                                isActive: () => workflowStats.current_step === 'ingestion'
+                            },
+                            { 
+                                id: 'stage-exclusion', 
+                                name: 'exclusion', 
+                                statusId: 'exclusion-status', 
+                                completeId: 'exclusion-complete',
+                                isComplete: () => workflowStats.exclusion_applied === true,
+                                isActive: () => workflowStats.current_step === 'exclusion'
+                            },
+                            { 
+                                id: 'stage-whitelist', 
+                                name: 'whitelist', 
+                                statusId: 'whitelist-status', 
+                                completeId: 'whitelist-complete',
+                                isComplete: () => workflowStats.whitelist_applied === true,
+                                isActive: () => workflowStats.current_step === 'whitelist'
+                            },
+                            { 
+                                id: 'stage-security', 
+                                name: 'security', 
+                                statusId: 'security-status', 
+                                completeId: 'security-complete',
+                                isComplete: () => workflowStats.rules_applied === true,
+                                isActive: () => workflowStats.current_step === 'security'
+                            },
+                            { 
+                                id: 'stage-wordlist', 
+                                name: 'wordlist', 
+                                statusId: 'wordlist-status', 
+                                completeId: 'wordlist-complete',
+                                isComplete: () => workflowStats.rules_applied === true, // Wordlist is part of security rules
+                                isActive: () => false // This runs as part of security rules step
+                            },
+                            { 
+                                id: 'stage-ml', 
+                                name: 'ml', 
+                                statusId: 'ml-status', 
+                                completeId: 'ml-complete',
+                                isComplete: () => workflowStats.ml_applied === true,
+                                isActive: () => workflowStats.current_step === 'ml'
+                            },
+                            { 
+                                id: 'stage-cases', 
+                                name: 'cases', 
+                                statusId: 'cases-status', 
+                                completeId: 'cases-complete',
+                                isComplete: () => workflowStats.ml_applied === true, // Cases are generated as part of ML
+                                isActive: () => false // This runs as part of ML step
+                            },
+                            { 
+                                id: 'stage-validation', 
+                                name: 'validation', 
+                                statusId: 'validation-status', 
+                                completeId: 'validation-complete',
+                                isComplete: () => sessionStatus === 'completed',
+                                isActive: () => workflowStats.current_step === 'completed'
+                            }
                         ];
 
                         let completedStages = 0;
-                        let currentActiveStage = -1;
+                        let activeStageFound = false;
 
-                        // Process stages sequentially
+                        // Process stages in strict order - only one can be active at a time
                         stages.forEach((stage, index) => {
                             const stageEl = document.getElementById(stage.id);
                             const statusEl = document.getElementById(stage.statusId);
@@ -563,11 +611,11 @@
 
                             if (!stageEl) return;
 
-                            // Reset classes
+                            // Reset all classes
                             stageEl.classList.remove('active', 'completed', 'processing');
                             if (completeEl) completeEl.style.display = 'none';
 
-                            // Check if this stage is complete
+                            // Check stage status in strict order
                             if (stage.isComplete()) {
                                 // Stage is complete
                                 stageEl.classList.add('completed');
@@ -579,13 +627,21 @@
                                 if (completeEl) {
                                     completeEl.style.display = 'block';
                                 }
-                            } else if (currentActiveStage === -1 && completedStages === index) {
-                                // This is the next stage to process (all previous stages complete)
+                            } else if (stage.isActive() && !activeStageFound) {
+                                // This stage is currently active
                                 stageEl.classList.add('processing', 'active');
-                                currentActiveStage = index;
+                                activeStageFound = true;
 
                                 if (statusEl) {
                                     statusEl.innerHTML = '<small class="text-warning"><i class="fas fa-spinner fa-spin"></i> Processing...</small>';
+                                }
+                            } else if (!activeStageFound && completedStages === index) {
+                                // This is the next stage waiting to start (all previous complete)
+                                stageEl.classList.add('processing', 'active');
+                                activeStageFound = true;
+
+                                if (statusEl) {
+                                    statusEl.innerHTML = '<small class="text-primary"><i class="fas fa-clock"></i> Starting...</small>';
                                 }
                             } else {
                                 // Stage is waiting
@@ -601,6 +657,9 @@
                             const progressPercent = (completedStages / stages.length) * 100;
                             workflowProgressFill.style.width = progressPercent + '%';
                         }
+
+                        // Log current workflow state for debugging
+                        console.log(`Workflow Status: ${completedStages}/${stages.length} stages complete, Current step: ${workflowStats.current_step || 'unknown'}`);
                     }
 
                     function updateStageCount(elementId, count) {
