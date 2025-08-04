@@ -210,7 +210,7 @@ class DataProcessor:
             # Store results in record
             record_data['wordlist_subject'] = json.dumps(subject_matches) if subject_matches else None
             record_data['wordlist_attachment'] = json.dumps(attachment_matches) if attachment_matches else None
-            record_data['exclusion_matches'] = json.dumps(exclusion_matches) if exclusion_matches else None
+            # Note: exclusion_matches is stored in excluded_by_rule field, not as separate field
             
             # Set exclusion flag ONLY if exclusion keywords found AND no risk keywords found
             if exclusion_matches and not (subject_matches or attachment_matches):
@@ -226,7 +226,7 @@ class DataProcessor:
             # Set empty values if analysis fails
             record_data['wordlist_subject'] = None
             record_data['wordlist_attachment'] = None
-            record_data['exclusion_matches'] = None
+            # Note: exclusion_matches is stored in excluded_by_rule field, not as separate field
     
     def _parse_datetime(self, date_value):
         """Parse datetime from various formats"""
