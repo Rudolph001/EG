@@ -328,11 +328,7 @@ class DataProcessor:
         
         # Skip wordlist analysis during data ingestion for speed
         # This will be done in Stage 5 (Wordlist Analysis) instead
-        record_data.update({
-            'subject_wordlist_matches': '',
-            'attachment_wordlist_matches': '',
-            'wordlist_exclusion_reason': ''
-        })
+        # No additional fields needed - using existing model fields
         
         return EmailRecord(**record_data)
     
