@@ -70,24 +70,25 @@ class DataProcessor:
                     chunk_processed = self._process_chunk_with_retry(session_id, chunk_df, processed_count, current_chunk)
                     processed_count += chunk_processed
                     
-                    # Update session with retry
-                    session = self._get_session_with_retry(session_id)
-                    session.current_chunk = current_chunk
-                    session.total_chunks = (total_records // self.chunk_size) + 1
-                    session.processed_records = processed_count
-                    
-                    # Update progress within Data Ingestion stage (0-5%)
-                    progress = min(100, (processed_count / total_records) * 100) if total_records > 0 else 100
-                    self.workflow_manager.update_stage_progress(session_id, 1, progress)
-                    
-                    self._commit_with_retry()
+                    # Update session less frequently for better performance
+                    if current_chunk % 2 == 0 or processed_count >= total_records:
+                        session = self._get_session_with_retry(session_id)
+                        session.current_chunk = current_chunk
+                        session.total_chunks = (total_records // self.chunk_size) + 1
+                        session.processed_records = processed_count
+                        
+                        # Update progress within Data Ingestion stage (0-5%)
+                        progress = min(100, (processed_count / total_records) * 100) if total_records > 0 else 100
+                        self.workflow_manager.update_stage_progress(session_id, 1, progress)
+                        
+                        self._commit_with_retry()
                     
                     logger.info(f"Processed chunk {current_chunk}: {processed_count}/{total_records} records")
                     
-                    # Yield control to prevent blocking
-                    if current_chunk % 5 == 0:
+                    # Yield control less frequently for better performance
+                    if current_chunk % 10 == 0:
                         import time
-                        time.sleep(0.1)
+                        time.sleep(0.05)
                         
             except Exception as chunk_error:
                 logger.error(f"Error processing chunks: {str(chunk_error)}")

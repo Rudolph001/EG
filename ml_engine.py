@@ -39,43 +39,47 @@ class MLEngine:
         try:
             logger.info(f"Starting ML analysis for session {session_id}")
 
-            # Get all records first for debugging
-            all_records = EmailRecord.query.filter_by(session_id=session_id).all()
-            logger.info(f"Total records in session: {len(all_records)}")
+            # Get record counts in a single optimized query
+            from sqlalchemy import func, case
+            counts = db.session.query(
+                func.count().label('total'),
+                func.sum(case((EmailRecord.excluded_by_rule.isnot(None), 1), else_=0)).label('excluded'),
+                func.sum(case((EmailRecord.whitelisted == True, 1), else_=0)).label('whitelisted')
+            ).filter(EmailRecord.session_id == session_id).first()
             
-            excluded_records = EmailRecord.query.filter(
-                EmailRecord.session_id == session_id,
-                EmailRecord.excluded_by_rule.isnot(None)
-            ).all()
-            logger.info(f"Excluded records: {len(excluded_records)}")
-            
-            whitelisted_records = EmailRecord.query.filter(
-                EmailRecord.session_id == session_id,
-                EmailRecord.whitelisted == True
-            ).all()
-            logger.info(f"Whitelisted records: {len(whitelisted_records)}")
+            logger.info(f"Session stats - Total: {counts.total}, Excluded: {counts.excluded}, Whitelisted: {counts.whitelisted}")
 
-            # Get non-excluded, non-whitelisted records that haven't been analyzed yet
+            # Get records for ML analysis in batches (limit for performance)
+            max_records = min(config.max_ml_records, 10000) if self.fast_mode else config.max_ml_records
             records = EmailRecord.query.filter(
                 EmailRecord.session_id == session_id,
                 EmailRecord.excluded_by_rule.is_(None),
                 db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
                 db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
-            ).all()
+            ).limit(max_records).all()
             
-            logger.info(f"Records eligible for ML analysis: {len(records)}")
+            logger.info(f"Processing {len(records)} records for ML analysis (limited to {max_records} for performance)")
 
-            if len(records) < 3:  # Reduced minimum for faster processing
-                logger.warning(f"Too few records ({len(records)}) for ML analysis - updating existing records with default risk levels")
+            if len(records) < 5:  # Minimum for meaningful ML analysis
+                logger.warning(f"Too few records ({len(records)}) for ML analysis - assigning default risk levels")
                 
                 # Still update records with basic risk assessment even if too few for ML
+                # Batch update for better performance
+                update_count = 0
                 for record in records:
                     if record.ml_risk_score is None:
                         record.ml_risk_score = 0.1  # Low risk default
                         record.risk_level = 'Low'
                         record.ml_explanation = 'Low risk - insufficient data for ML analysis'
+                        update_count += 1
+                        
+                        # Batch commit every batch_commit_size records
+                        if update_count % config.batch_commit_size == 0:
+                            db.session.commit()
                 
-                db.session.commit()
+                # Final commit for remaining records
+                if update_count % config.batch_commit_size != 0:
+                    db.session.commit()
                 return {'processing_stats': {'ml_records_analyzed': len(records)}}
 
             # Fast mode: limit records for processing speed
@@ -133,6 +137,7 @@ class MLEngine:
                     record.risk_level = self._get_risk_level(basic_risk)
                     record.ml_explanation = f'Basic risk assessment (ML failed): {record.risk_level} risk'
                 
+                # Batch commit for performance
                 db.session.commit()
                 logger.info(f"Applied basic risk scores to {len(records)} records")
                 
@@ -463,8 +468,9 @@ class MLEngine:
                 # Generate explanation
                 record.ml_explanation = self._generate_explanation(records[i], anomaly_scores[i], risk_scores[i])
 
+            # Batch commit for better performance
             db.session.commit()
-            logger.info(f"Updated {len(records)} records with ML results")
+            logger.info(f"Updated {len(records)} records with ML results using batch processing")
 
         except Exception as e:
             logger.error(f"Error updating records with ML results: {str(e)}")
