@@ -476,7 +476,7 @@ class DataProcessor:
         try:
             from domain_manager import DomainManager
             domain_manager = DomainManager()
-            whitelisted_count = domain_manager.apply_whitelist(session_id)
+            whitelisted_count = domain_manager.apply_whitelist_filtering(session_id)
             logger.info(f"Domain whitelist applied: {whitelisted_count} records whitelisted")
             self._mark_workflow_step_completed(session_id, 'whitelist_applied')
         except Exception as e:
