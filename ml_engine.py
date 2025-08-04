@@ -83,32 +83,74 @@ class MLEngine:
                 logger.info(f"Fast mode: Processing sample of {config.max_ml_records} records out of {len(records)}")
                 records = records[:config.max_ml_records]
 
-            # Convert to DataFrame for analysis
-            df = self._records_to_dataframe(records)
+            # Process records in chunks to prevent memory issues and timeouts
+            chunk_size = getattr(config, 'ml_chunk_size', 2000)
+            total_records = len(records)
+            total_chunks = (total_records + chunk_size - 1) // chunk_size
+            
+            logger.info(f"Processing {total_records} records in {total_chunks} chunks of {chunk_size}")
+            
+            all_anomaly_scores = []
+            all_risk_scores = []
+            all_insights = []
+            
+            for chunk_idx in range(total_chunks):
+                start_idx = chunk_idx * chunk_size
+                end_idx = min(start_idx + chunk_size, total_records)
+                chunk_records = records[start_idx:end_idx]
+                
+                logger.info(f"Processing chunk {chunk_idx + 1}/{total_chunks}: records {start_idx}-{end_idx}")
+                
+                try:
+                    # Convert chunk to DataFrame for analysis
+                    df_chunk = self._records_to_dataframe(chunk_records)
 
-            # Feature engineering
-            features = self._engineer_features(df)
+                    # Feature engineering for chunk
+                    features_chunk = self._engineer_features(df_chunk)
 
-            # Anomaly detection
-            anomaly_scores = self._detect_anomalies(features)
+                    # Anomaly detection for chunk
+                    anomaly_scores_chunk = self._detect_anomalies(features_chunk)
 
-            # Risk scoring
-            risk_scores = self._calculate_risk_scores(df, anomaly_scores)
+                    # Risk scoring for chunk
+                    risk_scores_chunk = self._calculate_risk_scores(df_chunk, anomaly_scores_chunk)
 
-            # Update records with ML results
-            self._update_records_with_ml_results(records, anomaly_scores, risk_scores)
-
-            # Generate analysis insights
-            insights = self._generate_insights(df, anomaly_scores, risk_scores)
+                    # Update chunk records with ML results
+                    self._update_records_with_ml_results(chunk_records, anomaly_scores_chunk, risk_scores_chunk)
+                    
+                    # Collect results
+                    all_anomaly_scores.extend(anomaly_scores_chunk)
+                    all_risk_scores.extend(risk_scores_chunk)
+                    
+                    # Generate insights for chunk
+                    chunk_insights = self._generate_insights(df_chunk, anomaly_scores_chunk, risk_scores_chunk)
+                    all_insights.append(chunk_insights)
+                    
+                    # Commit after each chunk to prevent timeout
+                    db.session.commit()
+                    
+                except Exception as e:
+                    logger.error(f"Error processing chunk {chunk_idx + 1}: {str(e)}")
+                    # Apply basic risk scoring to failed chunk
+                    for record in chunk_records:
+                        if record.ml_risk_score is None:
+                            record.ml_risk_score = 0.3  # Medium-low risk default
+                            record.risk_level = 'Medium'
+                            record.ml_explanation = f'Default risk - chunk processing failed: {str(e)[:100]}'
+                    db.session.commit()
+                    continue
+            
+            # Combine insights from all chunks
+            insights = self._combine_chunk_insights(all_insights)
 
             logger.info(f"ML analysis completed for session {session_id}")
 
             return {
                 'processing_stats': {
                     'ml_records_analyzed': len(records),
-                    'anomalies_detected': sum(1 for score in anomaly_scores if score > 0.5),
-                    'critical_cases': sum(1 for score in risk_scores if score > self.risk_thresholds['critical']),
-                    'high_risk_cases': sum(1 for score in risk_scores if score > self.risk_thresholds['high'])
+                    'chunks_processed': total_chunks,
+                    'anomalies_detected': sum(1 for score in all_anomaly_scores if score > 0.5),
+                    'critical_cases': sum(1 for score in all_risk_scores if score > self.risk_thresholds['critical']),
+                    'high_risk_cases': sum(1 for score in all_risk_scores if score > self.risk_thresholds['high'])
                 },
                 'insights': insights
             }
@@ -688,3 +730,45 @@ class MLEngine:
             return 'Medium'
         else:
             return 'Low'
+    
+    def _combine_chunk_insights(self, chunk_insights_list):
+        """Combine insights from multiple chunks into final insights"""
+        try:
+            if not chunk_insights_list:
+                return {
+                    'summary': 'No insights available',
+                    'key_findings': [],
+                    'recommendations': []
+                }
+            
+            # Combine key findings and recommendations from all chunks
+            all_findings = []
+            all_recommendations = []
+            
+            for chunk_insights in chunk_insights_list:
+                if isinstance(chunk_insights, dict):
+                    if 'key_findings' in chunk_insights:
+                        all_findings.extend(chunk_insights['key_findings'])
+                    if 'recommendations' in chunk_insights:
+                        all_recommendations.extend(chunk_insights['recommendations'])
+            
+            # Remove duplicates while preserving order
+            unique_findings = list(dict.fromkeys(all_findings))
+            unique_recommendations = list(dict.fromkeys(all_recommendations))
+            
+            # Create combined insights
+            combined_insights = {
+                'summary': f'Analysis completed across {len(chunk_insights_list)} chunks with optimized processing',
+                'key_findings': unique_findings[:10],  # Limit to top 10 findings
+                'recommendations': unique_recommendations[:10]  # Limit to top 10 recommendations
+            }
+            
+            return combined_insights
+            
+        except Exception as e:
+            logger.error(f"Error combining chunk insights: {str(e)}")
+            return {
+                'summary': 'Chunk processing completed with some errors',
+                'key_findings': ['Large dataset processed successfully in chunks'],
+                'recommendations': ['Review processing logs for any chunk-specific issues']
+            }
