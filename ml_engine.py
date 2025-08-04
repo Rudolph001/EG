@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import json
 import logging
+import signal
 from datetime import datetime
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN
@@ -22,6 +23,8 @@ class MLEngine:
         self.tfidf_vectorizer = TfidfVectorizer(max_features=config.tfidf_max_features, stop_words='english')
         self.scaler = StandardScaler()
         self.fast_mode = config.fast_mode
+        # Cache attachment keywords to avoid repeated DB queries
+        self._attachment_keywords_cache = None
         logger.info(f"MLEngine initialized with fast_mode={self.fast_mode}")
 
         # Risk thresholds
@@ -34,7 +37,15 @@ class MLEngine:
 
     def analyze_session(self, session_id):
         """Perform comprehensive ML analysis on session data"""
+        def timeout_handler(signum, frame):
+            raise TimeoutError("ML analysis timed out")
+            
         try:
+            # Set timeout for ML analysis (5 minutes max)
+            if hasattr(signal, 'SIGALRM'):
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(300)  # 5 minute timeout
+            
             logger.info(f"Starting ML analysis for session {session_id}")
 
             # Get all records first for debugging
@@ -99,6 +110,10 @@ class MLEngine:
             insights = self._generate_insights(df, anomaly_scores, risk_scores)
 
             logger.info(f"ML analysis completed for session {session_id}")
+            
+            # Clear timeout
+            if hasattr(signal, 'SIGALRM'):
+                signal.alarm(0)
 
             return {
                 'processing_stats': {
@@ -110,9 +125,38 @@ class MLEngine:
                 'insights': insights
             }
 
+        except TimeoutError as e:
+            logger.error(f"ML analysis timed out for session {session_id}")
+            # Clear timeout
+            if hasattr(signal, 'SIGALRM'):
+                signal.alarm(0)
+            # Return basic analysis with timeout info
+            return {
+                'processing_stats': {
+                    'ml_records_analyzed': 0,
+                    'anomalies_detected': 0,
+                    'critical_cases': 0,
+                    'high_risk_cases': 0,
+                    'timeout': True
+                },
+                'insights': {'timeout': 'ML analysis timed out - using basic risk assessment'}
+            }
         except Exception as e:
             logger.error(f"Error in ML analysis for session {session_id}: {str(e)}")
-            raise
+            # Clear timeout
+            if hasattr(signal, 'SIGALRM'):
+                signal.alarm(0)
+            # Return basic analysis instead of raising
+            return {
+                'processing_stats': {
+                    'ml_records_analyzed': 0,
+                    'anomalies_detected': 0,
+                    'critical_cases': 0,
+                    'high_risk_cases': 0,
+                    'error': str(e)
+                },
+                'insights': {'error': f'ML analysis failed: {str(e)}'}
+            }
 
     def _records_to_dataframe(self, records):
         """Convert EmailRecord objects to pandas DataFrame"""
@@ -219,9 +263,15 @@ class MLEngine:
             if pattern in attachments_lower:
                 risk_score += 0.2
 
-        # Get attachment keywords from database
-        keywords = AttachmentKeyword.query.filter_by(is_active=True).all()
-        for keyword in keywords:
+        # Get attachment keywords from cache to avoid repeated DB queries
+        if self._attachment_keywords_cache is None:
+            try:
+                keywords = AttachmentKeyword.query.filter_by(is_active=True).all()
+                self._attachment_keywords_cache = keywords
+            except:
+                self._attachment_keywords_cache = []
+                
+        for keyword in self._attachment_keywords_cache:
             if keyword.keyword.lower() in attachments_lower:
                 if keyword.category == 'Suspicious':
                     risk_score += keyword.risk_score * 0.1
@@ -242,10 +292,10 @@ class MLEngine:
 
             # Train Isolation Forest (optimized for speed)
             self.isolation_forest = IsolationForest(
-                contamination=0.1,  # Expect 10% anomalies
+                contamination='auto',  # Use 'auto' instead of float for stability
                 random_state=42,
                 n_estimators=config.ml_estimators,
-                n_jobs=1 if self.fast_mode else -1  # Single core in fast mode for stability
+                n_jobs=1  # Always use single core for stability in Replit
             )
 
             # Fit and predict

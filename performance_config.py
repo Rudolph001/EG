@@ -13,7 +13,7 @@ class PerformanceConfig:
         
         # Processing parameters
         self.chunk_size = int(os.environ.get('EMAIL_GUARDIAN_CHUNK_SIZE', '1000' if self.fast_mode else '500'))
-        self.max_ml_records = int(os.environ.get('EMAIL_GUARDIAN_MAX_ML_RECORDS', '5000' if self.fast_mode else '15000'))
+        self.max_ml_records = int(os.environ.get('EMAIL_GUARDIAN_MAX_ML_RECORDS', '1000' if self.fast_mode else '5000'))
         self.ml_estimators = int(os.environ.get('EMAIL_GUARDIAN_ML_ESTIMATORS', '50' if self.fast_mode else '100'))
         self.progress_update_interval = int(os.environ.get('EMAIL_GUARDIAN_PROGRESS_INTERVAL', '500' if self.fast_mode else '100'))
         
