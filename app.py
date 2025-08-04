@@ -22,54 +22,34 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 # Configure the database - default to local SQLite
 database_url = os.environ.get("DATABASE_URL")
 if not database_url:
-    # Ensure instance directory exists
-    os.makedirs('instance', exist_ok=True)
-    # Use absolute path for SQLite
-    db_file_path = os.path.abspath("instance/email_guardian.db")
+    # For local development, use current directory for better permissions
+    db_file_path = os.path.join(os.getcwd(), "email_guardian_local.db")
     database_url = f"sqlite:///{db_file_path}"
+    print(f"Using local SQLite database: {db_file_path}")
 
-# Ensure database file and directory exist with proper permissions
+# Ensure database file can be created for SQLite
 if database_url.startswith('sqlite:///'):
     db_path = database_url.replace('sqlite:///', '')
-    db_dir = os.path.dirname(db_path)
     
     try:
-        # Create directory with proper permissions
-        os.makedirs(db_dir, mode=0o755, exist_ok=True)
+        # Ensure parent directory exists
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, mode=0o755, exist_ok=True)
         
-        # Create database file if it doesn't exist
-        if not os.path.exists(db_path):
-            import sqlite3
-            conn = sqlite3.connect(db_path)
-            conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
-            conn.commit()
-            conn.close()
-            # Set proper file permissions
-            os.chmod(db_path, 0o664)
-            print(f"✓ Created database file: {db_path}")
-        else:
-            # Test existing database file
-            import sqlite3
-            conn = sqlite3.connect(db_path)
-            conn.execute("SELECT 1")
-            conn.close()
-            print(f"✓ Database file accessible: {db_path}")
-            
+        # Test database creation/access
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE IF NOT EXISTS test_connection (id INTEGER)")
+        conn.commit()
+        conn.close()
+        print(f"✓ Database accessible: {db_path}")
+        
     except Exception as e:
         print(f"✗ Database setup error: {e}")
-        # Try to recreate the database file
-        try:
-            if os.path.exists(db_path):
-                os.remove(db_path)
-            import sqlite3
-            conn = sqlite3.connect(db_path)
-            conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
-            conn.commit()
-            conn.close()
-            os.chmod(db_path, 0o664)
-            print(f"✓ Recreated database file: {db_path}")
-        except Exception as e2:
-            print(f"✗ Failed to recreate database: {e2}")
+        # Fallback to memory database for development
+        print("Falling back to in-memory database for this session...")
+        database_url = "sqlite:///:memory:"
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -82,10 +62,9 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 # Initialize the app with the extension
 db.init_app(app)
 
-# Ensure directories exist
-os.makedirs('uploads', exist_ok=True)
-os.makedirs('data', exist_ok=True)
-os.makedirs('instance', exist_ok=True)
+# Ensure directories exist with proper permissions
+for directory in ['uploads', 'data', 'static/css', 'static/js', 'templates']:
+    os.makedirs(directory, mode=0o755, exist_ok=True)
 
 with app.app_context():
     # Import models and routes
