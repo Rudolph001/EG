@@ -76,85 +76,10 @@
                         </div>
                     </div>
 
-                    <div class="processing-stages">
-                        <h6><i class="fas fa-cogs"></i> Processing Workflow</h6>
-                        <p class="text-muted small mb-3">Email counts for each processing stage</p>
-
-                        <!-- Workflow Status Cards -->
-                        <div class="row g-3" id="workflowStages">
-                            <div class="col-md-6 col-lg-3">
-                                <div class="card h-100 stage-card" id="stage-exclusion">
-                                    <div class="card-body text-center">
-                                        <div class="stage-icon-wrapper mb-2">
-                                            <i class="fas fa-filter stage-icon text-secondary"></i>
-                                        </div>
-                                        <h6 class="card-title">Exclusion Rules</h6>
-                                        <p class="text-muted small">Filter records based on exclusion criteria</p>
-                                        <div class="stage-stats">
-                                            <h4 class="text-secondary mb-1" id="excluded-count">-</h4>
-                                            <small class="text-muted">Emails Excluded</small>
-                                        </div>
-                                        <div class="stage-status" id="exclusion-status">
-                                            <small class="text-muted">Waiting...</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6 col-lg-3">
-                                <div class="card h-100 stage-card" id="stage-whitelist">
-                                    <div class="card-body text-center">
-                                        <div class="stage-icon-wrapper mb-2">
-                                            <i class="fas fa-shield-check stage-icon text-success"></i>
-                                        </div>
-                                        <h6 class="card-title">Whitelist Filtering</h6>
-                                        <p class="text-muted small">Remove trusted domain communications</p>
-                                        <div class="stage-stats">
-                                            <h4 class="text-success mb-1" id="whitelisted-count">-</h4>
-                                            <small class="text-muted">Emails Whitelisted</small>
-                                        </div>
-                                        <div class="stage-status" id="whitelist-status">
-                                            <small class="text-muted">Waiting...</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6 col-lg-3">
-                                <div class="card h-100 stage-card" id="stage-rules">
-                                    <div class="card-body text-center">
-                                        <div class="stage-icon-wrapper mb-2">
-                                            <i class="fas fa-exclamation-triangle stage-icon text-warning"></i>
-                                        </div>
-                                        <h6 class="card-title">Security Rules</h6>
-                                        <p class="text-muted small">Apply security rules and threat detection</p>
-                                        <div class="stage-stats">
-                                            <h4 class="text-warning mb-1" id="rules-matched-count">-</h4>
-                                            <small class="text-muted">Rule Matches</small>
-                                        </div>
-                                        <div class="stage-status" id="rules-status">
-                                            <small class="text-muted">Waiting...</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6 col-lg-3">
-                                <div class="card h-100 stage-card" id="stage-ml">
-                                    <div class="card-body text-center">
-                                        <div class="stage-icon-wrapper mb-2">
-                                            <i class="fas fa-brain stage-icon text-danger"></i>
-                                        </div>
-                                        <h6 class="card-title">ML Analysis</h6>
-                                        <p class="text-muted small">Machine learning anomaly detection</p>
-                                        <div class="stage-stats">
-                                            <h4 class="text-danger mb-1" id="critical-cases-count">-</h4>
-                                            <small class="text-muted">Critical Cases</small>
-                                        </div>
-                                        <div class="stage-status" id="ml-status">
-                                            <small class="text-muted">Waiting...</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- 8-Stage Workflow Progress -->
+                    <div id="workflowContainer">
+                        <!-- New 8-stage workflow will be displayed here -->
+                    </div>
 
                         <!-- Processing Complete Actions -->
                         <div id="processingComplete" style="display: none;" class="mt-4 text-center">
@@ -198,9 +123,15 @@
                         </a>
                     </div>
 
+                    <link rel="stylesheet" href="{{ url_for('static', filename='css/workflow.css') }}">
+                    <script src="{{ url_for('static', filename='js/workflow.js') }}"></script>
                     <script>
                     // Auto-refresh processing status every 5 seconds
                     const sessionId = "{{ session.id }}";
+                    
+                    // Initialize workflow manager for processing page
+                    window.currentWorkflowManager = new WorkflowManager(sessionId);
+                    window.currentWorkflowManager.initializeWorkflow();
 
                     let stuckCounter = 0;
                     let lastProgressTime = Date.now();
@@ -295,27 +226,10 @@
                                     chunkProgressText.textContent = data.chunk_progress_percent + '%';
                                 }
 
-                                // Update workflow stage statistics
-                                if (data.workflow_stats) {
-                                    const stats = data.workflow_stats;
-
-                                    // Update counts with animation
-                                    updateStageCount('excluded-count', stats.excluded_count || 0);
-                                    updateStageCount('whitelisted-count', stats.whitelisted_count || 0);
-                                    updateStageCount('rules-matched-count', stats.rules_matched_count || 0);
-                                    updateStageCount('critical-cases-count', stats.critical_cases_count || 0);
-
-                                    // Update stage status indicators
-                                    updateStageStatus('exclusion-status', stats.excluded_count > 0 ? 'Complete' : 'No exclusions', 'success');
-                                    updateStageStatus('whitelist-status', stats.whitelisted_count > 0 ? 'Complete' : 'No matches', 'success');
-                                    updateStageStatus('rules-status', stats.rules_matched_count > 0 ? 'Matches found' : 'No violations', stats.rules_matched_count > 0 ? 'warning' : 'success');
-                                    updateStageStatus('ml-status', stats.critical_cases_count > 0 ? 'Threats detected' : 'Analysis complete', stats.critical_cases_count > 0 ? 'danger' : 'success');
-
-                                    // Highlight stages with significant results
-                                    highlightStage('stage-exclusion', stats.excluded_count > 0);
-                                    highlightStage('stage-whitelist', stats.whitelisted_count > 0);
-                                    highlightStage('stage-rules', stats.rules_matched_count > 0);
-                                    highlightStage('stage-ml', stats.critical_cases_count > 0);
+                                // Update workflow progress via WorkflowManager
+                                if (window.currentWorkflowManager) {
+                                    // The workflow manager will handle progress updates automatically
+                                    // through its polling mechanism
                                 }
 
                                 // Check if session appears stuck
@@ -336,11 +250,10 @@
                                     document.getElementById('processingComplete').style.display = 'block';
                                     document.getElementById('statusText').textContent = 'Processing Complete!';
 
-                                    // Mark all stages as completed
-                                    updateStageStatus('exclusion-status', 'Complete', 'success');
-                                    updateStageStatus('whitelist-status', 'Complete', 'success');
-                                    updateStageStatus('rules-status', 'Complete', 'success');
-                                    updateStageStatus('ml-status', 'Complete', 'success');
+                                    // Stop workflow manager polling
+                                    if (window.currentWorkflowManager) {
+                                        window.currentWorkflowManager.stopPolling();
+                                    }
 
                                     // Stop auto-refresh
                                     clearInterval(intervalId);
@@ -371,28 +284,29 @@
                             });
                     }
 
-                    // Check if session is already completed and set initial values
+                    // Check if session is already completed
                     const sessionStatus = "{{ session.status }}";
                     if (sessionStatus === 'completed') {
-                        // Set default values for completed session
-                        updateStageCount('excluded-count', {{ session.processed_records or 0 }});
-                        updateStageCount('whitelisted-count', 0);
-                        updateStageCount('rules-matched-count', 0);
-                        updateStageCount('critical-cases-count', 0);
-
-                        updateStageStatus('exclusion-status', 'Complete', 'success');
-                        updateStageStatus('whitelist-status', 'Complete', 'success');
-                        updateStageStatus('rules-status', 'Complete', 'success');
-                        updateStageStatus('ml-status', 'Complete', 'success');
-
                         document.getElementById('processingComplete').style.display = 'block';
                         document.getElementById('statusText').textContent = 'Processing Complete!';
+                        
+                        // Stop workflow manager polling for completed sessions
+                        if (window.currentWorkflowManager) {
+                            window.currentWorkflowManager.stopPolling();
+                        }
                     }
 
                     // Update immediately and then every 5 seconds
                     updateProgress();
                     const intervalId = setInterval(updateProgress, 5000);
 
+                    // Cleanup on page unload
+                    window.addEventListener('beforeunload', function() {
+                        if (window.currentWorkflowManager) {
+                            window.currentWorkflowManager.cleanup();
+                        }
+                    });
+                    
                     // Stop updating when page is hidden/closed
                     document.addEventListener('visibilitychange', function() {
                         if (document.hidden) {
