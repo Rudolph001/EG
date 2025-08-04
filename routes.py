@@ -3239,6 +3239,40 @@ def api_export_monthly_report_excel():
         logger.error(f"Error exporting monthly report Excel: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/force-complete-session/<session_id>', methods=['POST'])
+def force_complete_session(session_id):
+    """Force mark a session as completed if it appears stuck"""
+    try:
+        session = ProcessingSession.query.get_or_404(session_id)
+
+        # Check if processing is actually complete
+        total_records = EmailRecord.query.filter_by(session_id=session_id).count()
+        ml_analyzed_records = EmailRecord.query.filter(
+            EmailRecord.session_id == session_id,
+            EmailRecord.ml_risk_score.isnot(None)
+        ).count()
+
+        if total_records > 0 and ml_analyzed_records > 0:
+            # Update session status
+            session.status = 'completed'
+            session.processed_records = total_records
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': 'Session marked as completed',
+                'redirect_url': f'/dashboard/{session_id}'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Session does not appear to be ready for completion'
+            })
+
+    except Exception as e:
+        logger.error(f"Error force completing session {session_id}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/reprocess-session/<session_id>', methods=['POST'])
 def reprocess_session_data(session_id):
     """Re-process existing session data with current rules, whitelist, and ML keywords"""
