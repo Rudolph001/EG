@@ -3941,3 +3941,132 @@ def _generate_comprehensive_report(sessions):
     except Exception as e:
         logger.error(f"Error generating comprehensive report: {str(e)}")
         raise
+
+@app.route("/wordlist_management")
+def wordlist_management():
+    """Wordlist and exclusion keywords management page"""
+    try:
+        # Get all attachment keywords for wordlist management
+        all_keywords = AttachmentKeyword.query.order_by(AttachmentKeyword.category, AttachmentKeyword.keyword).all()
+        
+        # Separate into different types
+        risk_keywords = [k for k in all_keywords if k.keyword_type == "risk"]
+        exclusion_keywords = [k for k in all_keywords if k.keyword_type == "exclusion"]
+        
+        # Group by category for better display
+        risk_by_category = {}
+        for keyword in risk_keywords:
+            if keyword.category not in risk_by_category:
+                risk_by_category[keyword.category] = []
+            risk_by_category[keyword.category].append(keyword)
+        
+        exclusion_by_applies_to = {}
+        for keyword in exclusion_keywords:
+            if keyword.applies_to not in exclusion_by_applies_to:
+                exclusion_by_applies_to[keyword.applies_to] = []
+            exclusion_by_applies_to[keyword.applies_to].append(keyword)
+        
+        return render_template("wordlist_management.html", 
+                             risk_keywords=risk_keywords,
+                             exclusion_keywords=exclusion_keywords,
+                             risk_by_category=risk_by_category,
+                             exclusion_by_applies_to=exclusion_by_applies_to)
+    except Exception as e:
+        logger.error(f"Error loading wordlist management: {str(e)}")
+        flash(f"Error loading wordlists: {str(e)}", "error")
+        return redirect(url_for("index"))
+
+@app.route("/api/wordlist/add", methods=["POST"])
+def add_wordlist_keyword():
+    """Add a new keyword to wordlist"""
+    try:
+        data = request.get_json()
+        keyword = data.get("keyword", "").strip()
+        category = data.get("category", "Business")
+        keyword_type = data.get("keyword_type", "risk")
+        applies_to = data.get("applies_to", "both")
+        risk_score = data.get("risk_score", 1)
+        
+        if not keyword:
+            return jsonify({"error": "Keyword is required"}), 400
+        
+        # Check if keyword already exists
+        existing = AttachmentKeyword.query.filter_by(keyword=keyword).first()
+        if existing:
+            return jsonify({"error": "Keyword already exists"}), 400
+        
+        # Create new keyword
+        new_keyword = AttachmentKeyword(
+            keyword=keyword,
+            category=category,
+            keyword_type=keyword_type,
+            applies_to=applies_to,
+            risk_score=risk_score,
+            is_active=True
+        )
+        
+        db.session.add(new_keyword)
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Keyword added successfully",
+            "keyword": {
+                "id": new_keyword.id,
+                "keyword": new_keyword.keyword,
+                "category": new_keyword.category,
+                "keyword_type": new_keyword.keyword_type,
+                "applies_to": new_keyword.applies_to,
+                "risk_score": new_keyword.risk_score
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error adding keyword: {str(e)}")
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/wordlist/<int:keyword_id>", methods=["DELETE"])
+def delete_wordlist_keyword(keyword_id):
+    """Delete a keyword from wordlist"""
+    try:
+        keyword = AttachmentKeyword.query.get_or_404(keyword_id)
+        db.session.delete(keyword)
+        db.session.commit()
+        return jsonify({"message": "Keyword deleted successfully"})
+    except Exception as e:
+        logger.error(f"Error deleting keyword: {str(e)}")
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/wordlist/<int:keyword_id>", methods=["PUT"])
+def update_wordlist_keyword(keyword_id):
+    """Update a keyword in wordlist"""
+    try:
+        keyword = AttachmentKeyword.query.get_or_404(keyword_id)
+        data = request.get_json()
+        
+        keyword.keyword = data.get("keyword", keyword.keyword)
+        keyword.category = data.get("category", keyword.category)
+        keyword.keyword_type = data.get("keyword_type", keyword.keyword_type)
+        keyword.applies_to = data.get("applies_to", keyword.applies_to)
+        keyword.risk_score = data.get("risk_score", keyword.risk_score)
+        keyword.is_active = data.get("is_active", keyword.is_active)
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Keyword updated successfully",
+            "keyword": {
+                "id": keyword.id,
+                "keyword": keyword.keyword,
+                "category": keyword.category,
+                "keyword_type": keyword.keyword_type,
+                "applies_to": keyword.applies_to,
+                "risk_score": keyword.risk_score,
+                "is_active": keyword.is_active
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error updating keyword: {str(e)}")
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+

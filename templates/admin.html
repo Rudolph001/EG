@@ -197,18 +197,10 @@
                         <i class="fas fa-filter me-2"></i>
                         Exclusion Rules
                     </a>
-                    <button class="btn btn-outline-info" id="newMLKeywordsBtn">
-                        <i class="fas fa-brain me-2"></i>
-                        Risk Keywords
-                    </button>
-                    <button class="btn btn-outline-warning" id="exclusionKeywordsBtn">
-                        <i class="fas fa-ban me-2"></i>
-                        Exclusion Keywords
-                    </button>
-                    <button class="btn btn-outline-primary" id="manageWordlistsBtn">
+                    <a href="{{ url_for('wordlist_management') }}" class="btn btn-primary">
                         <i class="fas fa-list-alt me-2"></i>
                         Manage Wordlists
-                    </button>
+                    </a>
                 </div>
                 <div id="newMLKeywordsContainer" style="display: none;" class="mt-3">
                     <div id="newMLKeywords" class="card">

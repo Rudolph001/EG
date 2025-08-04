@@ -104,6 +104,11 @@
                             <i class="fas fa-shield-alt"></i> Whitelist
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'wordlist_management' %}active{% endif %}" href="{{ url_for('wordlist_management') }}">
+                            <i class="fas fa-list-alt"></i> Wordlists
+                        </a>
+                    </li>
                 </ul>
 
                 <ul class="navbar-nav">
