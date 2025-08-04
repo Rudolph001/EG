@@ -202,12 +202,24 @@
             </div>
         </div>
         <div class="col-md-3">
+            {% if total_unanalyzed and total_unanalyzed > 0 %}
+            <div class="card text-center border-warning h-100">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <button class="btn btn-warning btn-sm mb-2" onclick="reanalyzeSession()">
+                        <i class="fas fa-sync-alt"></i> Re-analyze Records
+                    </button>
+                    <h4 class="text-info">{{ cases.items | selectattr('case_status', 'equalto', 'Active') | list | length }}</h4>
+                    <p class="text-muted mb-0">Active Cases</p>
+                </div>
+            </div>
+            {% else %}
             <div class="card text-center border-info h-100">
                 <div class="card-body d-flex flex-column justify-content-center">
                     <h4 class="text-info">{{ cases.items | selectattr('case_status', 'equalto', 'Active') | list | length }}</h4>
                     <p class="text-muted mb-0">Active Cases</p>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -469,6 +481,57 @@ document.addEventListener('DOMContentLoaded', function() {
         activeCard.classList.add('active');
     }
 });
+
+// Re-analyze session function
+async function reanalyzeSession() {
+    if (!confirm('This will analyze all unanalyzed records in your session. This may take a few minutes. Continue?')) {
+        return;
+    }
+    
+    try {
+        showLoading('Starting re-analysis of unanalyzed records...');
+        
+        const response = await fetch(`/api/reanalyze-session/${window.currentSessionId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Re-analysis failed: ' + data.error);
+        } else {
+            showSuccess(`Re-analysis started for ${data.unanalyzed_count} records. This page will refresh automatically when complete.`);
+            
+            // Poll for completion every 5 seconds
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusResponse = await fetch(`/api/processing-status/${window.currentSessionId}`);
+                    const statusData = await statusResponse.json();
+                    
+                    // Check if re-analysis is complete by seeing if unanalyzed count decreased
+                    if (statusData.status === 'completed') {
+                        clearInterval(pollInterval);
+                        showSuccess('Re-analysis completed! Refreshing page...');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    }
+                } catch (error) {
+                    console.error('Error checking re-analysis status:', error);
+                }
+            }, 5000);
+        }
+        
+        hideLoading();
+    } catch (error) {
+        console.error('Error starting re-analysis:', error);
+        showError('Failed to start re-analysis');
+        hideLoading();
+    }
+}
 
 // Set session ID for JavaScript functions
 window.currentSessionId = '{{ session.id }}';

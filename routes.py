@@ -3643,6 +3643,60 @@ def professional_reports():
         flash(f'Error loading reports: {str(e)}', 'error')
         return redirect(url_for('index'))
 
+@app.route('/api/reanalyze-session/<session_id>', methods=['POST'])
+def reanalyze_session(session_id):
+    """Re-analyze unanalyzed records in an existing session"""
+    try:
+        session = ProcessingSession.query.get_or_404(session_id)
+        
+        if session.status != 'completed':
+            return jsonify({'error': 'Session must be completed before re-analysis'}), 400
+        
+        # Get count of unanalyzed records
+        unanalyzed_count = EmailRecord.query.filter_by(session_id=session_id).filter(
+            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
+            db.or_(EmailRecord.excluded_by_rule.is_(None)),
+            db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
+        ).count()
+        
+        if unanalyzed_count == 0:
+            return jsonify({'message': 'No unanalyzed records found'}), 200
+        
+        # Start re-analysis in background
+        import threading
+        def background_reanalysis():
+            with app.app_context():
+                try:
+                    logger.info(f"Starting re-analysis for session {session_id} - {unanalyzed_count} records")
+                    
+                    # Get unanalyzed records
+                    unanalyzed_records = EmailRecord.query.filter_by(session_id=session_id).filter(
+                        db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
+                        db.or_(EmailRecord.excluded_by_rule.is_(None)),
+                        db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
+                    ).all()
+                    
+                    # Run ML analysis on unanalyzed records
+                    ml_engine.analyze_records(session_id, unanalyzed_records)
+                    logger.info(f"Re-analysis completed for session {session_id}")
+                    
+                except Exception as e:
+                    logger.error(f"Re-analysis error for session {session_id}: {str(e)}")
+        
+        # Start background thread
+        thread = threading.Thread(target=background_reanalysis)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'message': f'Re-analysis started for {unanalyzed_count} unanalyzed records',
+            'unanalyzed_count': unanalyzed_count
+        })
+        
+    except Exception as e:
+        logger.error(f"Error starting re-analysis for session {session_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/generate-professional-report', methods=['POST'])
 def generate_professional_report():
     """Generate professional report for selected sessions"""
