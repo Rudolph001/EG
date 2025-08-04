@@ -212,9 +212,14 @@ class DataProcessor:
             record_data['wordlist_attachment'] = json.dumps(attachment_matches) if attachment_matches else None
             record_data['exclusion_matches'] = json.dumps(exclusion_matches) if exclusion_matches else None
             
-            # Set exclusion flag if any exclusion keywords found
-            if exclusion_matches:
+            # Set exclusion flag ONLY if exclusion keywords found AND no risk keywords found
+            if exclusion_matches and not (subject_matches or attachment_matches):
                 record_data['excluded_by_rule'] = f"Exclusion wordlist: {', '.join([m['keyword'] for m in exclusion_matches])}"
+            elif exclusion_matches and (subject_matches or attachment_matches):
+                # Log when exclusion is overridden by risk keywords
+                logger.info(f"Email with exclusion keywords NOT excluded due to risk keywords present. "
+                          f"Exclusion: {[m['keyword'] for m in exclusion_matches]}, "
+                          f"Risk: {[m['keyword'] for m in subject_matches + attachment_matches]}")
             
         except Exception as e:
             logger.warning(f"Error in custom wordlist analysis: {str(e)}")

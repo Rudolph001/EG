@@ -4355,3 +4355,128 @@ def bulk_import_wordlist():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@app.route('/admin/excluded-emails')
+def admin_excluded_emails():
+    """Admin page to view and manage excluded emails"""
+    try:
+        # Get all excluded emails from all sessions
+        excluded_emails = EmailRecord.query.filter(
+            EmailRecord.excluded_by_rule.isnot(None)
+        ).order_by(EmailRecord.id.desc()).all()
+        
+        # Group by session for better organization
+        sessions_with_excluded = {}
+        for email in excluded_emails:
+            session_id = email.session_id
+            if session_id not in sessions_with_excluded:
+                session = ProcessingSession.query.get(session_id)
+                sessions_with_excluded[session_id] = {
+                    'session': session,
+                    'excluded_emails': []
+                }
+            sessions_with_excluded[session_id]['excluded_emails'].append(email)
+        
+        # Calculate stats
+        stats = {
+            'total_excluded': len(excluded_emails),
+            'total_sessions_affected': len(sessions_with_excluded),
+            'exclusion_reasons': {}
+        }
+        
+        # Count exclusion reasons
+        for email in excluded_emails:
+            reason = email.excluded_by_rule or 'Unknown'
+            stats['exclusion_reasons'][reason] = stats['exclusion_reasons'].get(reason, 0) + 1
+        
+        return render_template('admin_excluded_emails.html', 
+                             sessions_with_excluded=sessions_with_excluded,
+                             stats=stats)
+        
+    except Exception as e:
+        logger.error(f"Error loading excluded emails admin page: {str(e)}")
+        flash(f"Error loading excluded emails: {str(e)}", 'error')
+        return redirect(url_for('admin'))
+
+@app.route('/api/admin/unexclude-email', methods=['POST'])
+def api_unexclude_email():
+    """API to un-exclude a specific email record"""
+    try:
+        data = request.get_json()
+        email_id = data.get('email_id')
+        
+        if not email_id:
+            return jsonify({'error': 'Email ID is required'}), 400
+        
+        # Find the email record
+        email_record = EmailRecord.query.get(email_id)
+        if not email_record:
+            return jsonify({'error': 'Email record not found'}), 404
+        
+        if not email_record.excluded_by_rule:
+            return jsonify({'error': 'Email is not excluded'}), 400
+        
+        # Store the exclusion reason for logging
+        previous_exclusion = email_record.excluded_by_rule
+        
+        # Un-exclude the email
+        email_record.excluded_by_rule = None
+        email_record.case_status = 'Active'  # Move back to active cases
+        
+        db.session.commit()
+        
+        logger.info(f"Email {email_id} un-excluded by admin. Previous exclusion: {previous_exclusion}")
+        
+        return jsonify({
+            'message': 'Email successfully un-excluded and moved back to case manager',
+            'email_id': email_id,
+            'previous_exclusion': previous_exclusion
+        })
+        
+    except Exception as e:
+        logger.error(f"Error un-excluding email: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/bulk-unexclude', methods=['POST'])
+def api_bulk_unexclude():
+    """API to un-exclude multiple emails at once"""
+    try:
+        data = request.get_json()
+        email_ids = data.get('email_ids', [])
+        
+        if not email_ids:
+            return jsonify({'error': 'No email IDs provided'}), 400
+        
+        # Find the email records
+        email_records = EmailRecord.query.filter(
+            EmailRecord.id.in_(email_ids),
+            EmailRecord.excluded_by_rule.isnot(None)
+        ).all()
+        
+        if not email_records:
+            return jsonify({'error': 'No excluded emails found with provided IDs'}), 404
+        
+        unexcluded_count = 0
+        exclusion_reasons = []
+        
+        for email_record in email_records:
+            exclusion_reasons.append(email_record.excluded_by_rule)
+            email_record.excluded_by_rule = None
+            email_record.case_status = 'Active'  # Move back to active cases
+            unexcluded_count += 1
+        
+        db.session.commit()
+        
+        logger.info(f"Bulk un-excluded {unexcluded_count} emails by admin")
+        
+        return jsonify({
+            'message': f'Successfully un-excluded {unexcluded_count} emails',
+            'unexcluded_count': unexcluded_count,
+            'exclusion_reasons': list(set(exclusion_reasons))
+        })
+        
+    except Exception as e:
+        logger.error(f"Error bulk un-excluding emails: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+

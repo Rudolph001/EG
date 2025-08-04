@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block title %}Excluded Emails Management - Email Guardian{% endblock %}
+
+{% block extra_head %}
+<style>
+    .section-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .stats-card {
+        text-align: center;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        color: white;
+    }
+    
+    .stats-total { background: linear-gradient(135deg, #dc3545, #e85563); }
+    .stats-sessions { background: linear-gradient(135deg, #6f42c1, #8661c5); }
+    .stats-reasons { background: linear-gradient(135deg, #fd7e14, #ff922b); }
+    
+    .email-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .email-card:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .email-card.selected {
+        border-color: #28a745;
+        background-color: #f8fff8;
+    }
+    
+    .exclusion-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .session-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{{ url_for('admin') }}">Admin</a></li>
+<li class="breadcrumb-item active">Excluded Emails</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="section-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-2">
+                    <i class="fas fa-ban me-3"></i>Excluded Emails Management
+                </h1>
+                <p class="mb-0">Review and manage emails excluded from analysis</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{{ url_for('admin') }}" class="btn btn-light btn-lg">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Admin
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stats-card stats-total">
+                <h3>{{ stats.total_excluded }}</h3>
+                <p class="mb-0">Total Excluded Emails</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-card stats-sessions">
+                <h3>{{ stats.total_sessions_affected }}</h3>
+                <p class="mb-0">Sessions Affected</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-card stats-reasons">
+                <h3>{{ stats.exclusion_reasons|length }}</h3>
+                <p class="mb-0">Different Exclusion Reasons</p>
+            </div>
+        </div>
+    </div>
+
+    {% if stats.total_excluded == 0 %}
+    <!-- No Excluded Emails -->
+    <div class="alert alert-info text-center">
+        <i class="fas fa-info-circle fa-3x mb-3"></i>
+        <h4>No Excluded Emails Found</h4>
+        <p class="mb-0">All emails are currently being processed normally. No emails have been excluded by rules or wordlists.</p>
+    </div>
+    {% else %}
+
+    <!-- Exclusion Reasons Summary -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-chart-bar text-primary me-2"></i>Exclusion Reasons Summary
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for reason, count in stats.exclusion_reasons.items() %}
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <div class="d-flex justify-content-between align-items-center p-2 border rounded">
+                        <span class="exclusion-badge">{{ reason }}</span>
+                        <strong>{{ count }} emails</strong>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tools text-primary me-2"></i>Bulk Actions
+                    </h5>
+                    <small class="text-muted">Select emails below and use these actions</small>
+                </div>
+                <div class="col-md-4">
+                    <div class="btn-group w-100">
+                        <button class="btn btn-outline-primary" onclick="selectAllEmails()">
+                            <i class="fas fa-check-square me-2"></i>Select All
+                        </button>
+                        <button class="btn btn-success" onclick="bulkUnexcludeSelected()" disabled id="bulkUnexcludeBtn">
+                            <i class="fas fa-undo me-2"></i>Un-exclude Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Excluded Emails by Session -->
+    {% for session_id, session_data in sessions_with_excluded.items() %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h6 class="mb-0">
+                        <i class="fas fa-database text-primary me-2"></i>
+                        Session: {{ session_data.session.filename if session_data.session else 'Unknown' }}
+                    </h6>
+                    <small class="text-muted">
+                        <span class="session-badge">{{ session_id[:8] }}</span>
+                        {{ session_data.excluded_emails|length }} excluded emails
+                    </small>
+                </div>
+                <div class="col-md-4 text-end">
+                    {% if session_data.session %}
+                    <a href="{{ url_for('cases', session_id=session_id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye me-1"></i>View Session
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for email in session_data.excluded_emails %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="email-card" data-email-id="{{ email.id }}">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input email-checkbox" type="checkbox" value="{{ email.id }}" onchange="updateBulkActions()">
+                            <label class="form-check-label">
+                                <strong>Select for bulk action</strong>
+                            </label>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <h6 class="mb-1">{{ email.sender or 'Unknown Sender' }}</h6>
+                            <p class="text-muted small mb-1">{{ email.subject or 'No Subject' }}</p>
+                            {% if email.recipients %}
+                                <p class="text-muted small mb-1">To: {{ email.recipients }}</p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-2">
+                            <span class="exclusion-badge">{{ email.excluded_by_rule }}</span>
+                        </div>
+                        
+                        {% if email.attachments %}
+                        <div class="mb-2">
+                            <small class="text-muted">
+                                <i class="fas fa-paperclip me-1"></i>{{ email.attachments }}
+                            </small>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">ID: {{ email.id }}</small>
+                            <button class="btn btn-sm btn-success" onclick="unexcludeEmail({{ email.id }})">
+                                <i class="fas fa-undo me-1"></i>Un-exclude
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<script>
+let selectedEmails = new Set();
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.email-checkbox:checked');
+    selectedEmails = new Set(Array.from(checkboxes).map(cb => parseInt(cb.value)));
+    
+    const bulkBtn = document.getElementById('bulkUnexcludeBtn');
+    if (selectedEmails.size > 0) {
+        bulkBtn.disabled = false;
+        bulkBtn.innerHTML = `<i class="fas fa-undo me-2"></i>Un-exclude Selected (${selectedEmails.size})`;
+    } else {
+        bulkBtn.disabled = true;
+        bulkBtn.innerHTML = '<i class="fas fa-undo me-2"></i>Un-exclude Selected';
+    }
+    
+    // Update visual selection
+    document.querySelectorAll('.email-card').forEach(card => {
+        const emailId = parseInt(card.dataset.emailId);
+        if (selectedEmails.has(emailId)) {
+            card.classList.add('selected');
+        } else {
+            card.classList.remove('selected');
+        }
+    });
+}
+
+function selectAllEmails() {
+    const checkboxes = document.querySelectorAll('.email-checkbox');
+    const allSelected = Array.from(checkboxes).every(cb => cb.checked);
+    
+    checkboxes.forEach(cb => {
+        cb.checked = !allSelected;
+    });
+    
+    updateBulkActions();
+}
+
+function unexcludeEmail(emailId) {
+    if (!confirm('Un-exclude this email and move it back to case manager?')) {
+        return;
+    }
+    
+    fetch('/api/admin/unexclude-email', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            email_id: emailId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(data.message);
+            location.reload(); // Refresh to show updated list
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while un-excluding the email');
+    });
+}
+
+function bulkUnexcludeSelected() {
+    if (selectedEmails.size === 0) {
+        alert('Please select emails to un-exclude');
+        return;
+    }
+    
+    if (!confirm(`Un-exclude ${selectedEmails.size} selected emails and move them back to case manager?`)) {
+        return;
+    }
+    
+    fetch('/api/admin/bulk-unexclude', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            email_ids: Array.from(selectedEmails)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(data.message);
+            location.reload(); // Refresh to show updated list
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while un-excluding emails');
+    });
+}
+</script>
+{% endblock %}
