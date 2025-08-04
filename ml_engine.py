@@ -39,6 +39,7 @@ class MLEngine:
         logger.info(f"Starting ML analysis for session {session_id}")
 
         # Get session info
+        from models import ProcessingSession
         session = ProcessingSession.query.get(session_id)
         if not session:
             raise ValueError(f"Session {session_id} not found")
