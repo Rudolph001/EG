@@ -4098,3 +4098,92 @@ def update_wordlist_keyword(keyword_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/wordlist/bulk-add", methods=["POST"])
+def bulk_add_wordlist_keywords():
+    """Add multiple keywords to wordlist at once"""
+    try:
+        data = request.get_json()
+        keywords_data = data.get("keywords", [])
+        default_category = data.get("default_category", "Business")
+        default_keyword_type = data.get("default_keyword_type", "risk")
+        default_applies_to = data.get("default_applies_to", "both")
+        default_risk_score = data.get("default_risk_score", 1)
+        
+        if not keywords_data:
+            return jsonify({"error": "No keywords provided"}), 400
+        
+        added_keywords = []
+        skipped_keywords = []
+        errors = []
+        
+        for keyword_entry in keywords_data:
+            try:
+                # Handle both string and object formats
+                if isinstance(keyword_entry, str):
+                    keyword_text = keyword_entry.strip()
+                    category = default_category
+                    keyword_type = default_keyword_type
+                    applies_to = default_applies_to
+                    risk_score = default_risk_score
+                else:
+                    keyword_text = keyword_entry.get("keyword", "").strip()
+                    category = keyword_entry.get("category", default_category)
+                    keyword_type = keyword_entry.get("keyword_type", default_keyword_type)
+                    applies_to = keyword_entry.get("applies_to", default_applies_to)
+                    risk_score = keyword_entry.get("risk_score", default_risk_score)
+                
+                if not keyword_text:
+                    continue
+                
+                # Check if keyword already exists
+                existing = AttachmentKeyword.query.filter_by(keyword=keyword_text).first()
+                if existing:
+                    skipped_keywords.append({
+                        "keyword": keyword_text,
+                        "reason": "Already exists"
+                    })
+                    continue
+                
+                # Create new keyword
+                new_keyword = AttachmentKeyword(
+                    keyword=keyword_text,
+                    category=category,
+                    keyword_type=keyword_type,
+                    applies_to=applies_to,
+                    risk_score=risk_score,
+                    is_active=True
+                )
+                
+                db.session.add(new_keyword)
+                added_keywords.append({
+                    "keyword": keyword_text,
+                    "category": category,
+                    "keyword_type": keyword_type,
+                    "applies_to": applies_to,
+                    "risk_score": risk_score
+                })
+                
+            except Exception as keyword_error:
+                errors.append({
+                    "keyword": keyword_text if 'keyword_text' in locals() else str(keyword_entry),
+                    "error": str(keyword_error)
+                })
+        
+        # Commit all changes
+        db.session.commit()
+        
+        return jsonify({
+            "message": f"Bulk operation completed: {len(added_keywords)} added, {len(skipped_keywords)} skipped",
+            "added_count": len(added_keywords),
+            "skipped_count": len(skipped_keywords),
+            "error_count": len(errors),
+            "added_keywords": added_keywords,
+            "skipped_keywords": skipped_keywords,
+            "errors": errors
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in bulk adding keywords: {str(e)}")
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+

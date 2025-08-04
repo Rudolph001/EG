@@ -104,9 +104,14 @@
                 <p class="mb-0">Manage risk keywords and exclusion keywords for email analysis</p>
             </div>
             <div class="col-md-4 text-end">
-                <button class="btn btn-light btn-lg" onclick="showAddKeywordModal()">
-                    <i class="fas fa-plus me-2"></i>Add Keyword
-                </button>
+                <div class="btn-group" role="group">
+                    <button class="btn btn-light btn-lg" onclick="showAddKeywordModal()">
+                        <i class="fas fa-plus me-2"></i>Add Keyword
+                    </button>
+                    <button class="btn btn-primary btn-lg" onclick="showBulkAddModal()">
+                        <i class="fas fa-upload me-2"></i>Bulk Add
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -287,8 +292,9 @@
                     
                     <div class="row">
                         <div class="col-md-8 mb-3">
-                            <label for="keywordText" class="form-label">Keyword *</label>
-                            <input type="text" class="form-control" id="keywordText" placeholder="Enter keyword..." required>
+                            <label for="keywordText" class="form-label">Keyword (single words or phrases) *</label>
+                            <input type="text" class="form-control" id="keywordText" placeholder="Enter keyword or phrase..." required>
+                            <div class="form-text">Examples: "confidential", "password", "personal information", "data breach"</div>
                         </div>
                         <div class="col-md-4 mb-3">
                             <label for="keywordType" class="form-label">Type *</label>
@@ -330,6 +336,7 @@
                         <ul class="mb-0 small">
                             <li><strong>Risk Keywords:</strong> Increase the risk score when found in emails</li>
                             <li><strong>Exclusion Keywords:</strong> Automatically exclude emails from analysis</li>
+                            <li><strong>Multi-word phrases:</strong> Supported (e.g., "personal information", "data breach")</li>
                         </ul>
                     </div>
                 </form>
@@ -338,6 +345,113 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" onclick="saveKeyword()">
                     <i class="fas fa-save me-1"></i>Save Keyword
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Add Keywords Modal -->
+<div class="modal fade" id="bulkKeywordModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-upload me-2"></i>Bulk Add Keywords
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bulkKeywordForm">
+                    <!-- Default Settings -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary"><i class="fas fa-cog me-2"></i>Default Settings for All Keywords</h6>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <label for="bulkKeywordType" class="form-label">Type</label>
+                                    <select class="form-select" id="bulkKeywordType">
+                                        <option value="risk">Risk Keyword</option>
+                                        <option value="exclusion">Exclusion Keyword</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="bulkKeywordCategory" class="form-label">Category</label>
+                                    <select class="form-select" id="bulkKeywordCategory">
+                                        <option value="Business">Business</option>
+                                        <option value="Personal">Personal</option>
+                                        <option value="Suspicious">Suspicious</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="bulkAppliesTo" class="form-label">Applies To</label>
+                                    <select class="form-select" id="bulkAppliesTo">
+                                        <option value="both">Subject & Attachments</option>
+                                        <option value="subject">Subject Only</option>
+                                        <option value="attachment">Attachments Only</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3" id="bulkRiskScoreRow">
+                                    <label for="bulkRiskScore" class="form-label">Risk Score (1-10)</label>
+                                    <input type="number" class="form-control" id="bulkRiskScore" min="1" max="10" value="1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Keywords Input -->
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="text-primary"><i class="fas fa-list me-2"></i>Keywords to Add</h6>
+                            <div class="mb-3">
+                                <label for="bulkKeywordsText" class="form-label">Enter keywords (one per line)</label>
+                                <textarea class="form-control" id="bulkKeywordsText" rows="10" 
+                                          placeholder="Enter keywords, one per line. Examples:
+confidential
+password
+personal information
+data breach
+secret documents
+financial records"></textarea>
+                                <div class="form-text">
+                                    <strong>Tips:</strong>
+                                    • Enter one keyword or phrase per line
+                                    • Multi-word phrases are supported (e.g., "personal information")
+                                    • Empty lines will be ignored
+                                    • Duplicate keywords will be skipped automatically
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Section -->
+                    <div class="row" id="previewSection" style="display: none;">
+                        <div class="col-12">
+                            <h6 class="text-success"><i class="fas fa-eye me-2"></i>Preview Keywords</h6>
+                            <div class="alert alert-light border" id="previewContent">
+                                <!-- Preview will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-1"></i>Bulk Add Information</h6>
+                        <ul class="mb-0 small">
+                            <li>All keywords will use the default settings above unless individually configured</li>
+                            <li>Both single words and multi-word phrases are supported</li>
+                            <li>Existing keywords will be automatically skipped</li>
+                            <li>You'll receive a detailed report of what was added, skipped, or had errors</li>
+                        </ul>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" onclick="previewBulkKeywords()">
+                    <i class="fas fa-eye me-1"></i>Preview
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveBulkKeywords()">
+                    <i class="fas fa-upload me-1"></i>Add All Keywords
                 </button>
             </div>
         </div>
@@ -437,9 +551,171 @@ function deleteKeyword(keywordId) {
     }
 }
 
+// Show bulk add keywords modal
+function showBulkAddModal() {
+    document.getElementById('bulkKeywordForm').reset();
+    document.getElementById('previewSection').style.display = 'none';
+    toggleBulkTypeOptions();
+    new bootstrap.Modal(document.getElementById('bulkKeywordModal')).show();
+}
+
+// Toggle bulk options based on keyword type
+function toggleBulkTypeOptions() {
+    const keywordType = document.getElementById('bulkKeywordType').value;
+    const riskScoreRow = document.getElementById('bulkRiskScoreRow');
+    
+    if (keywordType === 'risk') {
+        riskScoreRow.style.display = 'block';
+    } else {
+        riskScoreRow.style.display = 'none';
+    }
+}
+
+// Preview bulk keywords
+function previewBulkKeywords() {
+    const keywordsText = document.getElementById('bulkKeywordsText').value.trim();
+    const previewSection = document.getElementById('previewSection');
+    const previewContent = document.getElementById('previewContent');
+    
+    if (!keywordsText) {
+        alert('Please enter some keywords first');
+        return;
+    }
+    
+    // Parse keywords
+    const keywords = keywordsText.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+    
+    if (keywords.length === 0) {
+        alert('No valid keywords found');
+        return;
+    }
+    
+    // Generate preview
+    const keywordType = document.getElementById('bulkKeywordType').value;
+    const category = document.getElementById('bulkKeywordCategory').value;
+    const appliesTo = document.getElementById('bulkAppliesTo').value;
+    const riskScore = document.getElementById('bulkRiskScore').value;
+    
+    let previewHtml = `
+        <div class="mb-3">
+            <strong>Preview:</strong> ${keywords.length} keywords will be added with these settings:
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <strong>Type:</strong> <span class="badge bg-${keywordType === 'risk' ? 'primary' : 'warning'}">${keywordType.charAt(0).toUpperCase() + keywordType.slice(1)}</span>
+            </div>
+            <div class="col-md-3">
+                <strong>Category:</strong> <span class="badge bg-secondary">${category}</span>
+            </div>
+            <div class="col-md-3">
+                <strong>Applies To:</strong> <span class="badge bg-info">${appliesTo}</span>
+            </div>
+            ${keywordType === 'risk' ? `<div class="col-md-3"><strong>Risk Score:</strong> <span class="badge bg-danger">${riskScore}</span></div>` : ''}
+        </div>
+        <div class="keywords-preview">
+            <strong>Keywords to add:</strong><br>
+    `;
+    
+    keywords.forEach((keyword, index) => {
+        previewHtml += `<span class="badge bg-light text-dark me-1 mb-1">${keyword}</span>`;
+    });
+    
+    previewHtml += '</div>';
+    
+    previewContent.innerHTML = previewHtml;
+    previewSection.style.display = 'block';
+}
+
+// Save bulk keywords
+function saveBulkKeywords() {
+    const keywordsText = document.getElementById('bulkKeywordsText').value.trim();
+    
+    if (!keywordsText) {
+        alert('Please enter some keywords first');
+        return;
+    }
+    
+    // Parse keywords
+    const keywords = keywordsText.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+    
+    if (keywords.length === 0) {
+        alert('No valid keywords found');
+        return;
+    }
+    
+    const data = {
+        keywords: keywords,
+        default_keyword_type: document.getElementById('bulkKeywordType').value,
+        default_category: document.getElementById('bulkKeywordCategory').value,
+        default_applies_to: document.getElementById('bulkAppliesTo').value,
+        default_risk_score: parseInt(document.getElementById('bulkRiskScore').value) || 1
+    };
+    
+    // Show loading state
+    const saveButton = document.querySelector('#bulkKeywordModal .btn-primary');
+    const originalText = saveButton.innerHTML;
+    saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Adding Keywords...';
+    saveButton.disabled = true;
+    
+    fetch('/api/wordlist/bulk-add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            // Show detailed results
+            let message = data.message + '\n\n';
+            
+            if (data.added_count > 0) {
+                message += `✓ Successfully added ${data.added_count} keywords\n`;
+            }
+            
+            if (data.skipped_count > 0) {
+                message += `⚠ Skipped ${data.skipped_count} existing keywords\n`;
+                if (data.skipped_keywords.length > 0) {
+                    message += 'Skipped keywords: ' + data.skipped_keywords.map(k => k.keyword).join(', ') + '\n';
+                }
+            }
+            
+            if (data.error_count > 0) {
+                message += `❌ ${data.error_count} keywords had errors\n`;
+                if (data.errors.length > 0) {
+                    message += 'Errors: ' + data.errors.map(e => `${e.keyword}: ${e.error}`).join(', ') + '\n';
+                }
+            }
+            
+            alert(message);
+            bootstrap.Modal.getInstance(document.getElementById('bulkKeywordModal')).hide();
+            window.location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error adding bulk keywords: ' + error);
+    })
+    .finally(() => {
+        // Restore button state
+        saveButton.innerHTML = originalText;
+        saveButton.disabled = false;
+    });
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     toggleTypeOptions();
+    
+    // Add event listener for bulk keyword type changes
+    document.getElementById('bulkKeywordType').addEventListener('change', toggleBulkTypeOptions);
 });
 </script>
 {% endblock %}
