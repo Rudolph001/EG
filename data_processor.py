@@ -292,9 +292,13 @@ class DataProcessor:
             # Step 1: Apply exclusion rules with error handling
             try:
                 if not self._is_workflow_step_completed(session_id, 'exclusion_applied'):
+                    logger.info(f"Starting Step 1: Exclusion Rules for session {session_id}")
                     excluded_count = rule_engine.apply_exclusion_rules(session_id)
                     logger.info(f"Exclusion rules applied: {excluded_count} records excluded")
                     self._mark_workflow_step_completed(session_id, 'exclusion_applied')
+                    logger.info(f"Step 1 completed: Exclusion Rules")
+                else:
+                    logger.info(f"Step 1 already completed: Exclusion Rules")
             except Exception as e:
                 logger.error(f"Error in exclusion rules step: {str(e)}")
                 db.session.rollback()
@@ -303,9 +307,13 @@ class DataProcessor:
             # Step 2: Apply domain whitelist with error handling
             try:
                 if not self._is_workflow_step_completed(session_id, 'whitelist_applied'):
+                    logger.info(f"Starting Step 2: Domain Whitelist for session {session_id}")
                     whitelisted_count = domain_manager.apply_whitelist(session_id)
                     logger.info(f"Domain whitelist applied: {whitelisted_count} records whitelisted")
                     self._mark_workflow_step_completed(session_id, 'whitelist_applied')
+                    logger.info(f"Step 2 completed: Domain Whitelist")
+                else:
+                    logger.info(f"Step 2 already completed: Domain Whitelist")
             except Exception as e:
                 logger.error(f"Error in whitelist step: {str(e)}")
                 db.session.rollback()
@@ -314,9 +322,13 @@ class DataProcessor:
             # Step 3: Apply security rules with error handling
             try:
                 if not self._is_workflow_step_completed(session_id, 'rules_applied'):
+                    logger.info(f"Starting Step 3: Security Rules for session {session_id}")
                     flagged_count = rule_engine.apply_security_rules(session_id)
                     logger.info(f"Security rules applied: {flagged_count} records flagged")
                     self._mark_workflow_step_completed(session_id, 'rules_applied')
+                    logger.info(f"Step 3 completed: Security Rules")
+                else:
+                    logger.info(f"Step 3 already completed: Security Rules")
             except Exception as e:
                 logger.error(f"Error in security rules step: {str(e)}")
                 db.session.rollback()
@@ -325,9 +337,13 @@ class DataProcessor:
             # Step 4: Apply ML analysis with error handling
             try:
                 if not self._is_workflow_step_completed(session_id, 'ml_applied'):
+                    logger.info(f"Starting Step 4: ML Analysis for session {session_id}")
                     analyzed_count = ml_engine.analyze_session(session_id)
                     logger.info(f"ML analysis applied: {analyzed_count} records analyzed")
                     self._mark_workflow_step_completed(session_id, 'ml_applied')
+                    logger.info(f"Step 4 completed: ML Analysis")
+                else:
+                    logger.info(f"Step 4 already completed: ML Analysis")
             except Exception as e:
                 logger.error(f"Error in ML analysis step: {str(e)}")
                 db.session.rollback()

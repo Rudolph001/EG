@@ -431,8 +431,8 @@
                                     chunkProgressText.textContent = data.chunk_progress_percent + '%';
                                 }
 
-                                // Update workflow stages sequentially based on progress
-                                updateWorkflowStagesSequentially(data.progress_percent || 0, data.workflow_stats || {});
+                                // Update workflow stages based on actual step completion
+                                updateWorkflowStagesFromStatus(data.workflow_stats || {}, data.status);
 
                                 // Update workflow stage statistics
                                 if (data.workflow_stats) {
@@ -531,79 +531,74 @@
                         }
                     });
 
-                    function updateWorkflowStagesSequentially(progressPercent, workflowStats) {
-                        // Define the 8 stages and their progress thresholds
+                    function updateWorkflowStagesFromStatus(workflowStats, sessionStatus) {
+                        // Define the 8 stages in order
                         const stages = [
-                            { id: 'stage-ingestion', name: 'ingestion', threshold: 5, statusId: 'ingestion-status', completeId: 'ingestion-complete' },
-                            { id: 'stage-exclusion', name: 'exclusion', threshold: 20, statusId: 'exclusion-status', completeId: 'exclusion-complete' },
-                            { id: 'stage-whitelist', name: 'whitelist', threshold: 35, statusId: 'whitelist-status', completeId: 'whitelist-complete' },
-                            { id: 'stage-security', name: 'security', threshold: 50, statusId: 'security-status', completeId: 'security-complete' },
-                            { id: 'stage-wordlist', name: 'wordlist', threshold: 65, statusId: 'wordlist-status', completeId: 'wordlist-complete' },
-                            { id: 'stage-ml', name: 'ml', threshold: 80, statusId: 'ml-status', completeId: 'ml-complete' },
-                            { id: 'stage-cases', name: 'cases', threshold: 90, statusId: 'cases-status', completeId: 'cases-complete' },
-                            { id: 'stage-validation', name: 'validation', threshold: 100, statusId: 'validation-status', completeId: 'validation-complete' }
+                            { id: 'stage-ingestion', name: 'ingestion', statusId: 'ingestion-status', completeId: 'ingestion-complete', 
+                              isComplete: () => workflowStats.ingested_count !== undefined && workflowStats.ingested_count > 0 },
+                            { id: 'stage-exclusion', name: 'exclusion', statusId: 'exclusion-status', completeId: 'exclusion-complete',
+                              isComplete: () => workflowStats.exclusion_applied === true },
+                            { id: 'stage-whitelist', name: 'whitelist', statusId: 'whitelist-status', completeId: 'whitelist-complete',
+                              isComplete: () => workflowStats.whitelist_applied === true },
+                            { id: 'stage-security', name: 'security', statusId: 'security-status', completeId: 'security-complete',
+                              isComplete: () => workflowStats.rules_applied === true },
+                            { id: 'stage-wordlist', name: 'wordlist', statusId: 'wordlist-status', completeId: 'wordlist-complete',
+                              isComplete: () => workflowStats.wordlist_matches_count !== undefined },
+                            { id: 'stage-ml', name: 'ml', statusId: 'ml-status', completeId: 'ml-complete',
+                              isComplete: () => workflowStats.ml_applied === true },
+                            { id: 'stage-cases', name: 'cases', statusId: 'cases-status', completeId: 'cases-complete',
+                              isComplete: () => workflowStats.cases_generated_count !== undefined },
+                            { id: 'stage-validation', name: 'validation', statusId: 'validation-status', completeId: 'validation-complete',
+                              isComplete: () => sessionStatus === 'completed' }
                         ];
 
-                        // Reset all stages first
-                        stages.forEach(stage => {
-                            const stageEl = document.getElementById(stage.id);
-                            const statusEl = document.getElementById(stage.statusId);
-                            const completeEl = document.getElementById(stage.completeId);
-                            
-                            if (stageEl) {
-                                stageEl.classList.remove('active', 'completed', 'processing');
-                            }
-                            if (completeEl) {
-                                completeEl.style.display = 'none';
-                            }
-                        });
+                        let completedStages = 0;
+                        let currentActiveStage = -1;
 
-                        // Update stages based on progress
+                        // Process stages sequentially
                         stages.forEach((stage, index) => {
                             const stageEl = document.getElementById(stage.id);
                             const statusEl = document.getElementById(stage.statusId);
                             const completeEl = document.getElementById(stage.completeId);
-                            
+
                             if (!stageEl) return;
 
-                            if (progressPercent >= stage.threshold) {
+                            // Reset classes
+                            stageEl.classList.remove('active', 'completed', 'processing');
+                            if (completeEl) completeEl.style.display = 'none';
+
+                            // Check if this stage is complete
+                            if (stage.isComplete()) {
                                 // Stage is complete
                                 stageEl.classList.add('completed');
-                                stageEl.classList.remove('active', 'processing');
-                                
+                                completedStages++;
+
                                 if (statusEl) {
                                     statusEl.innerHTML = '<small class="text-success"><i class="fas fa-check-circle"></i> Complete</small>';
                                 }
                                 if (completeEl) {
                                     completeEl.style.display = 'block';
                                 }
-                            } else if (progressPercent >= (stage.threshold - 15)) {
-                                // Stage is currently processing
+                            } else if (currentActiveStage === -1 && completedStages === index) {
+                                // This is the next stage to process (all previous stages complete)
                                 stageEl.classList.add('processing', 'active');
-                                stageEl.classList.remove('completed');
-                                
+                                currentActiveStage = index;
+
                                 if (statusEl) {
                                     statusEl.innerHTML = '<small class="text-warning"><i class="fas fa-spinner fa-spin"></i> Processing...</small>';
                                 }
-                                if (completeEl) {
-                                    completeEl.style.display = 'none';
-                                }
                             } else {
                                 // Stage is waiting
-                                stageEl.classList.remove('active', 'completed', 'processing');
-                                
                                 if (statusEl) {
                                     statusEl.innerHTML = '<small class="text-muted"><i class="fas fa-clock"></i> Waiting...</small>';
-                                }
-                                if (completeEl) {
-                                    completeEl.style.display = 'none';
                                 }
                             }
                         });
 
-                        // Update workflow progress bar
+                        // Update workflow progress bar based on completed stages
                         const workflowProgressFill = document.querySelector('.workflow-progress-fill');
                         if (workflowProgressFill) {
+                            const progressPercent = (completedStages / stages.length) * 100;
                             workflowProgressFill.style.width = progressPercent + '%';
                         }
                     }
@@ -757,7 +752,8 @@
         }
 
         .workflow-progress-bar {
-            height: 8px;
+            ```text
+height: 8px;
             background: #e9ecef;
             border-radius: 4px;
             overflow: hidden;
