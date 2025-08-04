@@ -1,4 +1,5 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
+from sqlalchemy import text
 from io import StringIO, BytesIO
 import csv
 import json
@@ -3667,18 +3668,18 @@ def _generate_comprehensive_report(sessions):
         
         # Domain analysis
         domain_stats = db.session.execute(
-            """
+            text("""
             SELECT recipients_email_domain, 
                    COUNT(*) as count,
                    AVG(CAST(ml_risk_score AS FLOAT)) as avg_risk
-            FROM email_record 
+            FROM email_records 
             WHERE session_id IN :session_ids 
                   AND recipients_email_domain IS NOT NULL 
                   AND ml_risk_score IS NOT NULL
             GROUP BY recipients_email_domain 
             ORDER BY count DESC 
             LIMIT 20
-            """,
+            """),
             {'session_ids': tuple(session_ids)}
         ).fetchall()
         
