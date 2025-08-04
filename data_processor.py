@@ -276,7 +276,8 @@ class DataProcessor:
         try:
             logger.info(f"Starting processing workflow for session {session_id}")
 
-            # Import required engines
+            # Import required engines and models
+            from models import ProcessingSession
             from rule_engine import RuleEngine
             from domain_manager import DomainManager
             from ml_engine import MLEngine
@@ -315,11 +316,13 @@ class DataProcessor:
 
     def _is_workflow_step_completed(self, session_id, step_name):
         """Check if a workflow step has been completed"""
+        from models import ProcessingSession
         session = ProcessingSession.query.get(session_id)
         return getattr(session, step_name, False) if session else False
 
     def _mark_workflow_step_completed(self, session_id, step_name):
         """Mark a workflow step as completed"""
+        from models import ProcessingSession
         session = ProcessingSession.query.get(session_id)
         if session:
             setattr(session, step_name, True)
@@ -342,6 +345,7 @@ class DataProcessor:
     def get_processing_summary(self, session_id):
         """Get processing summary for a session"""
         try:
+            from models import ProcessingSession
             session = ProcessingSession.query.get(session_id)
             if not session:
                 return None
