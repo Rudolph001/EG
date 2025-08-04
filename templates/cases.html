@@ -79,7 +79,7 @@
             </h1>
             <div class="session-info">
                 <span class="badge bg-primary fs-6">{{ session.filename }}</span>
-                <span class="badge bg-info fs-6">{{ cases.total }} total cases</span>
+                <span class="badge bg-info fs-6">{{ cases.total }} total {% if request.args.get('grouped', 'true') == 'true' %}groups{% else %}cases{% endif %}</span>
                 {% if request.args.get('per_page') == 'all' %}
                     <span class="badge bg-success fs-6">
                         <i class="fas fa-eye"></i> Showing All Records
@@ -87,6 +87,31 @@
                 {% endif %}
             </div>
         </div>
+    </div>
+</div>
+
+<!-- View Toggle -->  
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="btn-group" role="group" aria-label="View toggle">
+            <a href="{{ url_for('cases', session_id=session.id, grouped='true', risk_level=risk_level, case_status=case_status, search=search, per_page=request.args.get('per_page', '200')) }}" 
+               class="btn {% if request.args.get('grouped', 'true') == 'true' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                <i class="fas fa-layer-group me-2"></i>Grouped View
+                <small class="d-block">Show unique emails</small>
+            </a>
+            <a href="{{ url_for('cases', session_id=session.id, grouped='false', risk_level=risk_level, case_status=case_status, search=search, per_page=request.args.get('per_page', '200')) }}" 
+               class="btn {% if request.args.get('grouped', 'true') == 'false' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                <i class="fas fa-list me-2"></i>Individual View
+                <small class="d-block">Show all recipients</small>
+            </a>
+        </div>
+        <small class="text-muted ms-3">
+            {% if request.args.get('grouped', 'true') == 'true' %}
+                Emails grouped by sender, subject, and attachments. Click "View Email" to see all recipients.
+            {% else %}
+                Showing individual records for each recipient.
+            {% endif %}
+        </small>
     </div>
 </div>
 
@@ -293,7 +318,11 @@
                         </th>
                         <th>Sender</th>
                         <th>Subject</th>
+                        {% if request.args.get('grouped', 'true') == 'true' %}
+                        <th>Recipients</th>
+                        {% else %}
                         <th>Recipient Domain</th>
+                        {% endif %}
                         <th>Risk Level</th>
                         <th>ML Score</th>
                         <th>Status</th>
@@ -305,7 +334,11 @@
                     {% for case in cases.items %}
                     <tr>
                         <td>
+                            {% if request.args.get('grouped', 'true') == 'true' %}
+                            <input type="checkbox" class="case-checkbox" value="{{ case.sample_id }}" onchange="updateBulkActions()">
+                            {% else %}
                             <input type="checkbox" class="case-checkbox" value="{{ case.record_id }}" onchange="updateBulkActions()">
+                            {% endif %}
                         </td>
                         <td>
                             <div>
@@ -326,7 +359,16 @@
                             {% endif %}
                         </td>
                         <td>
+                            {% if request.args.get('grouped', 'true') == 'true' %}
+                            <div>
+                                <span class="badge bg-info">{{ case.recipient_count }} recipients</span>
+                                <div class="small text-muted mt-1">
+                                    Domains: {{ case.recipient_domains[:50] }}{% if case.recipient_domains|length > 50 %}...{% endif %}
+                                </div>
+                            </div>
+                            {% else %}
                             <span class="badge bg-light text-dark">{{ case.recipients_email_domain }}</span>
+                            {% endif %}
                         </td>
                         <td>
                             <span class="risk-{{ case.risk_level.lower() if case.risk_level else 'low' }}">
@@ -335,11 +377,19 @@
                         </td>
                         <td>
                             <div class="d-flex align-items-center">
+                                {% if request.args.get('grouped', 'true') == 'true' %}
+                                <span class="fw-bold">{{ "%.3f"|format(case.max_risk_score or 0) }}</span>
+                                <div class="progress ms-2" style="width: 60px; height: 6px;">
+                                    <div class="progress-bar bg-{% if (case.max_risk_score or 0) > 0.7 %}danger{% elif (case.max_risk_score or 0) > 0.4 %}warning{% else %}success{% endif %}" 
+                                         style="width: {{ ((case.max_risk_score or 0) * 100)|int }}%"></div>
+                                </div>
+                                {% else %}
                                 <span class="fw-bold">{{ "%.3f"|format(case.ml_risk_score or 0) }}</span>
                                 <div class="progress ms-2" style="width: 60px; height: 6px;">
                                     <div class="progress-bar bg-{% if (case.ml_risk_score or 0) > 0.7 %}danger{% elif (case.ml_risk_score or 0) > 0.4 %}warning{% else %}success{% endif %}" 
                                          style="width: {{ ((case.ml_risk_score or 0) * 100)|int }}%"></div>
                                 </div>
+                                {% endif %}
                             </div>
                         </td>
                         <td>
@@ -352,6 +402,12 @@
                         </td>
                         <td>
                             <div class="btn-group" role="group">
+                                {% if request.args.get('grouped', 'true') == 'true' %}
+                                <a href="{{ url_for('email_details', session_id=session.id, email_group_id=case.sample_id) }}" 
+                                   class="btn btn-sm btn-outline-primary" title="View All Recipients">
+                                    <i class="fas fa-eye"></i> View Email
+                                </a>
+                                {% else %}
                                 <button class="btn btn-sm btn-outline-primary view-case-btn" 
                                         data-record-id="{{ case.record_id }}" title="View Details">
                                     <i class="fas fa-eye"></i>
@@ -364,6 +420,7 @@
                                         data-record-id="{{ case.record_id }}" title="Escalate">
                                     <i class="fas fa-exclamation-triangle"></i>
                                 </button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -378,7 +435,7 @@
             <ul class="pagination justify-content-center">
                 {% if cases.has_prev %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('cases', session_id=session.id, page=cases.prev_num, risk_level=risk_level, case_status=case_status, search=search, per_page=request.args.get('per_page', '200')) }}">
+                    <a class="page-link" href="{{ url_for('cases', session_id=session.id, page=cases.prev_num, risk_level=risk_level, case_status=case_status, search=search, per_page=request.args.get('per_page', '200'), grouped=request.args.get('grouped', 'true')) }}">
                         <i class="fas fa-chevron-left"></i> Previous
                     </a>
                 </li>
@@ -388,7 +445,7 @@
                     {% if page_num %}
                         {% if page_num != cases.page %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('cases', session_id=session.id, page=page_num, risk_level=risk_level, case_status=case_status, search=search, per_page=request.args.get('per_page', '200')) }}">
+                            <a class="page-link" href="{{ url_for('cases', session_id=session.id, page=page_num, risk_level=risk_level, case_status=case_status, search=search, per_page=request.args.get('per_page', '200'), grouped=request.args.get('grouped', 'true')) }}">
                                 {{ page_num }}
                             </a>
                         </li>
@@ -406,7 +463,7 @@
                 
                 {% if cases.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('cases', session_id=session.id, page=cases.next_num, risk_level=risk_level, case_status=case_status, search=search, per_page=request.args.get('per_page', '200')) }}">
+                    <a class="page-link" href="{{ url_for('cases', session_id=session.id, page=cases.next_num, risk_level=risk_level, case_status=case_status, search=search, per_page=request.args.get('per_page', '200'), grouped=request.args.get('grouped', 'true')) }}">
                         Next <i class="fas fa-chevron-right"></i>
                     </a>
                 </li>
@@ -420,7 +477,7 @@
             <i class="fas fa-search fa-3x text-muted mb-3"></i>
             <h5 class="text-muted">No cases found</h5>
             <p class="text-muted">Try adjusting your search criteria or filters.</p>
-            <a href="{{ url_for('cases', session_id=session.id) }}" class="btn btn-outline-primary">
+            <a href="{{ url_for('cases', session_id=session.id, grouped=request.args.get('grouped', 'true')) }}" class="btn btn-outline-primary">
                 <i class="fas fa-refresh"></i> Clear Filters
             </a>
         </div>

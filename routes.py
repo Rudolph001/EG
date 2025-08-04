@@ -358,7 +358,19 @@ def reports_dashboard(session_id):
 
 @app.route('/cases/<session_id>')
 def cases(session_id):
-    """Case management page with advanced filtering"""
+    """Case management page with advanced filtering and email grouping"""
+    session = ProcessingSession.query.get_or_404(session_id)
+    
+    # Check if grouped view is requested
+    grouped_view = request.args.get('grouped', 'true') == 'true'  # Default to grouped
+    
+    if grouped_view:
+        return cases_grouped(session_id)
+    else:
+        return cases_individual(session_id)
+
+def cases_individual(session_id):
+    """Original individual cases view"""
     session = ProcessingSession.query.get_or_404(session_id)
 
     # Get filter parameters
@@ -509,7 +521,194 @@ def cases(session_id):
                          total_critical=total_critical,
                          total_high=total_high,
                          total_medium=total_medium,
-                         total_low=total_low)
+                         total_low=total_low,
+                         grouped_view=False)
+
+def cases_grouped(session_id):
+    """Grouped cases view - groups emails by content"""
+    session = ProcessingSession.query.get_or_404(session_id)
+    
+    # Get filter parameters
+    page = request.args.get('page', 1, type=int)
+    per_page_param = request.args.get('per_page', '200')
+    risk_level = request.args.get('risk_level', '')
+    case_status = request.args.get('case_status', '')
+    search = request.args.get('search', '')
+    
+    # Special view parameters
+    show_whitelisted = request.args.get('show_whitelisted', False)
+    show_excluded = request.args.get('show_excluded', False)
+    show_unanalyzed = request.args.get('show_unanalyzed', False)
+    
+    # Build base query for grouping
+    if show_whitelisted:
+        base_query = EmailRecord.query.filter_by(session_id=session_id).filter(
+            EmailRecord.whitelisted == True
+        )
+    elif show_excluded:
+        base_query = EmailRecord.query.filter_by(session_id=session_id).filter(
+            EmailRecord.excluded_by_rule.isnot(None),
+            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+        )
+    elif show_unanalyzed:
+        base_query = EmailRecord.query.filter_by(session_id=session_id).filter(
+            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
+            db.or_(EmailRecord.excluded_by_rule.is_(None)),
+            db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
+        )
+    else:
+        base_query = EmailRecord.query.filter_by(session_id=session_id).filter(
+            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+        ).filter(
+            db.or_(
+                EmailRecord.case_status.is_(None),
+                EmailRecord.case_status == 'Active'
+            )
+        )
+    
+    # Apply filters
+    if risk_level:
+        base_query = base_query.filter(EmailRecord.risk_level == risk_level)
+    if case_status:
+        base_query = base_query.filter(EmailRecord.case_status == case_status)
+    if search:
+        search_term = f"%{search}%"
+        base_query = base_query.filter(
+            db.or_(
+                EmailRecord.sender.ilike(search_term),
+                EmailRecord.subject.ilike(search_term),
+                EmailRecord.attachments.ilike(search_term),
+                EmailRecord.justification.ilike(search_term)
+            )
+        )
+    
+    # Group emails by key fields (sender, subject, attachments, time window)
+    from sqlalchemy import func, desc
+    
+    grouped_emails = base_query.with_entities(
+        EmailRecord.sender,
+        EmailRecord.subject,
+        EmailRecord.attachments,
+        EmailRecord.time,
+        EmailRecord.leaver,
+        EmailRecord.department,
+        EmailRecord.bunit,
+        EmailRecord.wordlist_attachment,
+        EmailRecord.wordlist_subject,
+        EmailRecord.justification,
+        func.max(EmailRecord.ml_risk_score).label('max_risk_score'),
+        func.max(EmailRecord.risk_level).label('risk_level'),
+        func.max(EmailRecord.case_status).label('case_status'),
+        func.count(EmailRecord.id).label('recipient_count'),
+        func.string_agg(EmailRecord.recipients_email_domain, ', ').label('recipient_domains'),
+        func.max(EmailRecord.id).label('sample_id')
+    ).group_by(
+        EmailRecord.sender,
+        EmailRecord.subject,
+        EmailRecord.attachments,
+        EmailRecord.time,
+        EmailRecord.leaver,
+        EmailRecord.department,
+        EmailRecord.bunit,
+        EmailRecord.wordlist_attachment,
+        EmailRecord.wordlist_subject,
+        EmailRecord.justification
+    ).order_by(desc('max_risk_score'))
+    
+    # Handle pagination
+    if per_page_param == 'all':
+        per_page = grouped_emails.count()
+        page = 1
+    else:
+        per_page = int(per_page_param) if per_page_param.isdigit() else 200
+    
+    # Execute pagination
+    offset = (page - 1) * per_page
+    grouped_results = grouped_emails.offset(offset).limit(per_page).all()
+    total_groups = grouped_emails.count()
+    
+    # Create pagination object for template compatibility
+    class GroupedPagination:
+        def __init__(self, items, total, page, per_page):
+            self.items = items
+            self.total = total
+            self.page = page
+            self.per_page = per_page
+            self.pages = (total + per_page - 1) // per_page
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1 if self.has_prev else None
+            self.next_num = page + 1 if self.has_next else None
+    
+    cases_pagination = GroupedPagination(grouped_results, total_groups, page, per_page)
+    
+    # Get comprehensive statistics (same as before but for grouped view)
+    total_all_records = EmailRecord.query.filter_by(session_id=session_id).count()
+    
+    total_whitelisted = EmailRecord.query.filter_by(session_id=session_id).filter(
+        EmailRecord.whitelisted == True
+    ).count()
+    
+    total_excluded = EmailRecord.query.filter_by(session_id=session_id).filter(
+        EmailRecord.excluded_by_rule.isnot(None),
+        db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+    ).count()
+    
+    analyzed_query = EmailRecord.query.filter_by(session_id=session_id).filter(
+        db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
+        db.or_(EmailRecord.excluded_by_rule.is_(None))
+    )
+    
+    total_critical = analyzed_query.filter(EmailRecord.risk_level == 'Critical').count()
+    total_high = analyzed_query.filter(EmailRecord.risk_level == 'High').count()
+    total_medium = analyzed_query.filter(EmailRecord.risk_level == 'Medium').count()
+    total_low = analyzed_query.filter(EmailRecord.risk_level == 'Low').count()
+    
+    total_unanalyzed = analyzed_query.filter(
+        db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
+    ).count()
+    
+    active_whitelist_domains = WhitelistDomain.query.filter_by(is_active=True).count()
+    
+    return render_template('cases.html',
+                         session=session,
+                         cases=cases_pagination,
+                         risk_level=risk_level,
+                         case_status=case_status,
+                         search=search,
+                         total_all_records=total_all_records,
+                         total_whitelisted=total_whitelisted,
+                         total_excluded=total_excluded,
+                         total_unanalyzed=total_unanalyzed,
+                         active_whitelist_domains=active_whitelist_domains,
+                         total_critical=total_critical,
+                         total_high=total_high,
+                         total_medium=total_medium,
+                         total_low=total_low,
+                         grouped_view=True)
+
+@app.route('/email_details/<session_id>/<email_group_id>')
+def email_details(session_id, email_group_id):
+    """Show all recipients for a grouped email"""
+    session = ProcessingSession.query.get_or_404(session_id)
+    
+    # Get the sample record to identify the email group
+    sample_record = EmailRecord.query.get_or_404(email_group_id)
+    
+    # Find all records that match this email group
+    matching_records = EmailRecord.query.filter_by(
+        session_id=session_id,
+        sender=sample_record.sender,
+        subject=sample_record.subject,
+        attachments=sample_record.attachments,
+        time=sample_record.time,
+        justification=sample_record.justification
+    ).order_by(EmailRecord.recipients_email_domain).all()
+    
+    return render_template('email_details.html',
+                         session=session,
+                         sample_record=sample_record,
+                         matching_records=matching_records)
 
 @app.route('/cleared_cases/<session_id>')
 def cleared_cases(session_id):

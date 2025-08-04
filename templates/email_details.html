@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}Email Details - Session {{ session.id[:8] }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .email-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .recipient-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .recipient-card:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .domain-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        background: #e9ecef;
+        color: #495057;
+    }
+    
+    .risk-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+    }
+    
+    .risk-critical { background: #dc3545; }
+    .risk-high { background: #fd7e14; }
+    .risk-medium { background: #ffc107; }
+    .risk-low { background: #198754; }
+    
+    .email-content {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Upload</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('dashboard', session_id=session.id) }}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('cases', session_id=session.id) }}">Cases</a></li>
+<li class="breadcrumb-item active">Email Details</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Email Header -->
+    <div class="email-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-2">
+                    <i class="fas fa-envelope-open me-3"></i>Email Details
+                </h1>
+                <p class="mb-0">Viewing all recipients for this email</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{{ url_for('cases', session_id=session.id) }}" class="btn btn-light btn-lg">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Cases
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email Content -->
+    <div class="email-content">
+        <div class="row">
+            <div class="col-md-6">
+                <h5><i class="fas fa-user text-primary me-2"></i>Sender Information</h5>
+                <p><strong>Email:</strong> {{ sample_record.sender or 'Unknown' }}</p>
+                {% if sample_record.department %}
+                    <p><strong>Department:</strong> {{ sample_record.department }}</p>
+                {% endif %}
+                {% if sample_record.bunit %}
+                    <p><strong>Business Unit:</strong> {{ sample_record.bunit }}</p>
+                {% endif %}
+                {% if sample_record.leaver == 'yes' %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Leaver Alert:</strong> This sender is marked as a leaver
+                    </div>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                <h5><i class="fas fa-clock text-primary me-2"></i>Email Details</h5>
+                <p><strong>Time:</strong> {{ sample_record.time or 'Unknown' }}</p>
+                <p><strong>Risk Level:</strong> 
+                    {% if sample_record.risk_level %}
+                        <span class="risk-indicator risk-{{ sample_record.risk_level.lower() }}"></span>
+                        <span class="badge risk-{{ sample_record.risk_level.lower() }}">{{ sample_record.risk_level }}</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Unanalyzed</span>
+                    {% endif %}
+                </p>
+                {% if sample_record.ml_risk_score %}
+                    <p><strong>Risk Score:</strong> {{ "%.3f"|format(sample_record.ml_risk_score) }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <hr>
+        
+        <div class="row">
+            <div class="col-12">
+                <h5><i class="fas fa-envelope text-primary me-2"></i>Subject & Content</h5>
+                <p><strong>Subject:</strong> {{ sample_record.subject or 'No subject' }}</p>
+                
+                {% if sample_record.attachments %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-paperclip me-2"></i>
+                        <strong>Attachments:</strong> {{ sample_record.attachments }}
+                    </div>
+                {% endif %}
+                
+                {% if sample_record.wordlist_attachment or sample_record.wordlist_subject %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Sensitive Keywords Detected:</strong>
+                        {% if sample_record.wordlist_subject %}
+                            Subject: {{ sample_record.wordlist_subject }}
+                        {% endif %}
+                        {% if sample_record.wordlist_attachment %}
+                            Attachments: {{ sample_record.wordlist_attachment }}
+                        {% endif %}
+                    </div>
+                {% endif %}
+                
+                {% if sample_record.justification %}
+                    <p><strong>Justification:</strong> {{ sample_record.justification }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recipients List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-users text-primary me-2"></i>
+                All Recipients ({{ matching_records|length }})
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if matching_records|length > 1 %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    This email was sent to {{ matching_records|length }} different recipients.
+                </div>
+            {% endif %}
+            
+            <div class="row">
+                {% for record in matching_records %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="recipient-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-2">
+                                    <span class="domain-badge">{{ record.recipients_email_domain or 'Unknown Domain' }}</span>
+                                </h6>
+                                {% if record.recipients %}
+                                    <p class="text-muted mb-2 small">{{ record.recipients }}</p>
+                                {% endif %}
+                                <div class="d-flex align-items-center">
+                                    {% if record.risk_level %}
+                                        <span class="risk-indicator risk-{{ record.risk_level.lower() }}"></span>
+                                        <span class="badge risk-{{ record.risk_level.lower() }} me-2">{{ record.risk_level }}</span>
+                                    {% endif %}
+                                    {% if record.ml_risk_score %}
+                                        <small class="text-muted">Score: {{ "%.3f"|format(record.ml_risk_score) }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="markAsCleared({{ record.id }})">
+                                        <i class="fas fa-check me-2"></i>Mark as Cleared
+                                    </a></li>
+                                    <li><a class="dropdown-item text-warning" href="#" onclick="escalateCase({{ record.id }})">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>Escalate
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">
+                <i class="fas fa-tools text-primary me-2"></i>Bulk Actions
+            </h5>
+            <div class="row">
+                <div class="col-md-4">
+                    <button class="btn btn-success w-100" onclick="markAllAsCleared()">
+                        <i class="fas fa-check me-2"></i>Mark All as Cleared
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-warning w-100" onclick="escalateAll()">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Escalate All
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-info w-100" onclick="exportEmailDetails()">
+                        <i class="fas fa-download me-2"></i>Export Details
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function markAsCleared(recordId) {
+    if (confirm('Mark this case as cleared?')) {
+        // TODO: Implement API call to mark as cleared
+        alert('Case marked as cleared (functionality to be implemented)');
+    }
+}
+
+function escalateCase(recordId) {
+    if (confirm('Escalate this case?')) {
+        // TODO: Implement API call to escalate
+        alert('Case escalated (functionality to be implemented)');
+    }
+}
+
+function markAllAsCleared() {
+    if (confirm('Mark all {{ matching_records|length }} cases as cleared?')) {
+        // TODO: Implement bulk API call
+        alert('All cases marked as cleared (functionality to be implemented)');
+    }
+}
+
+function escalateAll() {
+    if (confirm('Escalate all {{ matching_records|length }} cases?')) {
+        // TODO: Implement bulk API call
+        alert('All cases escalated (functionality to be implemented)');
+    }
+}
+
+function exportEmailDetails() {
+    // TODO: Implement export functionality
+    alert('Export functionality to be implemented');
+}
+</script>
+{% endblock %}
