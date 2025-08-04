@@ -639,6 +639,15 @@ def cases_grouped(session_id):
             self.has_next = page < self.pages
             self.prev_num = page - 1 if self.has_prev else None
             self.next_num = page + 1 if self.has_next else None
+        
+        def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
+            """Generate page numbers for pagination display"""
+            last = self.pages
+            for num in range(1, last + 1):
+                if num <= left_edge or \
+                   (self.page - left_current - 1 < num < self.page + right_current) or \
+                   num > last - right_edge:
+                    yield num
     
     cases_pagination = GroupedPagination(grouped_results, total_groups, page, per_page)
     
