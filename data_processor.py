@@ -305,25 +305,25 @@ class DataProcessor:
     
     def _create_email_record(self, session_id, row, record_index):
         """Create email record with custom wordlist analysis"""
-        # Extract basic fields
+        # Extract basic fields using correct CSV column names
         record_data = {
             'session_id': session_id,
-            'record_id': str(row.get('Record ID', f'record_{record_index}')),
-            'sender': str(row.get('Sender', '')),
-            'subject': str(row.get('Subject', '')),
-            'recipients': str(row.get('Recipients', '')),
-            'recipients_email_domain': str(row.get('Recipients Email Domain', '')),
-            'time': self._parse_datetime(row.get('Time')),
-            'attachments': str(row.get('Attachments', '')),
-            'leaver': str(row.get('Leaver', '')),
-            'termination_date': self._parse_datetime(row.get('Termination Date')),
-            'bunit': str(row.get('BUnit', '')),
-            'department': str(row.get('Department', '')),
-            'status': str(row.get('Status', '')),
-            'user_response': str(row.get('User Response', '')),
-            'final_outcome': str(row.get('Final Outcome', '')),
-            'justification': str(row.get('Justification', '')),
-            'policy_name': str(row.get('Policy Name', 'Standard'))
+            'record_id': f'record_{record_index}',  # Generate record ID since CSV doesn't have one
+            'sender': str(row.get('sender', '')),
+            'subject': str(row.get('subject', '')),
+            'recipients': str(row.get('recipients', '')),
+            'recipients_email_domain': str(row.get('recipients_email_domain', '')),
+            'time': self._parse_datetime(row.get('_time')),  # CSV uses '_time' column
+            'attachments': str(row.get('attachments', '')),
+            'leaver': str(row.get('leaver', '')),
+            'termination_date': self._parse_datetime(row.get('termination_date')),
+            'bunit': str(row.get('bunit', '')),
+            'department': str(row.get('department', '')),
+            'status': str(row.get('status', '')),
+            'user_response': str(row.get('user_response', '')),
+            'final_outcome': str(row.get('final_outcome', '')),
+            'justification': str(row.get('justification', '')),
+            'policy_name': str(row.get('policy_name', 'Standard'))
         }
         
         # Skip wordlist analysis during data ingestion for speed
@@ -383,6 +383,7 @@ class DataProcessor:
             if isinstance(date_value, str):
                 # Try common formats (prioritize most likely)
                 formats = [
+                    '%Y-%m-%dT%H:%M:%S',  # ISO 8601 format: 2025-07-21T14:44:19
                     '%Y-%m-%d %H:%M:%S',
                     '%m/%d/%Y %H:%M:%S', 
                     '%Y-%m-%d',
