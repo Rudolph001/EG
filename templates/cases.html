@@ -79,7 +79,7 @@
             </h1>
             <div class="session-info">
                 <span class="badge bg-primary fs-6">{{ session.filename }}</span>
-                <span class="badge bg-info fs-6">{{ cases.total }} total {% if request.args.get('grouped', 'true') == 'true' %}groups{% else %}cases{% endif %}</span>
+                <span class="badge bg-info fs-6">{{ cases.total }} total {% if request.args.get('grouped', 'false') == 'true' %}groups{% else %}cases{% endif %}</span>
                 {% if request.args.get('per_page') == 'all' %}
                     <span class="badge bg-success fs-6">
                         <i class="fas fa-eye"></i> Showing All Records
@@ -95,18 +95,18 @@
     <div class="col-12">
         <div class="btn-group" role="group" aria-label="View toggle">
             <a href="{{ url_for('cases', session_id=session.id, grouped='true', risk_level=risk_level, case_status=case_status, search=search, per_page=request.args.get('per_page', '200')) }}" 
-               class="btn {% if request.args.get('grouped', 'true') == 'true' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+               class="btn {% if request.args.get('grouped', 'false') == 'true' %}btn-primary{% else %}btn-outline-primary{% endif %}">
                 <i class="fas fa-layer-group me-2"></i>Grouped View
                 <small class="d-block">Show unique emails</small>
             </a>
             <a href="{{ url_for('cases', session_id=session.id, grouped='false', risk_level=risk_level, case_status=case_status, search=search, per_page=request.args.get('per_page', '200')) }}" 
-               class="btn {% if request.args.get('grouped', 'true') == 'false' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+               class="btn {% if request.args.get('grouped', 'false') == 'false' %}btn-primary{% else %}btn-outline-primary{% endif %}">
                 <i class="fas fa-list me-2"></i>Individual View
                 <small class="d-block">Show all recipients</small>
             </a>
         </div>
         <small class="text-muted ms-3">
-            {% if request.args.get('grouped', 'true') == 'true' %}
+            {% if request.args.get('grouped', 'false') == 'true' %}
                 Emails grouped by sender, subject, and attachments. Click "View Email" to see all recipients.
             {% else %}
                 Showing individual records for each recipient.

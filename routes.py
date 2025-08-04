@@ -392,8 +392,8 @@ def cases(session_id):
     """Case management page with advanced filtering and email grouping"""
     session = ProcessingSession.query.get_or_404(session_id)
     
-    # Check if grouped view is requested
-    grouped_view = request.args.get('grouped', 'true') == 'true'  # Default to grouped
+    # Check if grouped view is requested - DEFAULT TO INDIVIDUAL VIEW
+    grouped_view = request.args.get('grouped', 'false') == 'true'  # Default to individual
     
     if grouped_view:
         return cases_grouped(session_id)
@@ -556,7 +556,10 @@ def cases_individual(session_id):
                          grouped_view=False)
 
 def cases_grouped(session_id):
-    """Grouped cases view - groups emails by content"""
+    """Grouped cases view - groups emails by content (DISABLED - causing data display issues)"""
+    # REDIRECT TO INDIVIDUAL VIEW TO FIX DATA DISPLAY ISSUES
+    return redirect(url_for('cases', session_id=session_id, grouped='false'))
+    
     session = ProcessingSession.query.get_or_404(session_id)
     
     # Get filter parameters
