@@ -472,8 +472,7 @@ function checkProcessingStatus() {
             // Update status text
             document.getElementById('statusText').textContent = data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) + '...' : 'Processing...';
 
-            // Update workflow stages with detailed results
-            updateWorkflowStages(data.workflow_stats || {});
+            // Workflow updates are handled by WorkflowManager
 
             // Handle completion - DO NOT AUTO-REDIRECT
             if (data.status === 'completed') {
@@ -505,71 +504,6 @@ function checkProcessingStatus() {
         });
 }
 
-function updateWorkflowStages(workflowStats) {
-    const workflowContainer = document.getElementById('workflowStages');
-    if (!workflowContainer) return;
-
-    const stages = [
-        {
-            name: 'Exclusion Rules',
-            icon: 'fas fa-filter',
-            description: 'Filter records based on exclusion criteria',
-            count: workflowStats.excluded_count || 0,
-            label: 'Emails Excluded',
-            status: workflowStats.excluded_count !== undefined ? 'complete' : 'pending',
-            color: 'secondary'
-        },
-        {
-            name: 'Whitelist Filtering',
-            icon: 'fas fa-shield-alt',
-            description: 'Remove trusted domain communications',
-            count: workflowStats.whitelisted_count || 0,
-            label: 'Emails Whitelisted',
-            status: workflowStats.whitelisted_count !== undefined ? 'complete' : 'pending',
-            color: 'success'
-        },
-        {
-            name: 'Security Rules',
-            icon: 'fas fa-exclamation-triangle',
-            description: 'Apply security rules and threat detection',
-            count: workflowStats.rules_matched_count || 0,
-            label: 'Rule Matches',
-            status: workflowStats.rules_matched_count !== undefined ? 'complete' : 'pending',
-            color: 'warning'
-        },
-        {
-            name: 'ML Analysis',
-            icon: 'fas fa-brain',
-            description: 'Machine learning anomaly detection',
-            count: workflowStats.critical_cases_count || 0,
-            label: 'Critical Cases',
-            status: workflowStats.critical_cases_count !== undefined ? 'complete' : 'pending',
-            color: 'danger'
-        }
-    ];
-
-    workflowContainer.innerHTML = stages.map(stage => `
-        <div class="col-md-3 col-6">
-            <div class="card h-100 border-${stage.color}">
-                <div class="card-body text-center">
-                    <div class="mb-2">
-                        <i class="${stage.icon} fa-2x text-${stage.color}"></i>
-                    </div>
-                    <h6 class="card-title">${stage.name}</h6>
-                    <p class="text-muted small">${stage.description}</p>
-                    <h3 class="text-${stage.color}">${stage.count}</h3>
-                    <small class="text-muted">${stage.label}</small>
-                    <div class="mt-2">
-                        ${stage.status === 'complete' ? 
-                            '<span class="badge bg-success"><i class="fas fa-check"></i> Complete</span>' : 
-                            '<span class="badge bg-secondary"><i class="fas fa-clock"></i> Pending</span>'
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
 
 function refreshStatus() {
     checkProcessingStatus();
@@ -594,57 +528,14 @@ checkProcessingStatus();tus
                 clearInterval(statusInterval);
             }
 
-            // Update stage indicators (basic version)
-            updateStageIndicators(data);
+            // Stage indicators are handled by WorkflowManager
         })
         .catch(error => {
             console.error('Error checking status:', error);
         });
 }
 
-function updateStageIndicators(data) {
-    // Simple stage progression based on progress
-    const progress = data.progress_percent || 0;
 
-    if (progress > 0) {
-        document.getElementById('stage-exclusion').classList.add('active');
-        // Update stage stats if available
-        if (data.workflow_stats) {
-            updateStageStats(data.workflow_stats);
-        }
-    }
-    if (progress > 25) {
-        document.getElementById('stage-exclusion').classList.add('completed');
-        document.getElementById('stage-whitelist').classList.add('active');
-    }
-    if (progress > 50) {
-        document.getElementById('stage-whitelist').classList.add('completed');
-        document.getElementById('stage-rules').classList.add('active');
-    }
-    if (progress > 75) {
-        document.getElementById('stage-rules').classList.add('completed');
-        document.getElementById('stage-ml').classList.add('active');
-    }
-    if (progress >= 100) {
-        document.getElementById('stage-ml').classList.add('completed');
-    }
-}
-
-function updateStageStats(workflowStats) {
-    // Update stage statistics
-    if (workflowStats.excluded_count !== undefined) {
-        document.getElementById('excluded-count').textContent = workflowStats.excluded_count;
-    }
-    if (workflowStats.whitelisted_count !== undefined) {
-        document.getElementById('whitelisted-count').textContent = workflowStats.whitelisted_count;
-    }
-    if (workflowStats.rules_matched_count !== undefined) {
-        document.getElementById('rules-matched-count').textContent = workflowStats.rules_matched_count;
-    }
-    if (workflowStats.critical_cases_count !== undefined) {
-        document.getElementById('critical-cases-count').textContent = workflowStats.critical_cases_count;
-    }
-}
 
 // Start checking status immediately and every 2 seconds
 checkProcessingStatus();
