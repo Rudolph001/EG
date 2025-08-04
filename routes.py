@@ -3568,3 +3568,156 @@ def api_network_data(session_id):
     except Exception as e:
         logger.error(f"Error generating network data: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/professional-reports')
+def professional_reports():
+    """Professional reports dashboard with session selection"""
+    try:
+        # Get all completed sessions
+        sessions = ProcessingSession.query.filter(
+            ProcessingSession.status == 'completed'
+        ).order_by(ProcessingSession.upload_time.desc()).all()
+        
+        return render_template('professional_reports.html', sessions=sessions)
+    except Exception as e:
+        logger.error(f"Error loading professional reports: {str(e)}")
+        flash(f'Error loading reports: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/api/generate-professional-report', methods=['POST'])
+def generate_professional_report():
+    """Generate professional report for selected sessions"""
+    try:
+        data = request.get_json()
+        session_ids = data.get('session_ids', [])
+        
+        if not session_ids:
+            return jsonify({'error': 'No sessions selected'}), 400
+        
+        # Get session data
+        sessions = ProcessingSession.query.filter(
+            ProcessingSession.session_id.in_(session_ids)
+        ).all()
+        
+        if not sessions:
+            return jsonify({'error': 'No valid sessions found'}), 404
+        
+        # Generate comprehensive report data
+        report_data = _generate_comprehensive_report(sessions)
+        
+        return jsonify(report_data)
+    except Exception as e:
+        logger.error(f"Error generating professional report: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+def _generate_comprehensive_report(sessions):
+    """Generate comprehensive professional report data"""
+    try:
+        session_ids = [s.session_id for s in sessions]
+        
+        # Overall statistics
+        total_records = EmailRecord.query.filter(
+            EmailRecord.session_id.in_(session_ids)
+        ).count()
+        
+        analyzed_records = EmailRecord.query.filter(
+            EmailRecord.session_id.in_(session_ids),
+            EmailRecord.ml_risk_score.isnot(None)
+        ).count()
+        
+        # Risk distribution
+        critical_count = EmailRecord.query.filter(
+            EmailRecord.session_id.in_(session_ids),
+            EmailRecord.risk_level == 'Critical'
+        ).count()
+        
+        high_count = EmailRecord.query.filter(
+            EmailRecord.session_id.in_(session_ids),
+            EmailRecord.risk_level == 'High'
+        ).count()
+        
+        medium_count = EmailRecord.query.filter(
+            EmailRecord.session_id.in_(session_ids),
+            EmailRecord.risk_level == 'Medium'
+        ).count()
+        
+        low_count = EmailRecord.query.filter(
+            EmailRecord.session_id.in_(session_ids),
+            EmailRecord.risk_level == 'Low'
+        ).count()
+        
+        # Session details
+        session_details = []
+        for session in sessions:
+            session_records = EmailRecord.query.filter_by(session_id=session.session_id).count()
+            session_analyzed = EmailRecord.query.filter(
+                EmailRecord.session_id == session.session_id,
+                EmailRecord.ml_risk_score.isnot(None)
+            ).count()
+            
+            session_details.append({
+                'session_id': session.session_id,
+                'filename': session.filename,
+                'upload_time': session.upload_time.strftime('%Y-%m-%d %H:%M:%S') if session.upload_time else 'Unknown',
+                'status': session.status,
+                'total_records': session_records,
+                'analyzed_records': session_analyzed,
+                'analysis_rate': round((session_analyzed / session_records * 100) if session_records > 0 else 0, 2)
+            })
+        
+        # Domain analysis
+        domain_stats = db.session.execute(
+            """
+            SELECT recipients_email_domain, 
+                   COUNT(*) as count,
+                   AVG(CAST(ml_risk_score AS FLOAT)) as avg_risk
+            FROM email_record 
+            WHERE session_id IN :session_ids 
+                  AND recipients_email_domain IS NOT NULL 
+                  AND ml_risk_score IS NOT NULL
+            GROUP BY recipients_email_domain 
+            ORDER BY count DESC 
+            LIMIT 20
+            """,
+            {'session_ids': tuple(session_ids)}
+        ).fetchall()
+        
+        # High risk samples
+        risk_factors = EmailRecord.query.filter(
+            EmailRecord.session_id.in_(session_ids),
+            EmailRecord.risk_level.in_(['Critical', 'High'])
+        ).limit(20).all()
+        
+        return {
+            'report_metadata': {
+                'generation_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'sessions_included': len(sessions),
+                'total_records': total_records,
+                'analyzed_records': analyzed_records,
+                'analysis_rate': round((analyzed_records / total_records * 100) if total_records > 0 else 0, 2)
+            },
+            'risk_summary': {
+                'critical': critical_count,
+                'high': high_count,
+                'medium': medium_count,
+                'low': low_count,
+                'total_risk_records': critical_count + high_count + medium_count + low_count
+            },
+            'session_details': session_details,
+            'domain_analysis': [{
+                'domain': row[0],
+                'count': row[1],
+                'avg_risk': round(float(row[2]), 3) if row[2] else 0
+            } for row in domain_stats],
+            'high_risk_samples': [{
+                'record_id': r.record_id,
+                'sender': r.sender[:50] + '...' if r.sender and len(r.sender) > 50 else r.sender,
+                'subject': r.subject[:100] + '...' if r.subject and len(r.subject) > 100 else r.subject,
+                'risk_level': r.risk_level,
+                'risk_score': round(r.ml_risk_score, 3) if r.ml_risk_score else 0,
+                'recipients_domain': r.recipients_email_domain
+            } for r in risk_factors]
+        }
+    except Exception as e:
+        logger.error(f"Error generating comprehensive report: {str(e)}")
+        raise

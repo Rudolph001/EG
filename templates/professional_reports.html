@@ -1,0 +1,632 @@
+{% extends "base.html" %}
+
+{% block title %}Professional Reports - Email Guardian{% endblock %}
+
+{% block extra_head %}
+<style>
+    .report-section {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        padding: 20px;
+    }
+    
+    .session-card {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .session-card:hover {
+        border-color: #007bff;
+        background-color: #f8f9fa;
+    }
+    
+    .session-card.selected {
+        border-color: #007bff;
+        background-color: #e3f2fd;
+    }
+    
+    .report-header {
+        border-bottom: 3px solid #007bff;
+        padding-bottom: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .metric-card {
+        text-align: center;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+    
+    .metric-critical { background: linear-gradient(135deg, #dc3545, #e85563); color: white; }
+    .metric-high { background: linear-gradient(135deg, #fd7e14, #ff922b); color: white; }
+    .metric-medium { background: linear-gradient(135deg, #ffc107, #ffcd39); color: black; }
+    .metric-low { background: linear-gradient(135deg, #198754, #20c997); color: white; }
+    .metric-total { background: linear-gradient(135deg, #6f42c1, #8661c5); color: white; }
+    
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin: 20px 0;
+    }
+    
+    .risk-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8em;
+        font-weight: bold;
+    }
+    
+    .risk-critical { background: #dc3545; color: white; }
+    .risk-high { background: #fd7e14; color: white; }
+    .risk-medium { background: #ffc107; color: black; }
+    .risk-low { background: #198754; color: white; }
+    
+    .table-responsive {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    
+    .loading-content {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        text-align: center;
+    }
+    
+    .print-section {
+        display: none;
+    }
+    
+    @media print {
+        .no-print { display: none !important; }
+        .print-section { display: block !important; }
+        .report-section { page-break-inside: avoid; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="report-header">
+        <h1><i class="fas fa-chart-line text-primary"></i> Professional Reports Dashboard</h1>
+        <p class="lead text-muted">Generate comprehensive professional reports across multiple sessions</p>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h5 class="mt-3">Generating Professional Report...</h5>
+            <p class="text-muted">Please wait while we analyze your data</p>
+        </div>
+    </div>
+    
+    <!-- Session Selection -->
+    <div class="report-section no-print">
+        <h3><i class="fas fa-list-check"></i> Select Sessions for Report</h3>
+        <p class="text-muted">Choose one or more completed sessions to include in your professional report.</p>
+        
+        {% if sessions %}
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllSessions()">
+                        <i class="fas fa-check-square"></i> Select All
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="clearAllSessions()">
+                        <i class="fas fa-square"></i> Clear All
+                    </button>
+                </div>
+                <div class="col-md-6 text-end">
+                    <span id="selectedCount" class="badge bg-info">0 sessions selected</span>
+                </div>
+            </div>
+            
+            <div class="row">
+                {% for session in sessions %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="session-card" data-session-id="{{ session.session_id }}" onclick="toggleSession(this)">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ session.filename }}</h6>
+                                <small class="text-muted">{{ session.upload_time.strftime('%Y-%m-%d %H:%M') if session.upload_time else 'Unknown date' }}</small>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input session-checkbox" type="checkbox" value="{{ session.session_id }}">
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge bg-success">{{ session.status.title() }}</span>
+                            <small class="text-muted ms-2">ID: {{ session.session_id[:8] }}...</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="text-center mt-4">
+                <button type="button" class="btn btn-primary btn-lg" onclick="generateReport()" id="generateBtn" disabled>
+                    <i class="fas fa-file-alt"></i> Generate Professional Report
+                </button>
+            </div>
+        {% else %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                No completed sessions found. Please upload and process CSV files first.
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Report Content -->
+    <div id="reportContent" style="display: none;">
+        <!-- Report Header -->
+        <div class="report-section print-section">
+            <div class="row">
+                <div class="col-md-8">
+                    <h2>Email Security Analysis Report</h2>
+                    <p class="text-muted mb-0">Generated by Email Guardian Platform</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='40' viewBox='0 0 100 40'%3E%3Ctext x='5' y='25' font-family='Arial' font-size='14' fill='%23007bff'%3EEmail Guardian%3C/text%3E%3C/svg%3E" alt="Logo">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Executive Summary -->
+        <div class="report-section" id="executiveSummary">
+            <h3><i class="fas fa-chart-pie"></i> Executive Summary</h3>
+            <div class="row" id="metricCards">
+                <!-- Metrics will be populated dynamically -->
+            </div>
+        </div>
+        
+        <!-- Risk Analysis Charts -->
+        <div class="report-section">
+            <h3><i class="fas fa-chart-bar"></i> Risk Analysis Overview</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="riskDistributionChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="sessionComparisonChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Session Details -->
+        <div class="report-section">
+            <h3><i class="fas fa-database"></i> Session Analysis Details</h3>
+            <div class="table-responsive">
+                <table class="table table-striped" id="sessionDetailsTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Session ID</th>
+                            <th>Filename</th>
+                            <th>Upload Date</th>
+                            <th>Total Records</th>
+                            <th>Analyzed Records</th>
+                            <th>Analysis Rate</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Session details will be populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Domain Analysis -->
+        <div class="report-section">
+            <h3><i class="fas fa-globe"></i> Domain Risk Analysis</h3>
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="chart-container">
+                        <canvas id="domainAnalysisChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="table-responsive">
+                        <table class="table table-sm" id="topDomainsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Domain</th>
+                                    <th>Count</th>
+                                    <th>Avg Risk</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Domain data will be populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- High Risk Cases -->
+        <div class="report-section">
+            <h3><i class="fas fa-exclamation-triangle"></i> High Risk Cases Sample</h3>
+            <div class="table-responsive">
+                <table class="table table-striped" id="highRiskTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Record ID</th>
+                            <th>Sender</th>
+                            <th>Subject</th>
+                            <th>Recipients Domain</th>
+                            <th>Risk Level</th>
+                            <th>Risk Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- High risk cases will be populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Report Actions -->
+        <div class="report-section no-print">
+            <div class="row">
+                <div class="col-md-6">
+                    <button type="button" class="btn btn-success" onclick="window.print()">
+                        <i class="fas fa-print"></i> Print Report
+                    </button>
+                    <button type="button" class="btn btn-info ms-2" onclick="exportToPDF()">
+                        <i class="fas fa-file-pdf"></i> Export PDF
+                    </button>
+                </div>
+                <div class="col-md-6 text-end">
+                    <button type="button" class="btn btn-secondary" onclick="generateNewReport()">
+                        <i class="fas fa-redo"></i> Generate New Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedSessions = new Set();
+let reportData = null;
+
+function toggleSession(element) {
+    const checkbox = element.querySelector('.session-checkbox');
+    const sessionId = element.getAttribute('data-session-id');
+    
+    checkbox.checked = !checkbox.checked;
+    
+    if (checkbox.checked) {
+        element.classList.add('selected');
+        selectedSessions.add(sessionId);
+    } else {
+        element.classList.remove('selected');
+        selectedSessions.delete(sessionId);
+    }
+    
+    updateSelectedCount();
+}
+
+function selectAllSessions() {
+    document.querySelectorAll('.session-card').forEach(card => {
+        const checkbox = card.querySelector('.session-checkbox');
+        const sessionId = card.getAttribute('data-session-id');
+        
+        checkbox.checked = true;
+        card.classList.add('selected');
+        selectedSessions.add(sessionId);
+    });
+    
+    updateSelectedCount();
+}
+
+function clearAllSessions() {
+    document.querySelectorAll('.session-card').forEach(card => {
+        const checkbox = card.querySelector('.session-checkbox');
+        const sessionId = card.getAttribute('data-session-id');
+        
+        checkbox.checked = false;
+        card.classList.remove('selected');
+        selectedSessions.delete(sessionId);
+    });
+    
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const count = selectedSessions.size;
+    document.getElementById('selectedCount').textContent = `${count} session${count !== 1 ? 's' : ''} selected`;
+    document.getElementById('generateBtn').disabled = count === 0;
+}
+
+function generateReport() {
+    if (selectedSessions.size === 0) {
+        alert('Please select at least one session to generate a report.');
+        return;
+    }
+    
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    
+    fetch('/api/generate-professional-report', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            session_ids: Array.from(selectedSessions)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        
+        if (data.error) {
+            alert('Error generating report: ' + data.error);
+            return;
+        }
+        
+        reportData = data;
+        displayReport(data);
+        document.getElementById('reportContent').style.display = 'block';
+        document.getElementById('reportContent').scrollIntoView({ behavior: 'smooth' });
+    })
+    .catch(error => {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        console.error('Error:', error);
+        alert('Error generating report. Please try again.');
+    });
+}
+
+function displayReport(data) {
+    // Update executive summary
+    displayExecutiveSummary(data.report_metadata, data.risk_summary);
+    
+    // Create charts
+    createRiskDistributionChart(data.risk_summary);
+    createSessionComparisonChart(data.session_details);
+    createDomainAnalysisChart(data.domain_analysis);
+    
+    // Populate tables
+    populateSessionDetailsTable(data.session_details);
+    populateTopDomainsTable(data.domain_analysis);
+    populateHighRiskTable(data.high_risk_samples);
+}
+
+function displayExecutiveSummary(metadata, riskSummary) {
+    const cardsHtml = `
+        <div class="col-md-2">
+            <div class="metric-card metric-total">
+                <h4>${metadata.total_records.toLocaleString()}</h4>
+                <p class="mb-0">Total Records</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card metric-critical">
+                <h4>${riskSummary.critical}</h4>
+                <p class="mb-0">Critical Risk</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card metric-high">
+                <h4>${riskSummary.high}</h4>
+                <p class="mb-0">High Risk</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card metric-medium">
+                <h4>${riskSummary.medium}</h4>
+                <p class="mb-0">Medium Risk</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card metric-low">
+                <h4>${riskSummary.low}</h4>
+                <p class="mb-0">Low Risk</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card" style="background: #6c757d; color: white;">
+                <h4>${metadata.analysis_rate}%</h4>
+                <p class="mb-0">Analysis Rate</p>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('metricCards').innerHTML = cardsHtml;
+}
+
+function createRiskDistributionChart(riskSummary) {
+    const ctx = document.getElementById('riskDistributionChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Critical', 'High', 'Medium', 'Low'],
+            datasets: [{
+                data: [riskSummary.critical, riskSummary.high, riskSummary.medium, riskSummary.low],
+                backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#198754']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Risk Level Distribution'
+                },
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function createSessionComparisonChart(sessionDetails) {
+    const ctx = document.getElementById('sessionComparisonChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: sessionDetails.map(s => s.filename.length > 15 ? s.filename.substring(0, 15) + '...' : s.filename),
+            datasets: [{
+                label: 'Total Records',
+                data: sessionDetails.map(s => s.total_records),
+                backgroundColor: '#007bff'
+            }, {
+                label: 'Analyzed Records',
+                data: sessionDetails.map(s => s.analyzed_records),
+                backgroundColor: '#28a745'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Session Analysis Comparison'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function createDomainAnalysisChart(domainData) {
+    const ctx = document.getElementById('domainAnalysisChart').getContext('2d');
+    const topDomains = domainData.slice(0, 10);
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: topDomains.map(d => d.domain.length > 20 ? d.domain.substring(0, 20) + '...' : d.domain),
+            datasets: [{
+                label: 'Email Count',
+                data: topDomains.map(d => d.count),
+                backgroundColor: '#17a2b8',
+                yAxisID: 'y'
+            }, {
+                label: 'Average Risk Score',
+                data: topDomains.map(d => d.avg_risk),
+                backgroundColor: '#ffc107',
+                type: 'line',
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Top Domains by Volume and Risk'
+                }
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    beginAtZero: true
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                    beginAtZero: true,
+                    max: 1
+                }
+            }
+        }
+    });
+}
+
+function populateSessionDetailsTable(sessionDetails) {
+    const tbody = document.querySelector('#sessionDetailsTable tbody');
+    tbody.innerHTML = sessionDetails.map(session => `
+        <tr>
+            <td><code>${session.session_id.substring(0, 8)}...</code></td>
+            <td>${session.filename}</td>
+            <td>${session.upload_time}</td>
+            <td>${session.total_records.toLocaleString()}</td>
+            <td>${session.analyzed_records.toLocaleString()}</td>
+            <td><span class="badge ${session.analysis_rate >= 90 ? 'bg-success' : session.analysis_rate >= 70 ? 'bg-warning' : 'bg-danger'}">${session.analysis_rate}%</span></td>
+            <td><span class="badge bg-success">${session.status}</span></td>
+        </tr>
+    `).join('');
+}
+
+function populateTopDomainsTable(domainData) {
+    const tbody = document.querySelector('#topDomainsTable tbody');
+    tbody.innerHTML = domainData.slice(0, 10).map(domain => `
+        <tr>
+            <td>${domain.domain}</td>
+            <td>${domain.count}</td>
+            <td><span class="badge ${domain.avg_risk >= 0.7 ? 'bg-danger' : domain.avg_risk >= 0.4 ? 'bg-warning' : 'bg-success'}">${domain.avg_risk}</span></td>
+        </tr>
+    `).join('');
+}
+
+function populateHighRiskTable(highRiskSamples) {
+    const tbody = document.querySelector('#highRiskTable tbody');
+    tbody.innerHTML = highRiskSamples.map(record => `
+        <tr>
+            <td><code>${record.record_id}</code></td>
+            <td>${record.sender || 'N/A'}</td>
+            <td>${record.subject || 'N/A'}</td>
+            <td>${record.recipients_domain || 'N/A'}</td>
+            <td><span class="risk-badge risk-${record.risk_level.toLowerCase()}">${record.risk_level}</span></td>
+            <td>${record.risk_score}</td>
+        </tr>
+    `).join('');
+}
+
+function generateNewReport() {
+    document.getElementById('reportContent').style.display = 'none';
+    clearAllSessions();
+    document.querySelector('.report-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+function exportToPDF() {
+    alert('PDF export functionality would be implemented here with a library like jsPDF or server-side generation.');
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    updateSelectedCount();
+});
+</script>
+{% endblock %}

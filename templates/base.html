@@ -77,9 +77,14 @@
                             <li><a class="dropdown-item" href="{{ url_for('network_dashboard', session_id=session_id) }}">
                                 <i class="fas fa-project-diagram"></i> Network Analysis
                             </a></li>
-                            {% else %}
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('professional_reports') }}">
+                                <i class="fas fa-file-contract"></i> Professional Reports
+                            </a></li>
+                            {% if not session_id %}
                             <li><a class="dropdown-item disabled" href="#" onclick="return false;">
-                                <i class="fas fa-info-circle"></i> Upload a CSV file to access dashboards
+                                <i class="fas fa-info-circle"></i> Upload a CSV file to access single-session dashboards
                             </a></li>
                             {% endif %}
                         </ul>
