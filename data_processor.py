@@ -644,7 +644,7 @@ class DataProcessor:
             
             # Step 2: Apply domain whitelist
             if not self._is_workflow_step_completed(session_id, 'whitelist_applied'):
-                whitelisted_count = domain_manager.apply_whitelist(session_id)
+                whitelisted_count = domain_manager.apply_whitelist_filtering(session_id)
                 logger.info(f"Domain whitelist applied: {whitelisted_count} records whitelisted")
                 self._mark_workflow_step_completed(session_id, 'whitelist_applied')
             
