@@ -27,9 +27,13 @@ def create_directories():
     directories = ['uploads', 'data', 'instance', 'static/css', 'static/js', 'templates']
     
     for directory in directories:
-        Path(directory).mkdir(parents=True, exist_ok=True)
+        dir_path = Path(directory)
+        dir_path.mkdir(parents=True, exist_ok=True)
+        # Set proper permissions for Mac/Linux
+        if hasattr(os, 'chmod'):
+            os.chmod(str(dir_path), 0o755)
     
-    print("✓ Directories created")
+    print("✓ Directories created with proper permissions")
 
 def setup_database():
     """Initialize SQLite database"""
@@ -37,13 +41,51 @@ def setup_database():
     db_path = "instance/email_guardian.db"
     
     # Create instance directory if it doesn't exist
-    Path("instance").mkdir(exist_ok=True)
+    instance_dir = Path("instance")
+    instance_dir.mkdir(exist_ok=True)
     
-    # Create empty database file if it doesn't exist
+    # Set proper permissions for the instance directory
+    if hasattr(os, 'chmod'):
+        os.chmod(str(instance_dir), 0o755)
+    
+    # Create and initialize database file properly
     if not os.path.exists(db_path):
-        Path(db_path).touch()
+        try:
+            # Create database file with proper initialization
+            conn = sqlite3.connect(db_path)
+            conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
+            conn.commit()
+            conn.close()
+            
+            # Set proper file permissions
+            if hasattr(os, 'chmod'):
+                os.chmod(db_path, 0o664)
+            
+            print("✓ Database file created and initialized")
+        except Exception as e:
+            print(f"✗ Failed to create database: {e}")
+            # Try alternative approach
+            try:
+                Path(db_path).touch()
+                if hasattr(os, 'chmod'):
+                    os.chmod(db_path, 0o664)
+                print("✓ Database file created (alternative method)")
+            except Exception as e2:
+                print(f"✗ Failed to create database file: {e2}")
+                return False
+    
+    # Test database access
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.execute("SELECT 1")
+        conn.close()
+        print("✓ Database access verified")
+    except Exception as e:
+        print(f"✗ Database access test failed: {e}")
+        return False
     
     print("✓ Database setup complete")
+    return True
 
 def create_env_file():
     """Create a local .env file"""
@@ -90,7 +132,9 @@ def main():
     # Run setup steps
     install_dependencies()
     create_directories()
-    setup_database()
+    if not setup_database():
+        print("✗ Database setup failed. Please check permissions and try again.")
+        sys.exit(1)
     create_env_file()
     setup_basic_config()
     
