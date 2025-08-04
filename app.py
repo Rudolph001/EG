@@ -26,17 +26,47 @@ if not database_url:
     os.makedirs('instance', exist_ok=True)
     database_url = "sqlite:///instance/email_guardian.db"
 
-# Create the database file if it doesn't exist
+# Ensure database file and directory exist with proper permissions
 db_path = database_url.replace('sqlite:///', '')
-if not os.path.exists(db_path):
-    import sqlite3
-    try:
-        # Create the database file
+db_dir = os.path.dirname(db_path)
+
+try:
+    # Create directory with proper permissions
+    os.makedirs(db_dir, mode=0o755, exist_ok=True)
+    
+    # Create database file if it doesn't exist
+    if not os.path.exists(db_path):
+        import sqlite3
         conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
+        conn.commit()
         conn.close()
+        # Set proper file permissions
+        os.chmod(db_path, 0o664)
         print(f"✓ Created database file: {db_path}")
-    except Exception as e:
-        print(f"✗ Failed to create database file: {e}")
+    else:
+        # Test existing database file
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.execute("SELECT 1")
+        conn.close()
+        print(f"✓ Database file accessible: {db_path}")
+        
+except Exception as e:
+    print(f"✗ Database setup error: {e}")
+    # Try to recreate the database file
+    try:
+        if os.path.exists(db_path):
+            os.remove(db_path)
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
+        conn.commit()
+        conn.close()
+        os.chmod(db_path, 0o664)
+        print(f"✓ Recreated database file: {db_path}")
+    except Exception as e2:
+        print(f"✗ Failed to recreate database: {e2}")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -61,7 +91,34 @@ with app.app_context():
     
     # Create all tables
     try:
+        # Test database connection first
+        result = db.session.execute(db.text("SELECT 1"))
+        result.close()
+        
+        # Create tables
         db.create_all()
+        db.session.commit()
         print("✓ Database tables created successfully")
     except Exception as e:
         print(f"✗ Failed to create database tables: {e}")
+        db.session.rollback()
+        
+        # Try to recreate database file
+        print("Attempting to recreate database...")
+        try:
+            db_path = database_url.replace('sqlite:///', '')
+            if os.path.exists(db_path):
+                os.remove(db_path)
+            
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            conn.close()
+            os.chmod(db_path, 0o664)
+            
+            # Try creating tables again
+            db.create_all()
+            db.session.commit()
+            print("✓ Database recreated and tables created successfully")
+        except Exception as e2:
+            print(f"✗ Failed to recreate database: {e2}")
+            raise
