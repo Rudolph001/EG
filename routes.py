@@ -367,6 +367,11 @@ def cases(session_id):
     risk_level = request.args.get('risk_level', '')
     case_status = request.args.get('case_status', '')
     search = request.args.get('search', '')
+    
+    # Special view parameters
+    show_whitelisted = request.args.get('show_whitelisted', False)
+    show_excluded = request.args.get('show_excluded', False)
+    show_unanalyzed = request.args.get('show_unanalyzed', False)
 
     # Handle "show all" functionality
     if per_page_param == 'all':
@@ -401,15 +406,35 @@ def cases(session_id):
     else:
         per_page = int(per_page_param) if per_page_param.isdigit() else 200
 
-    # Build query with filters - exclude whitelisted, cleared, and escalated records from cases
-    query = EmailRecord.query.filter_by(session_id=session_id).filter(
-        db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
-    ).filter(
-        db.or_(
-            EmailRecord.case_status.is_(None),
-            EmailRecord.case_status == 'Active'
+    # Build query with filters based on special view parameters
+    if show_whitelisted:
+        # Show only whitelisted records
+        query = EmailRecord.query.filter_by(session_id=session_id).filter(
+            EmailRecord.whitelisted == True
         )
-    )
+    elif show_excluded:
+        # Show only excluded records (not whitelisted)
+        query = EmailRecord.query.filter_by(session_id=session_id).filter(
+            EmailRecord.excluded_by_rule.isnot(None),
+            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+        )
+    elif show_unanalyzed:
+        # Show only unanalyzed records (no risk level, not whitelisted, not excluded)
+        query = EmailRecord.query.filter_by(session_id=session_id).filter(
+            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
+            db.or_(EmailRecord.excluded_by_rule.is_(None)),
+            db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
+        )
+    else:
+        # Default view - exclude whitelisted, cleared, and escalated records from cases
+        query = EmailRecord.query.filter_by(session_id=session_id).filter(
+            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+        ).filter(
+            db.or_(
+                EmailRecord.case_status.is_(None),
+                EmailRecord.case_status == 'Active'
+            )
+        )
 
     if risk_level:
         query = query.filter(EmailRecord.risk_level == risk_level)
@@ -437,22 +462,38 @@ def cases(session_id):
         page=page, per_page=per_page, error_out=False
     )
 
-    # Get whitelist statistics
+    # Get comprehensive statistics for Executive Summary
+    # Total records in session
+    total_all_records = EmailRecord.query.filter_by(session_id=session_id).count()
+    
+    # Whitelisted records
     total_whitelisted = EmailRecord.query.filter_by(session_id=session_id).filter(
         EmailRecord.whitelisted == True
     ).count()
-
-    active_whitelist_domains = WhitelistDomain.query.filter_by(is_active=True).count()
-
-    # Get risk level counts for Executive Summary (exclude whitelisted)
-    base_risk_query = EmailRecord.query.filter_by(session_id=session_id).filter(
+    
+    # Excluded by rules (not whitelisted but excluded)
+    total_excluded = EmailRecord.query.filter_by(session_id=session_id).filter(
+        EmailRecord.excluded_by_rule.isnot(None),
         db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+    ).count()
+    
+    # Risk level counts for analyzed records (exclude whitelisted and excluded)
+    analyzed_query = EmailRecord.query.filter_by(session_id=session_id).filter(
+        db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
+        db.or_(EmailRecord.excluded_by_rule.is_(None))
     )
     
-    total_critical = base_risk_query.filter(EmailRecord.risk_level == 'Critical').count()
-    total_high = base_risk_query.filter(EmailRecord.risk_level == 'High').count()
-    total_medium = base_risk_query.filter(EmailRecord.risk_level == 'Medium').count()
-    total_low = base_risk_query.filter(EmailRecord.risk_level == 'Low').count()
+    total_critical = analyzed_query.filter(EmailRecord.risk_level == 'Critical').count()
+    total_high = analyzed_query.filter(EmailRecord.risk_level == 'High').count()
+    total_medium = analyzed_query.filter(EmailRecord.risk_level == 'Medium').count()
+    total_low = analyzed_query.filter(EmailRecord.risk_level == 'Low').count()
+    
+    # Unanalyzed records (no risk level assigned, not whitelisted, not excluded)
+    total_unanalyzed = analyzed_query.filter(
+        db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
+    ).count()
+
+    active_whitelist_domains = WhitelistDomain.query.filter_by(is_active=True).count()
 
     return render_template('cases.html', 
                          session=session,
@@ -460,7 +501,10 @@ def cases(session_id):
                          risk_level=risk_level,
                          case_status=case_status,
                          search=search,
+                         total_all_records=total_all_records,
                          total_whitelisted=total_whitelisted,
+                         total_excluded=total_excluded,
+                         total_unanalyzed=total_unanalyzed,
                          active_whitelist_domains=active_whitelist_domains,
                          total_critical=total_critical,
                          total_high=total_high,

@@ -153,7 +153,7 @@
     <div class="row">
         <div class="col-md-2">
             <div class="metric-card metric-total" onclick="filterBySummary('all')" data-filter="all">
-                <h3 id="totalRecords">{{ cases.total }}</h3>
+                <h3 id="totalRecords">{{ total_all_records or 0 }}</h3>
                 <p>Total<br>Records</p>
             </div>
         </div>
@@ -181,7 +181,27 @@
                 <p>Low<br>Risk</p>
             </div>
         </div>
-        <div class="col-md-2">
+    </div>
+    <div class="row mt-3">
+        <div class="col-md-3">
+            <div class="metric-card" style="background: linear-gradient(135deg, #17a2b8, #20c997); color: white;" onclick="filterBySummary('whitelisted')" data-filter="whitelisted">
+                <h3 id="whitelistedCount">{{ total_whitelisted or 0 }}</h3>
+                <p>Whitelisted<br>Records</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card" style="background: linear-gradient(135deg, #6c757d, #adb5bd); color: white;" onclick="filterBySummary('excluded')" data-filter="excluded">
+                <h3 id="excludedCount">{{ total_excluded or 0 }}</h3>
+                <p>Excluded<br>by Rules</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card" style="background: linear-gradient(135deg, #e9ecef, #f8f9fa); color: black; border: 2px solid #dee2e6;" onclick="filterBySummary('unanalyzed')" data-filter="unanalyzed">
+                <h3 id="unanalyzedCount">{{ total_unanalyzed or 0 }}</h3>
+                <p>Unanalyzed<br>Records</p>
+            </div>
+        </div>
+        <div class="col-md-3">
             <div class="card text-center border-info h-100">
                 <div class="card-body d-flex flex-column justify-content-center">
                     <h4 class="text-info">{{ cases.items | selectattr('case_status', 'equalto', 'Active') | list | length }}</h4>
@@ -403,14 +423,26 @@
 window.currentSessionId = '{{ session.id }}';
 
 // Executive Summary filtering functionality
-function filterBySummary(riskLevel) {
-    // Update the risk_level select field
+function filterBySummary(filterType) {
     const riskSelect = document.getElementById('risk_level');
     
-    if (riskLevel === 'all') {
+    // Handle different filter types
+    if (filterType === 'all') {
         riskSelect.value = '';
-    } else {
-        riskSelect.value = riskLevel;
+    } else if (['Critical', 'High', 'Medium', 'Low'].includes(filterType)) {
+        riskSelect.value = filterType;
+    } else if (filterType === 'whitelisted') {
+        // For whitelisted records, we need a special view
+        window.location.href = `/cases/${window.currentSessionId}?show_whitelisted=true`;
+        return;
+    } else if (filterType === 'excluded') {
+        // For excluded records, we need a special view
+        window.location.href = `/cases/${window.currentSessionId}?show_excluded=true`;
+        return;
+    } else if (filterType === 'unanalyzed') {
+        // For unanalyzed records, we need a special view
+        window.location.href = `/cases/${window.currentSessionId}?show_unanalyzed=true`;
+        return;
     }
     
     // Update active state on metric cards
@@ -418,7 +450,7 @@ function filterBySummary(riskLevel) {
         card.classList.remove('active');
     });
     
-    const clickedCard = document.querySelector(`[data-filter="${riskLevel}"]`);
+    const clickedCard = document.querySelector(`[data-filter="${filterType}"]`);
     if (clickedCard) {
         clickedCard.classList.add('active');
     }
