@@ -349,19 +349,36 @@ class DataProcessor:
         
         return self._risk_keywords_cache, self._exclusion_keywords_cache
     
-    def _apply_custom_wordlist_analysis(self, record_data):
-        """Apply custom wordlist matching for risk and exclusion analysis"""
+    def _analyze_record_keywords(self, record, keywords):
+        """Analyze a single record against a list of keywords"""
+        subject_matches = []
+        attachment_matches = []
+        
         try:
-            # Use cached keywords instead of querying database every time
-            risk_keywords, exclusion_keywords = self._get_cached_keywords()
+            # Get text content to analyze
+            subject_text = (record.subject or '').lower()
+            attachment_text = (record.attachment_name or '').lower()
             
-            # Wordlist analysis completely skipped during data ingestion for maximum speed
-            # This analysis will be performed in Stage 5 (Wordlist Analysis)
-            pass
+            for keyword_obj in keywords:
+                keyword = keyword_obj.keyword.lower()
+                applies_to = keyword_obj.applies_to
+                
+                # Check if keyword matches (support both single words and multi-word phrases)
+                if applies_to in ['subject', 'both'] and keyword in subject_text:
+                    subject_matches.append(keyword_obj.keyword)  # Store original case
+                
+                if applies_to in ['attachment', 'both'] and keyword in attachment_text:
+                    attachment_matches.append(keyword_obj.keyword)  # Store original case
             
         except Exception as e:
-            logger.warning(f"Error in wordlist analysis setup: {str(e)}")
-            pass
+            logger.warning(f"Error analyzing keywords for record {record.record_id}: {str(e)}")
+        
+        return subject_matches, attachment_matches
+    
+    def _apply_custom_wordlist_analysis(self, record_data):
+        """Legacy method - wordlist analysis now done in Stage 5"""
+        # Wordlist analysis moved to Stage 5 for better performance and accuracy
+        pass
     
     def _parse_datetime(self, date_value):
         """Parse datetime with caching for better performance"""
@@ -497,15 +514,61 @@ class DataProcessor:
             raise
     
     def _apply_wordlist_analysis(self, session_id):
-        """Stage 5: Apply wordlist analysis (already done in record creation)"""
+        """Stage 5: Apply wordlist analysis using keywords from AttachmentKeyword model"""
         try:
-            # Wordlist analysis is already done during record creation
-            # This stage validates and finalizes wordlist results
+            logger.info(f"Starting wordlist analysis for session {session_id}")
+            
+            # Get active keywords from AttachmentKeyword model
+            keywords = AttachmentKeyword.query.filter_by(is_active=True).all()
+            if not keywords:
+                logger.warning("No active keywords found in AttachmentKeyword table")
+                return
+            
+            logger.info(f"Found {len(keywords)} active keywords for analysis")
+            
+            # Separate keywords by type
+            risk_keywords = [k for k in keywords if k.keyword_type == 'risk']
+            exclusion_keywords = [k for k in keywords if k.keyword_type == 'exclusion']
+            
+            logger.info(f"Risk keywords: {len(risk_keywords)}, Exclusion keywords: {len(exclusion_keywords)}")
+            
+            # Get records to analyze
             records = EmailRecord.query.filter_by(session_id=session_id).all()
-            wordlist_count = sum(1 for r in records if r.wordlist_subject or r.wordlist_attachment)
-            logger.info(f"Wordlist analysis validated: {wordlist_count} records with wordlist matches")
+            logger.info(f"Analyzing {len(records)} records for wordlist matches")
+            
+            wordlist_matches_count = 0
+            exclusion_matches_count = 0
+            
+            # Process records in batches for performance
+            batch_size = 1000
+            for i in range(0, len(records), batch_size):
+                batch_records = records[i:i + batch_size]
+                
+                for record in batch_records:
+                    # Analyze risk keywords
+                    subject_matches, attachment_matches = self._analyze_record_keywords(record, risk_keywords)
+                    
+                    if subject_matches or attachment_matches:
+                        record.wordlist_subject = ', '.join(subject_matches) if subject_matches else None
+                        record.wordlist_attachment = ', '.join(attachment_matches) if attachment_matches else None
+                        wordlist_matches_count += 1
+                    
+                    # Apply exclusion keywords
+                    exclusion_subject_matches, exclusion_attachment_matches = self._analyze_record_keywords(record, exclusion_keywords)
+                    
+                    if exclusion_subject_matches or exclusion_attachment_matches:
+                        record.excluded_by_rule = f"Wordlist exclusion: {', '.join(exclusion_subject_matches + exclusion_attachment_matches)}"
+                        exclusion_matches_count += 1
+                
+                # Commit batch
+                db.session.commit()
+                logger.info(f"Processed batch {i//batch_size + 1}: {min(i + batch_size, len(records))}/{len(records)} records")
+            
+            logger.info(f"Wordlist analysis completed: {wordlist_matches_count} records with wordlist matches, {exclusion_matches_count} records excluded")
+            
         except Exception as e:
             logger.error(f"Error in wordlist analysis stage: {str(e)}")
+            db.session.rollback()
             raise
     
     def _apply_ml_analysis(self, session_id):
