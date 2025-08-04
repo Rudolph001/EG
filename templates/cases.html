@@ -359,16 +359,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if request.args.get('grouped', 'true') == 'true' %}
-                            <div>
-                                <span class="badge bg-info">{{ case.recipient_count }} recipients</span>
-                                <div class="small text-muted mt-1">
-                                    Domains: {{ case.recipient_domains[:50] }}{% if case.recipient_domains|length > 50 %}...{% endif %}
-                                </div>
-                            </div>
-                            {% else %}
-                            <span class="badge bg-light text-dark">{{ case.recipients_email_domain }}</span>
-                            {% endif %}
+                            <span class="badge bg-light text-dark">{{ case.recipients_email_domain or 'N/A' }}</span>
                         </td>
                         <td>
                             <span class="risk-{{ case.risk_level.lower() if case.risk_level else 'low' }}">
