@@ -3676,8 +3676,8 @@ def reanalyze_session(session_id):
                         db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
                     ).all()
                     
-                    # Run ML analysis on unanalyzed records
-                    ml_engine.analyze_records(session_id, unanalyzed_records)
+                    # Run ML analysis on unanalyzed records using existing analyze_session method
+                    ml_engine.analyze_session(session_id)
                     logger.info(f"Re-analysis completed for session {session_id}")
                     
                 except Exception as e:
