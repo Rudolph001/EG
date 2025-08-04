@@ -444,6 +444,16 @@ def cases(session_id):
 
     active_whitelist_domains = WhitelistDomain.query.filter_by(is_active=True).count()
 
+    # Get risk level counts for Executive Summary (exclude whitelisted)
+    base_risk_query = EmailRecord.query.filter_by(session_id=session_id).filter(
+        db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+    )
+    
+    total_critical = base_risk_query.filter(EmailRecord.risk_level == 'Critical').count()
+    total_high = base_risk_query.filter(EmailRecord.risk_level == 'High').count()
+    total_medium = base_risk_query.filter(EmailRecord.risk_level == 'Medium').count()
+    total_low = base_risk_query.filter(EmailRecord.risk_level == 'Low').count()
+
     return render_template('cases.html', 
                          session=session,
                          cases=cases_pagination,
@@ -451,7 +461,11 @@ def cases(session_id):
                          case_status=case_status,
                          search=search,
                          total_whitelisted=total_whitelisted,
-                         active_whitelist_domains=active_whitelist_domains)
+                         active_whitelist_domains=active_whitelist_domains,
+                         total_critical=total_critical,
+                         total_high=total_high,
+                         total_medium=total_medium,
+                         total_low=total_low)
 
 @app.route('/cleared_cases/<session_id>')
 def cleared_cases(session_id):
