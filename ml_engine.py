@@ -191,7 +191,7 @@ class MLEngine:
             # Text-based features
             subject_len = len(row['subject'])
             has_attachments = 1 if row['attachments'] else 0
-            has_wordlist_match = 1 if (row['wordlist_attachment'] or row['wordlist_subject']) else 0
+            has_wordlist_match = self._check_custom_wordlist_match(row['subject'], row['attachments'])
 
             # Domain features
             domain = row['recipients_email_domain'].lower()
@@ -281,6 +281,72 @@ class MLEngine:
 
         return min(risk_score, 1.0)  # Cap at 1.0
 
+    def _check_custom_wordlist_match(self, subject, attachments):
+        """Check if subject or attachments match custom wordlist"""
+        try:
+            # Get risk keywords from cache
+            if self._attachment_keywords_cache is None:
+                keywords = AttachmentKeyword.query.filter_by(
+                    is_active=True, 
+                    keyword_type='risk'
+                ).all()
+                self._attachment_keywords_cache = keywords
+            
+            subject_lower = (subject or '').lower()
+            attachments_lower = (attachments or '').lower()
+            
+            for keyword in self._attachment_keywords_cache:
+                keyword_lower = keyword.keyword.lower()
+                
+                # Check based on applies_to setting
+                if keyword.applies_to in ['subject', 'both'] and keyword_lower in subject_lower:
+                    return 1
+                if keyword.applies_to in ['attachment', 'both'] and keyword_lower in attachments_lower:
+                    return 1
+            
+            return 0
+        except Exception as e:
+            logger.error(f"Error checking custom wordlist: {str(e)}")
+            return 0
+
+    def _calculate_wordlist_risk(self, subject, attachments):
+        """Calculate risk score based on custom wordlist matches"""
+        try:
+            if self._attachment_keywords_cache is None:
+                keywords = AttachmentKeyword.query.filter_by(
+                    is_active=True, 
+                    keyword_type='risk'
+                ).all()
+                self._attachment_keywords_cache = keywords
+            
+            subject_lower = (subject or '').lower()
+            attachments_lower = (attachments or '').lower()
+            total_risk = 0.0
+            
+            for keyword in self._attachment_keywords_cache:
+                keyword_lower = keyword.keyword.lower()
+                matched = False
+                
+                # Check based on applies_to setting
+                if keyword.applies_to in ['subject', 'both'] and keyword_lower in subject_lower:
+                    matched = True
+                elif keyword.applies_to in ['attachment', 'both'] and keyword_lower in attachments_lower:
+                    matched = True
+                
+                if matched:
+                    # Scale risk score based on category
+                    if keyword.category == 'Suspicious':
+                        total_risk += keyword.risk_score * 0.05  # Higher impact
+                    elif keyword.category == 'Personal':
+                        total_risk += keyword.risk_score * 0.03
+                    else:  # Business
+                        total_risk += keyword.risk_score * 0.01
+            
+            return min(total_risk, 0.3)  # Cap wordlist contribution at 0.3
+        except Exception as e:
+            logger.error(f"Error calculating wordlist risk: {str(e)}")
+            return 0.0
+
     def _detect_anomalies(self, features):
         """Detect anomalies using Isolation Forest"""
         try:
@@ -356,9 +422,9 @@ class MLEngine:
             attachment_risk = self._calculate_attachment_risk(row['attachments'])
             rule_risk += attachment_risk * 0.3
 
-            # Wordlist matches
-            if row['wordlist_attachment'] or row['wordlist_subject']:
-                rule_risk += 0.2
+            # Custom wordlist matches
+            wordlist_risk = self._calculate_wordlist_risk(row['subject'], row['attachments'])
+            rule_risk += wordlist_risk
 
             # Time-based risk (basic implementation)
             if 'weekend' in row['time'].lower():

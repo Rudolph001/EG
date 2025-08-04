@@ -113,7 +113,10 @@ class AttachmentKeyword(db.Model):
     keyword = db.Column(db.String(255), nullable=False)
     category = db.Column(db.String(50), nullable=False)  # Business, Personal, Suspicious
     risk_score = db.Column(db.Integer, default=1)  # 1-10 scale
+    keyword_type = db.Column(db.String(20), default='risk')  # risk, exclusion
+    applies_to = db.Column(db.String(20), default='both')  # subject, attachment, both
     is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
         return f'<AttachmentKeyword {self.keyword}>'

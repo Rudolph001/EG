@@ -2408,14 +2408,22 @@ def bulk_add_ml_keywords():
         keywords_list = data.get('keywords', [])
         category = data.get('category', 'Business')
         risk_score = int(data.get('risk_score', 5))
+        keyword_type = data.get('keyword_type', 'risk')  # risk or exclusion
+        applies_to = data.get('applies_to', 'both')  # subject, attachment, both
 
-        logger.info(f"Bulk add request: {len(keywords_list)} keywords, category: {category}, risk_score: {risk_score}")
+        logger.info(f"Bulk add request: {len(keywords_list)} keywords, category: {category}, risk_score: {risk_score}, type: {keyword_type}, applies_to: {applies_to}")
 
         if not keywords_list:
             return jsonify({'success': False, 'error': 'Keywords list is required'}), 400
 
         if category not in ['Business', 'Personal', 'Suspicious']:
             return jsonify({'success': False, 'error': 'Invalid category'}), 400
+
+        if keyword_type not in ['risk', 'exclusion']:
+            return jsonify({'success': False, 'error': 'Invalid keyword type'}), 400
+
+        if applies_to not in ['subject', 'attachment', 'both']:
+            return jsonify({'success': False, 'error': 'Invalid applies_to value'}), 400
 
         if not (1 <= risk_score <= 10):
             return jsonify({'success': False, 'error': 'Risk score must be between 1 and 10'}), 400
@@ -2438,13 +2446,15 @@ def bulk_add_ml_keywords():
                 errors.append(f'Keyword too long: "{keyword[:20]}..."')
                 continue
 
-            # Check if keyword already exists (case-insensitive)
+            # Check if keyword already exists (case-insensitive) with same type and applies_to
             existing = AttachmentKeyword.query.filter(
-                db.func.lower(AttachmentKeyword.keyword) == keyword.lower()
+                db.func.lower(AttachmentKeyword.keyword) == keyword.lower(),
+                AttachmentKeyword.keyword_type == keyword_type,
+                AttachmentKeyword.applies_to == applies_to
             ).first()
 
             if existing:
-                logger.info(f"Keyword '{keyword}' already exists, skipping")
+                logger.info(f"Keyword '{keyword}' already exists with same type and scope, skipping")
                 skipped_count += 1
                 continue
 
@@ -2454,12 +2464,14 @@ def bulk_add_ml_keywords():
                     keyword=keyword,
                     category=category,
                     risk_score=risk_score,
+                    keyword_type=keyword_type,
+                    applies_to=applies_to,
                     is_active=True
                 )
 
                 db.session.add(new_keyword)
                 added_count += 1
-                logger.info(f"Added keyword: '{keyword}' (category: {category}, risk: {risk_score})")
+                logger.info(f"Added keyword: '{keyword}' (category: {category}, risk: {risk_score}, type: {keyword_type}, applies_to: {applies_to})")
 
             except Exception as e:
                 error_msg = f'Error adding "{keyword}": {str(e)}'
@@ -2471,7 +2483,7 @@ def bulk_add_ml_keywords():
         if added_count > 0:
             try:
                 db.session.commit()
-                logger.info(f"Successfully committed {added_count} new ML keywords to database")
+                logger.info(f"Successfully committed {added_count} new keywords to database")
             except Exception as e:
                 error_msg = f'Database commit error: {str(e)}'
                 logger.error(error_msg)
@@ -2502,6 +2514,101 @@ def bulk_add_ml_keywords():
         logger.error(error_msg)
         db.session.rollback()
         return jsonify({'success': False, 'error': error_msg}), 500
+
+@app.route('/api/wordlists', methods=['GET'])
+def get_wordlists():
+    """Get all wordlists organized by type"""
+    try:
+        risk_keywords = AttachmentKeyword.query.filter_by(
+            is_active=True,
+            keyword_type='risk'
+        ).order_by(AttachmentKeyword.category, AttachmentKeyword.keyword).all()
+        
+        exclusion_keywords = AttachmentKeyword.query.filter_by(
+            is_active=True,
+            keyword_type='exclusion'
+        ).order_by(AttachmentKeyword.keyword).all()
+        
+        return jsonify({
+            'risk_keywords': [{
+                'id': kw.id,
+                'keyword': kw.keyword,
+                'category': kw.category,
+                'risk_score': kw.risk_score,
+                'applies_to': kw.applies_to,
+                'created_at': kw.created_at.isoformat() if kw.created_at else None
+            } for kw in risk_keywords],
+            'exclusion_keywords': [{
+                'id': kw.id,
+                'keyword': kw.keyword,
+                'applies_to': kw.applies_to,
+                'created_at': kw.created_at.isoformat() if kw.created_at else None
+            } for kw in exclusion_keywords],
+            'counts': {
+                'total_risk': len(risk_keywords),
+                'total_exclusion': len(exclusion_keywords),
+                'risk_by_category': {
+                    'Business': len([kw for kw in risk_keywords if kw.category == 'Business']),
+                    'Personal': len([kw for kw in risk_keywords if kw.category == 'Personal']),
+                    'Suspicious': len([kw for kw in risk_keywords if kw.category == 'Suspicious'])
+                }
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting wordlists: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/wordlists/exclusion', methods=['POST'])
+def add_exclusion_keyword():
+    """Add a new exclusion keyword"""
+    try:
+        data = request.get_json()
+        keyword = data.get('keyword', '').strip()
+        applies_to = data.get('applies_to', 'both')
+        
+        if not keyword:
+            return jsonify({'error': 'Keyword is required'}), 400
+            
+        if applies_to not in ['subject', 'attachment', 'both']:
+            return jsonify({'error': 'Invalid applies_to value'}), 400
+        
+        # Check if keyword already exists with same scope
+        existing = AttachmentKeyword.query.filter(
+            db.func.lower(AttachmentKeyword.keyword) == keyword.lower(),
+            AttachmentKeyword.keyword_type == 'exclusion',
+            AttachmentKeyword.applies_to == applies_to
+        ).first()
+        
+        if existing:
+            return jsonify({'error': f'Exclusion keyword "{keyword}" already exists for {applies_to}'}), 400
+        
+        new_keyword = AttachmentKeyword(
+            keyword=keyword,
+            category='Exclusion',
+            risk_score=10,  # High score for exclusions
+            keyword_type='exclusion',
+            applies_to=applies_to,
+            is_active=True
+        )
+        
+        db.session.add(new_keyword)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Exclusion keyword "{keyword}" added successfully',
+            'keyword': {
+                'id': new_keyword.id,
+                'keyword': keyword,
+                'applies_to': applies_to
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error adding exclusion keyword: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/ml-keywords/all', methods=['GET'])
 def get_all_ml_keywords_detailed():
