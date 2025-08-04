@@ -222,6 +222,32 @@
                         </div>
                     </div>
                 </div>
+                
+                <div id="exclusionKeywordsContainer" style="display: none;" class="mt-3">
+                    <div id="exclusionKeywords" class="card">
+                        <div class="card-body">
+                            <div class="text-center">
+                                <div class="spinner-border text-warning" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Loading exclusion keywords...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="manageWordlistsContainer" style="display: none;" class="mt-3">
+                    <div id="manageWordlists" class="card">
+                        <div class="card-body">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Loading wordlists...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Keyword Editor Modal -->
                 <div class="modal fade" id="keywordEditorModal" tabindex="-1">
@@ -2147,6 +2173,32 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Could not find newMLKeywordsBtn element');
     }
 
+    // Set up the Exclusion Keywords button
+    const exclusionKeywordsBtn = document.getElementById('exclusionKeywordsBtn');
+    if (exclusionKeywordsBtn) {
+        exclusionKeywordsBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Exclusion Keywords button clicked!');
+            toggleExclusionKeywords();
+        });
+        console.log('Exclusion Keywords button event listener added successfully');
+    } else {
+        console.error('Could not find exclusionKeywordsBtn element');
+    }
+
+    // Set up the Manage Wordlists button
+    const manageWordlistsBtn = document.getElementById('manageWordlistsBtn');
+    if (manageWordlistsBtn) {
+        manageWordlistsBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Manage Wordlists button clicked!');
+            toggleManageWordlists();
+        });
+        console.log('Manage Wordlists button event listener added successfully');
+    } else {
+        console.error('Could not find manageWordlistsBtn element');
+    }
+
     // Initialize charts if elements exist
     if (typeof initializeCharts === 'function') {
         initializeCharts();
@@ -2342,6 +2394,198 @@ function toggleNewMLKeywords() {
         console.log('Hiding ML Keywords container');
         container.style.display = 'none';
     }
+}
+
+// Exclusion Keywords toggle function
+function toggleExclusionKeywords() {
+    console.log('toggleExclusionKeywords function called');
+    
+    const container = document.getElementById('exclusionKeywordsContainer');
+    const keywordsDiv = document.getElementById('exclusionKeywords');
+    
+    if (!container || !keywordsDiv) {
+        console.error('Exclusion keywords container elements not found');
+        alert('Error: Could not find exclusion keywords elements');
+        return;
+    }
+    
+    if (container.style.display === 'none' || container.style.display === '') {
+        console.log('Showing Exclusion Keywords container');
+        container.style.display = 'block';
+        
+        // Show loading state
+        keywordsDiv.innerHTML = `
+            <div class="card-header bg-warning text-dark">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-ban me-2"></i>Exclusion Keywords Management
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-info-circle me-1"></i>Exclusion Keywords</h6>
+                    <p class="mb-2">Manage keywords that exclude emails from analysis. Emails containing these keywords will be automatically filtered out.</p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Add Exclusion Keyword:</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="newExclusionKeyword" placeholder="Enter keyword...">
+                                <button class="btn btn-warning" onclick="addExclusionKeyword()">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Apply to:</label>
+                            <select class="form-select" id="exclusionAppliesTo">
+                                <option value="both">Subject & Attachments</option>
+                                <option value="subject">Subject Only</option>
+                                <option value="attachment">Attachments Only</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div id="exclusionKeywordsList">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-warning" role="status"></div>
+                        <p class="mt-2">Loading exclusion keywords...</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Load exclusion keywords
+        loadExclusionKeywords();
+    } else {
+        console.log('Hiding Exclusion Keywords container');
+        container.style.display = 'none';
+    }
+}
+
+// Manage Wordlists toggle function
+function toggleManageWordlists() {
+    console.log('toggleManageWordlists function called');
+    
+    const container = document.getElementById('manageWordlistsContainer');
+    const wordlistsDiv = document.getElementById('manageWordlists');
+    
+    if (!container || !wordlistsDiv) {
+        console.error('Manage wordlists container elements not found');
+        alert('Error: Could not find manage wordlists elements');
+        return;
+    }
+    
+    if (container.style.display === 'none' || container.style.display === '') {
+        console.log('Showing Manage Wordlists container');
+        container.style.display = 'block';
+        
+        // Show loading state
+        wordlistsDiv.innerHTML = `
+            <div class="card-header bg-primary text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-list-alt me-2"></i>Wordlists Management
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle me-1"></i>Wordlist Management</h6>
+                    <p class="mb-2">Manage custom wordlists for email analysis including attachment scanning and subject line analysis.</p>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <button class="btn btn-success btn-sm w-100" onclick="showAddWordlistModal()">
+                                <i class="fas fa-plus me-1"></i>Add New Wordlist
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-info btn-sm w-100" onclick="importWordlist()">
+                                <i class="fas fa-upload me-1"></i>Import Wordlist
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-secondary btn-sm w-100" onclick="exportWordlists()">
+                                <i class="fas fa-download me-1"></i>Export All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="wordlistsTable">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2">Loading wordlists...</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Load wordlists
+        loadWordlists();
+    } else {
+        console.log('Hiding Manage Wordlists container');
+        container.style.display = 'none';
+    }
+}
+
+// Helper functions for exclusion keywords
+function loadExclusionKeywords() {
+    // Placeholder for loading exclusion keywords
+    document.getElementById('exclusionKeywordsList').innerHTML = `
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-1"></i>
+            No exclusion keywords configured yet. Add keywords to automatically exclude emails from analysis.
+        </div>
+    `;
+}
+
+function addExclusionKeyword() {
+    const keyword = document.getElementById('newExclusionKeyword').value.trim();
+    const appliesTo = document.getElementById('exclusionAppliesTo').value;
+    
+    if (!keyword) {
+        alert('Please enter a keyword');
+        return;
+    }
+    
+    alert(`Added exclusion keyword: "${keyword}" (applies to: ${appliesTo})`);
+    document.getElementById('newExclusionKeyword').value = '';
+    loadExclusionKeywords();
+}
+
+// Helper functions for wordlists
+function loadWordlists() {
+    // Placeholder for loading wordlists
+    document.getElementById('wordlistsTable').innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Wordlist Name</th>
+                        <th>Type</th>
+                        <th>Keywords Count</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">
+                            No wordlists configured yet. Click "Add New Wordlist" to get started.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function showAddWordlistModal() {
+    alert('Add wordlist functionality will be available soon!');
+}
+
+function importWordlist() {
+    alert('Import wordlist functionality will be available soon!');
+}
+
+function exportWordlists() {
+    alert('Export wordlists functionality will be available soon!');
 }
 
 // Keyword Editor Functions
