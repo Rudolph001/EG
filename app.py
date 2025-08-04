@@ -24,11 +24,14 @@ database_url = os.environ.get("DATABASE_URL")
 if not database_url:
     # Ensure instance directory exists
     os.makedirs('instance', exist_ok=True)
-    database_url = "sqlite:///instance/email_guardian.db"
+    # Use absolute path for SQLite
+    db_file_path = os.path.abspath("instance/email_guardian.db")
+    database_url = f"sqlite:///{db_file_path}"
 
 # Ensure database file and directory exist with proper permissions
-db_path = database_url.replace('sqlite:///', '')
-db_dir = os.path.dirname(db_path)
+if database_url.startswith('sqlite:///'):
+    db_path = database_url.replace('sqlite:///', '')
+    db_dir = os.path.dirname(db_path)
 
 try:
     # Create directory with proper permissions

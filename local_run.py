@@ -34,7 +34,11 @@ def setup_local_environment():
     os.environ.setdefault('FLASK_ENV', 'development')
     os.environ.setdefault('FLASK_DEBUG', 'true')
     os.environ.setdefault('SESSION_SECRET', 'local-dev-secret-key')
-    os.environ.setdefault('DATABASE_URL', 'sqlite:///instance/email_guardian.db')
+    
+    # Use absolute path for SQLite database
+    db_file_path = os.path.abspath("instance/email_guardian.db")
+    os.environ.setdefault('DATABASE_URL', f'sqlite:///{db_file_path}')
+    
     os.environ.setdefault('FAST_MODE', 'true')
     os.environ.setdefault('CHUNK_SIZE', '1000')
     os.environ.setdefault('MAX_ML_RECORDS', '5000')
