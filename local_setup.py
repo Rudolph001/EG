@@ -91,14 +91,26 @@ def create_env_file():
     """Create a local .env file"""
     print("Creating local environment file...")
     
-    env_content = """# Email Guardian Local Configuration
+    env_content = """# Email Guardian Local Configuration - TURBO MODE
 FLASK_ENV=development
 FLASK_DEBUG=true
 SESSION_SECRET=local-dev-secret-key-change-in-production
 DATABASE_URL=sqlite:///instance/email_guardian.db
 FAST_MODE=true
-CHUNK_SIZE=1000
-MAX_ML_RECORDS=5000
+
+# TURBO MODE - Optimized for fast local processing
+EMAIL_GUARDIAN_CHUNK_SIZE=2000
+EMAIL_GUARDIAN_MAX_ML_RECORDS=100000
+EMAIL_GUARDIAN_ML_ESTIMATORS=10
+EMAIL_GUARDIAN_BATCH_SIZE=500
+EMAIL_GUARDIAN_PROGRESS_INTERVAL=500
+EMAIL_GUARDIAN_SKIP_ADVANCED=true
+EMAIL_GUARDIAN_TFIDF_FEATURES=200
+EMAIL_GUARDIAN_ML_CHUNK_SIZE=5000
+
+# Legacy settings for compatibility
+CHUNK_SIZE=2000
+MAX_ML_RECORDS=100000
 """
     
     # Create .env file for local development

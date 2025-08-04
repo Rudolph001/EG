@@ -41,9 +41,20 @@ def setup_local_environment():
         db_file_path = os.path.abspath("instance/email_guardian.db")
         os.environ.setdefault('DATABASE_URL', f'sqlite:///{db_file_path}')
     
+    # TURBO MODE for local Windows processing
     os.environ.setdefault('FAST_MODE', 'true')
-    os.environ.setdefault('CHUNK_SIZE', '1000')
-    os.environ.setdefault('MAX_ML_RECORDS', '5000')
+    os.environ.setdefault('EMAIL_GUARDIAN_CHUNK_SIZE', '2000')        # Larger chunks for faster processing
+    os.environ.setdefault('EMAIL_GUARDIAN_MAX_ML_RECORDS', '100000')  # Process all records 
+    os.environ.setdefault('EMAIL_GUARDIAN_ML_ESTIMATORS', '10')       # Fewer ML estimators for speed
+    os.environ.setdefault('EMAIL_GUARDIAN_BATCH_SIZE', '500')         # Larger database batches
+    os.environ.setdefault('EMAIL_GUARDIAN_PROGRESS_INTERVAL', '500')  # Less frequent progress updates
+    os.environ.setdefault('EMAIL_GUARDIAN_SKIP_ADVANCED', 'true')     # Skip heavy analysis
+    os.environ.setdefault('EMAIL_GUARDIAN_TFIDF_FEATURES', '200')     # Fewer text features
+    os.environ.setdefault('EMAIL_GUARDIAN_ML_CHUNK_SIZE', '5000')     # Larger ML chunks
+    
+    # Legacy environment variables for compatibility
+    os.environ.setdefault('CHUNK_SIZE', '2000')
+    os.environ.setdefault('MAX_ML_RECORDS', '100000')
     
     # Ensure directories exist
     directories = ['uploads', 'data', 'instance']
@@ -52,7 +63,10 @@ def setup_local_environment():
 
 def main():
     """Main local development runner"""
-    print("=== Email Guardian Local Development Server ===")
+    print("=== Email Guardian Local Development Server (TURBO MODE) ===")
+    print("⚡ Optimized for fast processing of large CSV files")
+    print("⚡ Chunk size: 2000 | Batch size: 500 | ML estimators: 10")
+    print()
     
     # Setup environment
     setup_local_environment()
