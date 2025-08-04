@@ -144,7 +144,7 @@ class WorkflowManager {
         const stageDefinitions = this.getStageDefinitions();
         let stagesHtml = '';
 
-        for (let i = 1; i <= 9; i++) {
+        for (let i = 1; i <= 10; i++) {
             const stage = stages[i.toString()];
             const definition = stageDefinitions[i-1];
 
@@ -238,6 +238,11 @@ class WorkflowManager {
                 name: 'Wordlist Analysis',
                 description: 'Analyzing keywords and content',
                 icon: 'fas fa-search'
+            },
+            {
+                name: 'Exclusion Keywords',
+                description: 'Processing exclusion keywords',
+                icon: 'fas fa-ban'
             },
             {
                 name: 'ML Analysis',
