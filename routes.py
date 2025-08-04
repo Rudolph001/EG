@@ -3596,7 +3596,7 @@ def generate_professional_report():
         
         # Get session data
         sessions = ProcessingSession.query.filter(
-            ProcessingSession.session_id.in_(session_ids)
+            ProcessingSession.id.in_(session_ids)
         ).all()
         
         if not sessions:
@@ -3613,7 +3613,7 @@ def generate_professional_report():
 def _generate_comprehensive_report(sessions):
     """Generate comprehensive professional report data"""
     try:
-        session_ids = [s.session_id for s in sessions]
+        session_ids = [s.id for s in sessions]
         
         # Overall statistics
         total_records = EmailRecord.query.filter(
@@ -3649,14 +3649,14 @@ def _generate_comprehensive_report(sessions):
         # Session details
         session_details = []
         for session in sessions:
-            session_records = EmailRecord.query.filter_by(session_id=session.session_id).count()
+            session_records = EmailRecord.query.filter_by(session_id=session.id).count()
             session_analyzed = EmailRecord.query.filter(
-                EmailRecord.session_id == session.session_id,
+                EmailRecord.session_id == session.id,
                 EmailRecord.ml_risk_score.isnot(None)
             ).count()
             
             session_details.append({
-                'session_id': session.session_id,
+                'session_id': session.id,
                 'filename': session.filename,
                 'upload_time': session.upload_time.strftime('%Y-%m-%d %H:%M:%S') if session.upload_time else 'Unknown',
                 'status': session.status,
