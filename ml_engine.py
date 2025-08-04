@@ -102,8 +102,11 @@ class MLEngine:
             # Update records with ML results
             self._update_records_with_ml_results(records, anomaly_scores, risk_scores)
 
-            # Generate analysis insights
-            insights = self._generate_insights(df, anomaly_scores, risk_scores)
+            # Skip complex insights generation in fast mode for performance
+            if self.fast_mode:
+                insights = {'summary': f'ML analysis completed for {len(records)} records', 'fast_mode': True}
+            else:
+                insights = self._generate_insights(df, anomaly_scores, risk_scores)
 
             logger.info(f"ML analysis completed for session {session_id}")
 
@@ -448,29 +451,44 @@ class MLEngine:
         return risk_scores
 
     def _update_records_with_ml_results(self, records, anomaly_scores, risk_scores):
-        """Update database records with ML results"""
+        """Update database records with ML results using batch processing"""
         try:
+            logger.info(f"Updating {len(records)} records with ML results using batch processing")
+            batch_count = 0
+            
             for i, record in enumerate(records):
                 record.ml_anomaly_score = float(anomaly_scores[i])
                 record.ml_risk_score = float(risk_scores[i])
 
-                # Assign risk level
+                # Assign risk level efficiently
                 risk_score = risk_scores[i]
-                if risk_score >= self.risk_thresholds['critical']:
+                if risk_score >= 0.8:
                     record.risk_level = 'Critical'
-                elif risk_score >= self.risk_thresholds['high']:
+                elif risk_score >= 0.6:
                     record.risk_level = 'High'
-                elif risk_score >= self.risk_thresholds['medium']:
+                elif risk_score >= 0.4:
                     record.risk_level = 'Medium'
                 else:
                     record.risk_level = 'Low'
 
-                # Generate explanation
-                record.ml_explanation = self._generate_explanation(records[i], anomaly_scores[i], risk_scores[i])
+                # Generate simplified explanation for performance
+                if risk_score >= 0.6:
+                    record.ml_explanation = f'{record.risk_level} risk (anomaly: {anomaly_scores[i]:.2f}, risk: {risk_score:.2f})'
+                else:
+                    record.ml_explanation = f'{record.risk_level} risk'
+                
+                batch_count += 1
+                
+                # Batch commit every 500 records for performance
+                if batch_count % 500 == 0:
+                    db.session.commit()
+                    logger.info(f"Committed batch {batch_count // 500}: {batch_count} records updated")
 
-            # Batch commit for better performance
-            db.session.commit()
-            logger.info(f"Updated {len(records)} records with ML results using batch processing")
+            # Final commit for remaining records
+            if batch_count % 500 != 0:
+                db.session.commit()
+            
+            logger.info(f"ML database updates completed: {len(records)} records updated in {(batch_count // 500) + 1} batches")
 
         except Exception as e:
             logger.error(f"Error updating records with ML results: {str(e)}")
