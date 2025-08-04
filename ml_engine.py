@@ -285,36 +285,49 @@ class MLEngine:
         try:
             if len(features) < 10:
                 # Too few samples for meaningful anomaly detection
+                logger.info("Too few samples for anomaly detection, using basic scoring")
                 return np.zeros(len(features))
 
             # Normalize features
             features_scaled = self.scaler.fit_transform(features)
 
-            # Train Isolation Forest (optimized for speed)
+            # Train Isolation Forest with minimal configuration for threading safety
             self.isolation_forest = IsolationForest(
-                contamination='auto',  # Use 'auto' instead of float for stability
+                contamination=0.1,  # Use fixed contamination rate instead of 'auto'
                 random_state=42,
-                n_estimators=config.ml_estimators,
-                n_jobs=1  # Always use single core for stability in Replit
+                n_estimators=min(50, config.ml_estimators),  # Limit estimators for speed
+                n_jobs=1,  # Single thread only
+                bootstrap=False,  # Disable bootstrap for consistency
+                verbose=0  # Disable verbose output
             )
 
-            # Fit and predict
-            anomaly_labels = self.isolation_forest.fit_predict(features_scaled)
-            anomaly_scores = self.isolation_forest.decision_function(features_scaled)
-
-            # Convert to 0-1 scale (higher = more anomalous)
-            anomaly_scores_normalized = np.interp(anomaly_scores, 
-                                                (anomaly_scores.min(), anomaly_scores.max()), 
-                                                (0, 1))
-
-            # Invert so higher scores mean more anomalous
-            anomaly_scores_normalized = 1 - anomaly_scores_normalized
-
-            return anomaly_scores_normalized
+            # Fit and predict with error handling
+            try:
+                anomaly_labels = self.isolation_forest.fit_predict(features_scaled)
+                anomaly_scores = self.isolation_forest.decision_function(features_scaled)
+                
+                # Convert to 0-1 scale (higher = more anomalous)
+                if len(set(anomaly_scores)) > 1:  # Check if we have variation
+                    anomaly_scores_normalized = np.interp(anomaly_scores, 
+                                                        (anomaly_scores.min(), anomaly_scores.max()), 
+                                                        (0, 1))
+                    # Invert so higher scores mean more anomalous
+                    anomaly_scores_normalized = 1 - anomaly_scores_normalized
+                else:
+                    # All scores are the same, return zeros
+                    anomaly_scores_normalized = np.zeros(len(features))
+                
+                logger.info(f"Anomaly detection completed successfully for {len(features)} records")
+                return anomaly_scores_normalized
+                
+            except Exception as fit_error:
+                logger.error(f"Error during IsolationForest fit/predict: {str(fit_error)}")
+                # Fallback to simple rule-based anomaly scoring
+                return self._simple_anomaly_scoring(features)
 
         except Exception as e:
-            logger.error(f"Error in anomaly detection: {str(e)}")
-            return np.zeros(len(features))
+            logger.error(f"Error in anomaly detection setup: {str(e)}")
+            return self._simple_anomaly_scoring(features)
 
     def _calculate_risk_scores(self, df, anomaly_scores):
         """Calculate comprehensive risk scores"""
@@ -562,6 +575,42 @@ class MLEngine:
         
         return min(risk_score, 1.0)  # Cap at 1.0
     
+    def _simple_anomaly_scoring(self, features):
+        """Simple rule-based anomaly scoring as fallback"""
+        try:
+            logger.info("Using simple anomaly scoring fallback")
+            anomaly_scores = []
+            
+            for feature_vector in features:
+                # Simple scoring based on feature values
+                # feature_vector indices: [subject_len, has_attachments, has_wordlist_match, 
+                #                         is_external, is_public_domain, is_weekend, 
+                #                         is_after_hours, is_leaver, attachment_risk, 
+                #                         justification_len, has_justification]
+                
+                score = 0.0
+                
+                # High risk indicators
+                if len(feature_vector) > 7 and feature_vector[7] > 0:  # is_leaver
+                    score += 0.4
+                if len(feature_vector) > 4 and feature_vector[4] > 0:  # is_public_domain
+                    score += 0.3
+                if len(feature_vector) > 8 and feature_vector[8] > 0.5:  # attachment_risk
+                    score += 0.3
+                if len(feature_vector) > 2 and feature_vector[2] > 0:  # has_wordlist_match
+                    score += 0.2
+                if len(feature_vector) > 6 and feature_vector[6] > 0:  # is_after_hours
+                    score += 0.1
+                
+                # Cap the score at 1.0
+                anomaly_scores.append(min(score, 1.0))
+            
+            return np.array(anomaly_scores)
+            
+        except Exception as e:
+            logger.error(f"Error in simple anomaly scoring: {str(e)}")
+            return np.zeros(len(features))
+
     def _get_risk_level(self, risk_score):
         """Convert numeric risk score to risk level string"""
         if risk_score >= self.risk_thresholds['critical']:
