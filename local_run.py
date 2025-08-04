@@ -54,17 +54,28 @@ def main():
     # Verify database file can be created
     db_path = Path("instance/email_guardian.db")
     try:
+        # Ensure parent directory exists with proper permissions
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        
         # Test database connection
         import sqlite3
         conn = sqlite3.connect(str(db_path))
+        conn.execute("SELECT 1")  # Test write access
         conn.close()
         print("✓ Database connection test successful")
     except Exception as e:
         print(f"✗ Database connection failed: {e}")
         print("Creating database file...")
         try:
-            db_path.parent.mkdir(parents=True, exist_ok=True)
-            db_path.touch()
+            # Force create the database file
+            if db_path.exists():
+                db_path.unlink()  # Remove corrupted file
+            
+            conn = sqlite3.connect(str(db_path))
+            conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
+            conn.commit()
+            conn.close()
+            print("✓ Database file created successfully")
         except Exception as create_error:
             print(f"✗ Failed to create database file: {create_error}")
             sys.exit(1)

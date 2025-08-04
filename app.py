@@ -26,6 +26,18 @@ if not database_url:
     os.makedirs('instance', exist_ok=True)
     database_url = "sqlite:///instance/email_guardian.db"
 
+# Create the database file if it doesn't exist
+db_path = database_url.replace('sqlite:///', '')
+if not os.path.exists(db_path):
+    import sqlite3
+    try:
+        # Create the database file
+        conn = sqlite3.connect(db_path)
+        conn.close()
+        print(f"✓ Created database file: {db_path}")
+    except Exception as e:
+        print(f"✗ Failed to create database file: {e}")
+
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
@@ -48,4 +60,8 @@ with app.app_context():
     import routes
     
     # Create all tables
-    db.create_all()
+    try:
+        db.create_all()
+        print("✓ Database tables created successfully")
+    except Exception as e:
+        print(f"✗ Failed to create database tables: {e}")
