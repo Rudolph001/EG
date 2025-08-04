@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import datetime
 from sqlalchemy import text
-from models import ProcessingSession, EmailRecord, ProcessingError, Rule, WhitelistDomain, AttachmentKeyword
+from models import ProcessingSession, EmailRecord, AttachmentKeyword, ProcessingError, Rule, WhitelistDomain
 from app import db
 from performance_config import config
 import re
