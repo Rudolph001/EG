@@ -22,6 +22,11 @@ class DataProcessor:
         self.chunk_size = config.chunk_size
         self.batch_commit_size = config.batch_commit_size
         self.workflow_manager = WorkflowManager()
+        # Cache keywords to avoid repeated DB queries
+        self._risk_keywords_cache = None
+        self._exclusion_keywords_cache = None
+        # Cache for datetime parsing optimization
+        self._datetime_format_cache = {}
         logger.info(f"DataProcessor initialized with config: {config.__dict__}")
     
     def process_csv(self, session_id, file_path):
@@ -321,94 +326,70 @@ class DataProcessor:
             'policy_name': str(row.get('Policy Name', 'Standard'))
         }
         
-        # Apply custom wordlist matching
-        self._apply_custom_wordlist_analysis(record_data)
+        # Skip wordlist analysis during data ingestion for speed
+        # This will be done in Stage 5 (Wordlist Analysis) instead
+        record_data.update({
+            'subject_wordlist_matches': '',
+            'attachment_wordlist_matches': '',
+            'wordlist_exclusion_reason': ''
+        })
         
         return EmailRecord(**record_data)
     
-    def _apply_custom_wordlist_analysis(self, record_data):
-        """Apply custom wordlist matching for risk and exclusion analysis"""
-        try:
-            # Get active wordlists from database
-            risk_keywords = AttachmentKeyword.query.filter_by(
+    def _get_cached_keywords(self):
+        """Get cached keywords to avoid repeated database queries"""
+        if self._risk_keywords_cache is None or self._exclusion_keywords_cache is None:
+            self._risk_keywords_cache = AttachmentKeyword.query.filter_by(
                 is_active=True,
                 keyword_type='risk'
             ).all()
             
-            exclusion_keywords = AttachmentKeyword.query.filter_by(
+            self._exclusion_keywords_cache = AttachmentKeyword.query.filter_by(
                 is_active=True,
                 keyword_type='exclusion'
             ).all()
             
-            # Initialize wordlist fields
-            subject_matches = []
-            attachment_matches = []
-            exclusion_matches = []
+            logger.info(f"Cached {len(self._risk_keywords_cache)} risk keywords and {len(self._exclusion_keywords_cache)} exclusion keywords")
+        
+        return self._risk_keywords_cache, self._exclusion_keywords_cache
+    
+    def _apply_custom_wordlist_analysis(self, record_data):
+        """Apply custom wordlist matching for risk and exclusion analysis"""
+        try:
+            # Use cached keywords instead of querying database every time
+            risk_keywords, exclusion_keywords = self._get_cached_keywords()
             
-            subject_text = (record_data.get('subject', '') or '').lower()
-            attachment_text = (record_data.get('attachments', '') or '').lower()
-            
-            # Check risk keywords
-            for keyword_obj in risk_keywords:
-                keyword = keyword_obj.keyword.lower()
-                applies_to = keyword_obj.applies_to or 'both'
-                
-                # Check subject
-                if applies_to in ['subject', 'both'] and keyword in subject_text:
-                    subject_matches.append({
-                        'keyword': keyword_obj.keyword,
-                        'category': keyword_obj.category,
-                        'risk_score': keyword_obj.risk_score
-                    })
-                
-                # Check attachments
-                if applies_to in ['attachment', 'both'] and keyword in attachment_text:
-                    attachment_matches.append({
-                        'keyword': keyword_obj.keyword,
-                        'category': keyword_obj.category,
-                        'risk_score': keyword_obj.risk_score
-                    })
-            
-            # Check exclusion keywords
-            for keyword_obj in exclusion_keywords:
-                keyword = keyword_obj.keyword.lower()
-                applies_to = keyword_obj.applies_to or 'both'
-                
-                found_in_subject = applies_to in ['subject', 'both'] and keyword in subject_text
-                found_in_attachment = applies_to in ['attachment', 'both'] and keyword in attachment_text
-                
-                if found_in_subject or found_in_attachment:
-                    exclusion_matches.append({
-                        'keyword': keyword_obj.keyword,
-                        'found_in': 'subject' if found_in_subject else 'attachment'
-                    })
-            
-            # Store results in record
-            record_data['wordlist_subject'] = json.dumps(subject_matches) if subject_matches else None
-            record_data['wordlist_attachment'] = json.dumps(attachment_matches) if attachment_matches else None
-            
-            # Set exclusion flag if any exclusion keywords found
-            if exclusion_matches:
-                record_data['excluded_by_rule'] = f"Exclusion wordlist: {', '.join([m['keyword'] for m in exclusion_matches])}"
+            # Wordlist analysis completely skipped during data ingestion for maximum speed
+            # This analysis will be performed in Stage 5 (Wordlist Analysis)
+            pass
             
         except Exception as e:
-            logger.warning(f"Error in custom wordlist analysis: {str(e)}")
-            # Set empty values if analysis fails
-            record_data['wordlist_subject'] = None
-            record_data['wordlist_attachment'] = None
+            logger.warning(f"Error in wordlist analysis setup: {str(e)}")
+            pass
     
     def _parse_datetime(self, date_value):
-        """Parse datetime from various formats"""
+        """Parse datetime with caching for better performance"""
         if pd.isna(date_value) or date_value is None or str(date_value).strip() == '':
             return None
         
+        date_str = str(date_value).strip()
+        
+        # Check cache first
+        if date_str in self._datetime_format_cache:
+            fmt = self._datetime_format_cache[date_str]
+            try:
+                return datetime.strptime(date_str, fmt)
+            except ValueError:
+                # Cache was wrong, remove it
+                del self._datetime_format_cache[date_str]
+        
         try:
             if isinstance(date_value, str):
-                # Try common formats
+                # Try common formats (prioritize most likely)
                 formats = [
                     '%Y-%m-%d %H:%M:%S',
+                    '%m/%d/%Y %H:%M:%S', 
                     '%Y-%m-%d',
-                    '%m/%d/%Y %H:%M:%S',
                     '%m/%d/%Y',
                     '%d/%m/%Y %H:%M:%S',
                     '%d/%m/%Y'
@@ -416,7 +397,10 @@ class DataProcessor:
                 
                 for fmt in formats:
                     try:
-                        return datetime.strptime(date_value.strip(), fmt)
+                        result = datetime.strptime(date_str, fmt)
+                        # Cache successful format for future use
+                        self._datetime_format_cache[date_str] = fmt
+                        return result
                     except ValueError:
                         continue
                 

@@ -11,18 +11,18 @@ class PerformanceConfig:
         # Enable fast mode by default for local environments
         self.fast_mode = os.environ.get('EMAIL_GUARDIAN_FAST_MODE', 'true').lower() == 'true'
         
-        # Processing parameters - Optimized for faster processing
-        self.chunk_size = int(os.environ.get('EMAIL_GUARDIAN_CHUNK_SIZE', '2500' if self.fast_mode else '500'))
+        # Processing parameters - Maximum speed optimization
+        self.chunk_size = int(os.environ.get('EMAIL_GUARDIAN_CHUNK_SIZE', '5000' if self.fast_mode else '500'))
         self.max_ml_records = int(os.environ.get('EMAIL_GUARDIAN_MAX_ML_RECORDS', '50000' if self.fast_mode else '50000'))
-        self.ml_estimators = int(os.environ.get('EMAIL_GUARDIAN_ML_ESTIMATORS', '30' if self.fast_mode else '100'))
-        self.progress_update_interval = int(os.environ.get('EMAIL_GUARDIAN_PROGRESS_INTERVAL', '1000' if self.fast_mode else '100'))
+        self.ml_estimators = int(os.environ.get('EMAIL_GUARDIAN_ML_ESTIMATORS', '20' if self.fast_mode else '100'))
+        self.progress_update_interval = int(os.environ.get('EMAIL_GUARDIAN_PROGRESS_INTERVAL', '2000' if self.fast_mode else '100'))
         
         # Feature engineering settings
         self.tfidf_max_features = int(os.environ.get('EMAIL_GUARDIAN_TFIDF_FEATURES', '500' if self.fast_mode else '1000'))
         self.skip_advanced_analysis = os.environ.get('EMAIL_GUARDIAN_SKIP_ADVANCED', 'true' if self.fast_mode else 'false').lower() == 'true'
         
-        # Database settings - Optimized for faster commits
-        self.batch_commit_size = int(os.environ.get('EMAIL_GUARDIAN_BATCH_SIZE', '500' if self.fast_mode else '50'))
+        # Database settings - Maximum performance commits
+        self.batch_commit_size = int(os.environ.get('EMAIL_GUARDIAN_BATCH_SIZE', '1000' if self.fast_mode else '50'))
     
     def get_config_summary(self):
         """Return configuration summary for logging"""
