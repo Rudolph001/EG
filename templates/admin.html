@@ -2158,9 +2158,10 @@ window.loadMLKeywords = function() {
 
 // Initialize dashboard when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, setting up NEW ML Keywords button');
+    console.log('DOM loaded, setting up all admin buttons...');
 
     // Set up the NEW ML Keywords button
+    console.log('Looking for newMLKeywordsBtn...');
     const newMLKeywordsBtn = document.getElementById('newMLKeywordsBtn');
     if (newMLKeywordsBtn) {
         newMLKeywordsBtn.addEventListener('click', function(e) {
@@ -2174,6 +2175,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Set up the Exclusion Keywords button
+    console.log('Looking for exclusionKeywordsBtn...');
     const exclusionKeywordsBtn = document.getElementById('exclusionKeywordsBtn');
     if (exclusionKeywordsBtn) {
         exclusionKeywordsBtn.addEventListener('click', function(e) {
@@ -2187,6 +2189,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Set up the Manage Wordlists button
+    console.log('Looking for manageWordlistsBtn...');
     const manageWordlistsBtn = document.getElementById('manageWordlistsBtn');
     if (manageWordlistsBtn) {
         manageWordlistsBtn.addEventListener('click', function(e) {
