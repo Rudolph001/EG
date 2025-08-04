@@ -1,0 +1,236 @@
+/**
+ * Workflow Progress CSS for Email Guardian
+ * Styles for the 8-stage processing workflow display
+ */
+
+.workflow-progress-section {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.workflow-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.workflow-stages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+/* Stage Cards */
+.stage-card {
+    transition: all 0.3s ease;
+    cursor: default;
+    min-height: 180px;
+}
+
+.stage-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.stage-card.border-warning {
+    border-color: #ffc107 !important;
+    background: linear-gradient(135deg, #fff3cd 0%, #ffffff 100%);
+}
+
+.stage-card.border-success {
+    border-color: #198754 !important;
+    background: linear-gradient(135deg, #d1e7dd 0%, #ffffff 100%);
+}
+
+.stage-card.border-danger {
+    border-color: #dc3545 !important;
+    background: linear-gradient(135deg, #f8d7da 0%, #ffffff 100%);
+}
+
+.stage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.stage-icon {
+    font-size: 1.5rem;
+}
+
+.stage-number {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #6c757d;
+    background: #e9ecef;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stage-content {
+    text-align: left;
+}
+
+.stage-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #343a40;
+    margin-bottom: 5px;
+}
+
+.stage-description {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+.stage-progress {
+    margin-top: 10px;
+}
+
+.stage-progress .progress {
+    background-color: #e9ecef;
+    border-radius: 2px;
+    margin-bottom: 5px;
+}
+
+.stage-progress .progress-bar {
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    transition: width 0.3s ease;
+}
+
+/* Overall Progress Bar */
+.progress {
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar.bg-gradient {
+    background: linear-gradient(90deg, #007bff 0%, #17a2b8 50%, #28a745 100%);
+}
+
+/* Status Badges */
+.badge {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .workflow-stages .col-md-3 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+    
+    .stage-card {
+        min-height: 140px;
+    }
+    
+    .workflow-controls {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+}
+
+@media (max-width: 576px) {
+    .workflow-progress-section {
+        padding: 15px;
+    }
+    
+    .stage-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .stage-icon {
+        font-size: 1.25rem;
+    }
+    
+    .stage-number {
+        width: 25px;
+        height: 25px;
+        font-size: 1rem;
+    }
+}
+
+/* Animation for Processing State */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.stage-card.border-warning .stage-icon i.fa-spinner {
+    animation: pulse 2s infinite ease-in-out;
+}
+
+/* Workflow Status Indicator */
+.workflow-status-complete {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+.workflow-status-processing {
+    background: linear-gradient(135deg, #ffc107, #fd7e14);
+    color: #212529;
+}
+
+.workflow-status-error {
+    background: linear-gradient(135deg, #dc3545, #e85563);
+    color: white;
+}
+
+.workflow-status-waiting {
+    background: linear-gradient(135deg, #6c757d, #adb5bd);
+    color: white;
+}
+
+/* Progress Percentage Indicator */
+.progress-percentage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #343a40;
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+}
+
+/* Workflow Section Title */
+.workflow-progress-section h5 {
+    color: #495057;
+    font-weight: 600;
+}
+
+.workflow-progress-section h5 i {
+    margin-right: 8px;
+}
+
+/* Error State Styling */
+.stage-card.border-danger .stage-content {
+    border-left: 3px solid #dc3545;
+    padding-left: 10px;
+}
+
+.stage-error-message {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin-top: 8px;
+}

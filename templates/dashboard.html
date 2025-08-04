@@ -23,6 +23,15 @@
     </div>
 </div>
 
+<!-- Workflow Progress Display -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div id="workflowContainer">
+            <!-- Workflow progress will be displayed here -->
+        </div>
+    </div>
+</div>
+
 <!-- Processing Status -->
 {% if session.status != 'completed' %}
 <div class="row mb-4">
@@ -628,9 +637,15 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/workflow.css') }}">
+<script src="{{ url_for('static', filename='js/workflow.js') }}"></script>
 <script>
 // Set session ID for JavaScript functions
 window.currentSessionId = '{{ session.id }}';
+
+// Initialize workflow manager
+window.currentWorkflowManager = new WorkflowManager('{{ session.id }}');
+window.currentWorkflowManager.initializeWorkflow();
 
 // Re-process session data with current configurations
 function reprocessSessionData() {
@@ -671,6 +686,13 @@ function reprocessSessionData() {
         alert('Network error occurred during re-processing');
         btn.disabled = false;
         btn.innerHTML = originalHtml;
+    });
+
+    // Cleanup workflow manager on page unload
+    window.addEventListener('beforeunload', function() {
+        if (window.currentWorkflowManager) {
+            window.currentWorkflowManager.cleanup();
+        }
     });
 }
 

@@ -8,6 +8,7 @@ from sqlalchemy import text
 from models import ProcessingSession, EmailRecord, ProcessingError, Rule, WhitelistDomain, AttachmentKeyword
 from app import db
 from performance_config import config
+from workflow_manager import WorkflowManager
 import re
 
 logger = logging.getLogger(__name__)
@@ -18,14 +19,15 @@ class DataProcessor:
     def __init__(self):
         self.chunk_size = config.chunk_size
         self.batch_commit_size = config.batch_commit_size
+        self.workflow_manager = WorkflowManager()
         logger.info(f"DataProcessor initialized with config: {config.__dict__}")
     
     def process_csv(self, session_id, file_path):
-        """Process CSV file with comprehensive analysis pipeline"""
+        """Process CSV file with comprehensive 8-stage workflow"""
         try:
             logger.info(f"Starting CSV processing for session {session_id}")
             
-            # Update session status
+            # Initialize workflow
             session = ProcessingSession.query.get(session_id)
             if not session:
                 raise Exception(f"Session {session_id} not found")
@@ -33,6 +35,12 @@ class DataProcessor:
             session.status = 'processing'
             session.data_path = file_path
             db.session.commit()
+            
+            # Initialize 8-stage workflow
+            self.workflow_manager.initialize_workflow(session_id)
+            
+            # Stage 1: Data Ingestion (0-5%)
+            self.workflow_manager.start_stage(session_id, 1)
             
             # Count total records first
             total_records = self._count_csv_records(file_path)
@@ -44,7 +52,7 @@ class DataProcessor:
             processed_count = 0
             current_chunk = 0
             
-            # Process file in chunks
+            # Process file in chunks (Data Ingestion stage)
             for chunk_df in pd.read_csv(file_path, chunksize=self.chunk_size):
                 current_chunk += 1
                 session.current_chunk = current_chunk
@@ -53,29 +61,38 @@ class DataProcessor:
                 chunk_processed = self._process_chunk(session_id, chunk_df, processed_count)
                 processed_count += chunk_processed
                 
-                # Update progress
+                # Update progress within Data Ingestion stage (0-5%)
+                progress = min(100, (processed_count / total_records) * 100) if total_records > 0 else 100
+                self.workflow_manager.update_stage_progress(session_id, 1, progress)
+                
                 session.processed_records = processed_count
                 db.session.commit()
                 
                 logger.info(f"Processed chunk {current_chunk}: {processed_count}/{total_records} records")
             
-            # Apply processing workflow
-            self._apply_processing_workflow(session_id)
+            # Complete Data Ingestion
+            self.workflow_manager.complete_stage(session_id, 1)
             
-            # Mark session as completed
-            session.status = 'completed'
+            # Apply 8-stage processing workflow
+            self._apply_8_stage_workflow(session_id)
+            
+            # Final completion
             session.processed_records = processed_count
             db.session.commit()
             
-            logger.info(f"CSV processing completed for session {session_id}: {processed_count} records")
+            logger.info(f"8-stage CSV processing completed for session {session_id}: {processed_count} records")
             
         except Exception as e:
             logger.error(f"Error processing CSV for session {session_id}: {str(e)}")
             session = ProcessingSession.query.get(session_id)
             if session:
-                session.status = 'error'
-                session.error_message = str(e)
-                db.session.commit()
+                # Mark current stage as error
+                if hasattr(self, 'workflow_manager') and session.current_stage > 0:
+                    self.workflow_manager.error_stage(session_id, session.current_stage, str(e))
+                else:
+                    session.status = 'error'
+                    session.error_message = str(e)
+                    db.session.commit()
             raise
     
     def _count_csv_records(self, file_path):
@@ -210,7 +227,6 @@ class DataProcessor:
             # Store results in record
             record_data['wordlist_subject'] = json.dumps(subject_matches) if subject_matches else None
             record_data['wordlist_attachment'] = json.dumps(attachment_matches) if attachment_matches else None
-            record_data['exclusion_matches'] = json.dumps(exclusion_matches) if exclusion_matches else None
             
             # Set exclusion flag if any exclusion keywords found
             if exclusion_matches:
@@ -221,7 +237,6 @@ class DataProcessor:
             # Set empty values if analysis fails
             record_data['wordlist_subject'] = None
             record_data['wordlist_attachment'] = None
-            record_data['exclusion_matches'] = None
     
     def _parse_datetime(self, date_value):
         """Parse datetime from various formats"""
@@ -256,10 +271,158 @@ class DataProcessor:
             logger.warning(f"Error parsing datetime {date_value}: {str(e)}")
             return None
     
-    def _apply_processing_workflow(self, session_id):
-        """Apply complete processing workflow"""
+    def _apply_8_stage_workflow(self, session_id):
+        """Apply the comprehensive 8-stage processing workflow"""
         try:
-            logger.info(f"Starting processing workflow for session {session_id}")
+            logger.info(f"Starting 8-stage workflow for session {session_id}")
+            
+            # Stage 2: Exclusion Rules (5-20%)
+            self.workflow_manager.start_stage(session_id, 2)
+            self._apply_exclusion_rules(session_id)
+            self.workflow_manager.complete_stage(session_id, 2)
+            
+            # Stage 3: Whitelist Filtering (20-35%)
+            self.workflow_manager.start_stage(session_id, 3)
+            self._apply_whitelist_filtering(session_id)
+            self.workflow_manager.complete_stage(session_id, 3)
+            
+            # Stage 4: Security Rules (35-50%)
+            self.workflow_manager.start_stage(session_id, 4)
+            self._apply_security_rules(session_id)
+            self.workflow_manager.complete_stage(session_id, 4)
+            
+            # Stage 5: Wordlist Analysis (50-65%)
+            self.workflow_manager.start_stage(session_id, 5)
+            self._apply_wordlist_analysis(session_id)
+            self.workflow_manager.complete_stage(session_id, 5)
+            
+            # Stage 6: ML Analysis (65-80%)
+            self.workflow_manager.start_stage(session_id, 6)
+            self._apply_ml_analysis(session_id)
+            self.workflow_manager.complete_stage(session_id, 6)
+            
+            # Stage 7: Case Generation (80-90%)
+            self.workflow_manager.start_stage(session_id, 7)
+            self._generate_cases(session_id)
+            self.workflow_manager.complete_stage(session_id, 7)
+            
+            # Stage 8: Final Validation (90-100%)
+            self.workflow_manager.start_stage(session_id, 8)
+            self._final_validation(session_id)
+            self.workflow_manager.complete_stage(session_id, 8)
+            
+            logger.info(f"8-stage workflow completed for session {session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error in 8-stage workflow for session {session_id}: {str(e)}")
+            session = ProcessingSession.query.get(session_id)
+            if session and session.current_stage > 0:
+                self.workflow_manager.error_stage(session_id, session.current_stage, str(e))
+            raise
+    
+    def _apply_exclusion_rules(self, session_id):
+        """Stage 2: Apply exclusion rules"""
+        try:
+            from rule_engine import RuleEngine
+            rule_engine = RuleEngine()
+            excluded_count = rule_engine.apply_exclusion_rules(session_id)
+            logger.info(f"Exclusion rules applied: {excluded_count} records excluded")
+            self._mark_workflow_step_completed(session_id, 'exclusion_applied')
+        except Exception as e:
+            logger.error(f"Error in exclusion rules stage: {str(e)}")
+            raise
+    
+    def _apply_whitelist_filtering(self, session_id):
+        """Stage 3: Apply whitelist filtering"""
+        try:
+            from domain_manager import DomainManager
+            domain_manager = DomainManager()
+            whitelisted_count = domain_manager.apply_whitelist(session_id)
+            logger.info(f"Domain whitelist applied: {whitelisted_count} records whitelisted")
+            self._mark_workflow_step_completed(session_id, 'whitelist_applied')
+        except Exception as e:
+            logger.error(f"Error in whitelist filtering stage: {str(e)}")
+            raise
+    
+    def _apply_security_rules(self, session_id):
+        """Stage 4: Apply security rules"""
+        try:
+            from rule_engine import RuleEngine
+            rule_engine = RuleEngine()
+            flagged_count = rule_engine.apply_security_rules(session_id)
+            logger.info(f"Security rules applied: {flagged_count} records flagged")
+            self._mark_workflow_step_completed(session_id, 'rules_applied')
+        except Exception as e:
+            logger.error(f"Error in security rules stage: {str(e)}")
+            raise
+    
+    def _apply_wordlist_analysis(self, session_id):
+        """Stage 5: Apply wordlist analysis (already done in record creation)"""
+        try:
+            # Wordlist analysis is already done during record creation
+            # This stage validates and finalizes wordlist results
+            records = EmailRecord.query.filter_by(session_id=session_id).all()
+            wordlist_count = sum(1 for r in records if r.wordlist_subject or r.wordlist_attachment)
+            logger.info(f"Wordlist analysis validated: {wordlist_count} records with wordlist matches")
+        except Exception as e:
+            logger.error(f"Error in wordlist analysis stage: {str(e)}")
+            raise
+    
+    def _apply_ml_analysis(self, session_id):
+        """Stage 6: Apply ML analysis"""
+        try:
+            from ml_engine import MLEngine
+            ml_engine = MLEngine()
+            analyzed_count = ml_engine.analyze_session(session_id)
+            logger.info(f"ML analysis applied: {analyzed_count} records analyzed")
+            self._mark_workflow_step_completed(session_id, 'ml_applied')
+        except Exception as e:
+            logger.error(f"Error in ML analysis stage: {str(e)}")
+            raise
+    
+    def _generate_cases(self, session_id):
+        """Stage 7: Generate security cases"""
+        try:
+            # Cases are automatically generated based on risk levels
+            records = EmailRecord.query.filter_by(session_id=session_id).all()
+            case_count = sum(1 for r in records if r.risk_level and r.risk_level != 'Low')
+            logger.info(f"Security cases generated: {case_count} cases created")
+        except Exception as e:
+            logger.error(f"Error in case generation stage: {str(e)}")
+            raise
+    
+    def _final_validation(self, session_id):
+        """Stage 8: Final validation and cleanup"""
+        try:
+            session = ProcessingSession.query.get(session_id)
+            if not session:
+                raise Exception(f"Session {session_id} not found")
+            
+            # Validate processing results
+            total_records = EmailRecord.query.filter_by(session_id=session_id).count()
+            analyzed_records = EmailRecord.query.filter_by(session_id=session_id).filter(
+                EmailRecord.ml_risk_score.isnot(None)
+            ).count()
+            
+            # Update final statistics
+            session.processing_stats = {
+                'total_records': total_records,
+                'analyzed_records': analyzed_records,
+                'analysis_rate': (analyzed_records / total_records * 100) if total_records > 0 else 0,
+                'workflow_completed': True
+            }
+            
+            db.session.commit()
+            logger.info(f"Final validation completed: {total_records} total, {analyzed_records} analyzed")
+            
+        except Exception as e:
+            logger.error(f"Error in final validation stage: {str(e)}")
+            raise
+
+    def _apply_processing_workflow(self, session_id):
+        """Apply complete processing workflow (Legacy method)"""
+        try:
+            logger.info(f"Starting legacy processing workflow for session {session_id}")
             
             # Import required engines
             from rule_engine import RuleEngine

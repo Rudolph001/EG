@@ -14,6 +14,7 @@ from performance_config import config
 from ml_config import MLRiskConfig
 from rule_engine import RuleEngine
 from domain_manager import DomainManager
+from workflow_manager import WorkflowManager
 import uuid
 import os
 import json
@@ -29,6 +30,7 @@ ml_engine = MLEngine()
 advanced_ml_engine = AdvancedMLEngine()
 rule_engine = RuleEngine()
 domain_manager = DomainManager()
+workflow_manager = WorkflowManager()
 ml_config = MLRiskConfig()
 
 @app.route('/')
@@ -1255,6 +1257,32 @@ def api_case_details(session_id, record_id):
     }
 
     return jsonify(case_data)
+
+# Workflow API Endpoints
+@app.route('/api/workflow/<session_id>/status')
+def api_workflow_status(session_id):
+    """Get workflow status for a session"""
+    try:
+        status = workflow_manager.get_workflow_status(session_id)
+        if status is None:
+            return jsonify({'error': 'Session not found or workflow not initialized'}), 404
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"Error getting workflow status for {session_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflow/<session_id>/reset', methods=['POST'])
+def api_workflow_reset(session_id):
+    """Reset workflow for a session"""
+    try:
+        success = workflow_manager.reset_workflow(session_id)
+        if success:
+            return jsonify({'message': 'Workflow reset successfully'})
+        else:
+            return jsonify({'error': 'Failed to reset workflow'}), 500
+    except Exception as e:
+        logger.error(f"Error resetting workflow for {session_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 
 

@@ -17,7 +17,12 @@ class ProcessingSession(db.Model):
     data_path = db.Column(db.String(500))
     is_compressed = db.Column(db.Boolean, default=False)
     
-    # Processing workflow stages
+    # 8-Stage Processing workflow
+    current_stage = db.Column(db.Integer, default=0)  # 0-8 workflow stages
+    stage_progress = db.Column(db.Float, default=0.0)  # 0-100 percentage
+    workflow_stages = db.Column(JSON)  # Track each stage status
+    
+    # Legacy workflow stages (for backward compatibility)
     exclusion_applied = db.Column(db.Boolean, default=False)
     whitelist_applied = db.Column(db.Boolean, default=False)
     rules_applied = db.Column(db.Boolean, default=False)
