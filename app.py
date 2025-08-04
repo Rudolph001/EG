@@ -81,8 +81,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "max_overflow": 40,  # Allow more overflow connections
     "pool_timeout": 60,  # Longer timeout for busy periods
     "connect_args": {
-        "connect_timeout": 300,  # 5 minute connection timeout for large datasets
-        "server_side_cursors": True if database_url and "postgresql" in database_url else False
+        "connect_timeout": 300  # 5 minute connection timeout for large datasets
     } if database_url and "postgresql" in database_url else {}
 }
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
