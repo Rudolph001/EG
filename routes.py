@@ -112,117 +112,56 @@ def upload_file():
 
 @app.route('/api/processing-status/<session_id>')
 def processing_status(session_id):
-    """Get processing status for session with sequential workflow tracking"""
+    """Get processing status for session"""
     session = ProcessingSession.query.get_or_404(session_id)
 
-    # Map processing status to current workflow step
-    current_step = 'ingestion'
-    if session.status == 'processing_exclusion':
-        current_step = 'exclusion'
-    elif session.status == 'processing_whitelist':
-        current_step = 'whitelist'
-    elif session.status == 'processing_security':
-        current_step = 'security'
-    elif session.status == 'processing_ml':
-        current_step = 'ml'
-    elif session.status == 'completed':
-        current_step = 'completed'
-
-    # Get workflow statistics with sequential completion tracking
+    # Get workflow statistics
     workflow_stats = {}
-    if session.status in ['processing', 'processing_exclusion', 'processing_whitelist', 
-                         'processing_security', 'processing_ml', 'completed']:
+    if session.status in ['processing', 'completed']:
         try:
-            # Total ingested records
-            total_records = EmailRecord.query.filter_by(session_id=session_id).count()
-            
-            # Count excluded records (Step 1)
+            # Count excluded records
             excluded_count = EmailRecord.query.filter(
                 EmailRecord.session_id == session_id,
                 EmailRecord.excluded_by_rule.isnot(None)
             ).count()
 
-            # Count whitelisted records (Step 2)
+            # Count whitelisted records  
             whitelisted_count = EmailRecord.query.filter_by(
                 session_id=session_id,
                 whitelisted=True
             ).count()
 
-            # Count records with rule matches (Step 3)
+            # Count records with rule matches
             rules_matched_count = EmailRecord.query.filter(
                 EmailRecord.session_id == session_id,
                 EmailRecord.rule_matches.isnot(None)
             ).count()
 
-            # Count ML analyzed records (Step 4)
-            ml_analyzed_count = EmailRecord.query.filter(
-                EmailRecord.session_id == session_id,
-                EmailRecord.ml_risk_score.isnot(None)
-            ).count()
-            
-            # Cases generated (records with risk levels)
-            cases_with_risk = EmailRecord.query.filter(
-                EmailRecord.session_id == session_id,
-                EmailRecord.risk_level.isnot(None)
-            ).count()
-
-            # Count wordlist matches
-            wordlist_matches_count = EmailRecord.query.filter(
-                EmailRecord.session_id == session_id,
-                db.or_(
-                    EmailRecord.wordlist_subject.isnot(None),
-                    EmailRecord.wordlist_attachment.isnot(None)
-                )
+            # Count critical cases
+            critical_cases_count = EmailRecord.query.filter_by(
+                session_id=session_id,
+                risk_level='Critical'
             ).count()
 
             workflow_stats = {
-                'ingested_count': total_records,
                 'excluded_count': excluded_count,
                 'whitelisted_count': whitelisted_count,
                 'rules_matched_count': rules_matched_count,
-                'ml_analyzed_count': ml_analyzed_count,
-                'cases_generated_count': cases_with_risk,
-                'wordlist_matches_count': wordlist_matches_count,
-                'validation_score': progress_percent if session.status == 'completed' else 0,
-                # Step completion flags
-                'exclusion_applied': session.exclusion_applied or False,
-                'whitelist_applied': session.whitelist_applied or False,
-                'rules_applied': session.rules_applied or False,
-                'ml_applied': session.ml_applied or False,
-                'current_step': current_step
+                'critical_cases_count': critical_cases_count
             }
         except Exception as e:
             logger.warning(f"Could not get workflow stats: {str(e)}")
-            workflow_stats = {
-                'ingested_count': 0,
-                'excluded_count': 0,
-                'whitelisted_count': 0,
-                'rules_matched_count': 0,
-                'ml_analyzed_count': 0,
-                'cases_generated_count': 0,
-                'wordlist_matches_count': 0,
-                'validation_score': 0,
-                'exclusion_applied': False,
-                'whitelist_applied': False,
-                'rules_applied': False,
-                'ml_applied': False,
-                'current_step': current_step
-            }
-
-    # Calculate overall progress
-    progress_percent = int((session.processed_records or 0) / max(session.total_records or 1, 1) * 100)
 
     return jsonify({
         'status': session.status,
         'total_records': session.total_records or 0,
         'processed_records': session.processed_records or 0,
-        'progress_percent': progress_percent,
+        'progress_percent': int((session.processed_records or 0) / max(session.total_records or 1, 1) * 100),
         'current_chunk': session.current_chunk or 0,
         'total_chunks': session.total_chunks or 0,
         'chunk_progress_percent': int((session.current_chunk or 0) / max(session.total_chunks or 1, 1) * 100),
         'error_message': session.error_message,
-        'workflow_stats': workflow_stats,
-        'current_step': current_step
+        'workflow_stats': workflow_stats
     })
 
 @app.route('/api/dashboard-stats/<session_id>')
@@ -419,19 +358,7 @@ def reports_dashboard(session_id):
 
 @app.route('/cases/<session_id>')
 def cases(session_id):
-    """Case management page with advanced filtering and email grouping"""
-    session = ProcessingSession.query.get_or_404(session_id)
-    
-    # Check if grouped view is requested - DEFAULT TO INDIVIDUAL VIEW
-    grouped_view = request.args.get('grouped', 'false') == 'true'  # Default to individual
-    
-    if grouped_view:
-        return cases_grouped(session_id)
-    else:
-        return cases_individual(session_id)
-
-def cases_individual(session_id):
-    """Original individual cases view"""
+    """Case management page with advanced filtering"""
     session = ProcessingSession.query.get_or_404(session_id)
 
     # Get filter parameters
@@ -582,206 +509,7 @@ def cases_individual(session_id):
                          total_critical=total_critical,
                          total_high=total_high,
                          total_medium=total_medium,
-                         total_low=total_low,
-                         grouped_view=False)
-
-def cases_grouped(session_id):
-    """Grouped cases view - groups emails by content (DISABLED - causing data display issues)"""
-    # REDIRECT TO INDIVIDUAL VIEW TO FIX DATA DISPLAY ISSUES
-    return redirect(url_for('cases', session_id=session_id, grouped='false'))
-    
-    session = ProcessingSession.query.get_or_404(session_id)
-    
-    # Get filter parameters
-    page = request.args.get('page', 1, type=int)
-    per_page_param = request.args.get('per_page', '200')
-    risk_level = request.args.get('risk_level', '')
-    case_status = request.args.get('case_status', '')
-    search = request.args.get('search', '')
-    
-    # Special view parameters
-    show_whitelisted = request.args.get('show_whitelisted', False)
-    show_excluded = request.args.get('show_excluded', False)
-    show_unanalyzed = request.args.get('show_unanalyzed', False)
-    
-    # Build base query for grouping
-    if show_whitelisted:
-        base_query = EmailRecord.query.filter_by(session_id=session_id).filter(
-            EmailRecord.whitelisted == True
-        )
-    elif show_excluded:
-        base_query = EmailRecord.query.filter_by(session_id=session_id).filter(
-            EmailRecord.excluded_by_rule.isnot(None),
-            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
-        )
-    elif show_unanalyzed:
-        base_query = EmailRecord.query.filter_by(session_id=session_id).filter(
-            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
-            db.or_(EmailRecord.excluded_by_rule.is_(None)),
-            db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
-        )
-    else:
-        base_query = EmailRecord.query.filter_by(session_id=session_id).filter(
-            db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
-        ).filter(
-            db.or_(
-                EmailRecord.case_status.is_(None),
-                EmailRecord.case_status == 'Active'
-            )
-        )
-    
-    # Apply filters
-    if risk_level:
-        base_query = base_query.filter(EmailRecord.risk_level == risk_level)
-    if case_status:
-        base_query = base_query.filter(EmailRecord.case_status == case_status)
-    if search:
-        search_term = f"%{search}%"
-        base_query = base_query.filter(
-            db.or_(
-                EmailRecord.sender.ilike(search_term),
-                EmailRecord.subject.ilike(search_term),
-                EmailRecord.attachments.ilike(search_term),
-                EmailRecord.justification.ilike(search_term)
-            )
-        )
-    
-    # Group emails by key fields (sender, subject, attachments, time window)
-    from sqlalchemy import func, desc
-    
-    grouped_emails = base_query.with_entities(
-        EmailRecord.sender,
-        EmailRecord.subject,
-        EmailRecord.attachments,
-        EmailRecord.time,
-        EmailRecord.leaver,
-        EmailRecord.department,
-        EmailRecord.bunit,
-        EmailRecord.wordlist_attachment,
-        EmailRecord.wordlist_subject,
-        EmailRecord.justification,
-        func.max(EmailRecord.ml_risk_score).label('max_risk_score'),
-        func.max(EmailRecord.risk_level).label('risk_level'),
-        func.max(EmailRecord.case_status).label('case_status'),
-        func.count(EmailRecord.id).label('recipient_count'),
-        func.string_agg(EmailRecord.recipients_email_domain, ', ').label('recipient_domains'),
-        func.max(EmailRecord.id).label('sample_id')
-    ).group_by(
-        EmailRecord.sender,
-        EmailRecord.subject,
-        EmailRecord.attachments,
-        EmailRecord.time,
-        EmailRecord.leaver,
-        EmailRecord.department,
-        EmailRecord.bunit,
-        EmailRecord.wordlist_attachment,
-        EmailRecord.wordlist_subject,
-        EmailRecord.justification
-    ).order_by(desc('max_risk_score'))
-    
-    # Handle pagination
-    if per_page_param == 'all':
-        per_page = grouped_emails.count()
-        page = 1
-    else:
-        per_page = int(per_page_param) if per_page_param.isdigit() else 200
-    
-    # Execute pagination
-    offset = (page - 1) * per_page
-    grouped_results = grouped_emails.offset(offset).limit(per_page).all()
-    total_groups = grouped_emails.count()
-    
-    # Create pagination object for template compatibility
-    class GroupedPagination:
-        def __init__(self, items, total, page, per_page):
-            self.items = items
-            self.total = total
-            self.page = page
-            self.per_page = per_page
-            self.pages = (total + per_page - 1) // per_page
-            self.has_prev = page > 1
-            self.has_next = page < self.pages
-            self.prev_num = page - 1 if self.has_prev else None
-            self.next_num = page + 1 if self.has_next else None
-        
-        def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
-            """Generate page numbers for pagination display"""
-            last = self.pages
-            for num in range(1, last + 1):
-                if num <= left_edge or \
-                   (self.page - left_current - 1 < num < self.page + right_current) or \
-                   num > last - right_edge:
-                    yield num
-    
-    cases_pagination = GroupedPagination(grouped_results, total_groups, page, per_page)
-    
-    # Get comprehensive statistics (same as before but for grouped view)
-    total_all_records = EmailRecord.query.filter_by(session_id=session_id).count()
-    
-    total_whitelisted = EmailRecord.query.filter_by(session_id=session_id).filter(
-        EmailRecord.whitelisted == True
-    ).count()
-    
-    total_excluded = EmailRecord.query.filter_by(session_id=session_id).filter(
-        EmailRecord.excluded_by_rule.isnot(None),
-        db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
-    ).count()
-    
-    analyzed_query = EmailRecord.query.filter_by(session_id=session_id).filter(
-        db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
-        db.or_(EmailRecord.excluded_by_rule.is_(None))
-    )
-    
-    total_critical = analyzed_query.filter(EmailRecord.risk_level == 'Critical').count()
-    total_high = analyzed_query.filter(EmailRecord.risk_level == 'High').count()
-    total_medium = analyzed_query.filter(EmailRecord.risk_level == 'Medium').count()
-    total_low = analyzed_query.filter(EmailRecord.risk_level == 'Low').count()
-    
-    total_unanalyzed = analyzed_query.filter(
-        db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
-    ).count()
-    
-    active_whitelist_domains = WhitelistDomain.query.filter_by(is_active=True).count()
-    
-    return render_template('cases.html',
-                         session=session,
-                         cases=cases_pagination,
-                         risk_level=risk_level,
-                         case_status=case_status,
-                         search=search,
-                         total_all_records=total_all_records,
-                         total_whitelisted=total_whitelisted,
-                         total_excluded=total_excluded,
-                         total_unanalyzed=total_unanalyzed,
-                         active_whitelist_domains=active_whitelist_domains,
-                         total_critical=total_critical,
-                         total_high=total_high,
-                         total_medium=total_medium,
-                         total_low=total_low,
-                         grouped_view=True)
-
-@app.route('/email_details/<session_id>/<email_group_id>')
-def email_details(session_id, email_group_id):
-    """Show all recipients for a grouped email"""
-    session = ProcessingSession.query.get_or_404(session_id)
-    
-    # Get the sample record to identify the email group
-    sample_record = EmailRecord.query.get_or_404(email_group_id)
-    
-    # Find all records that match this email group
-    matching_records = EmailRecord.query.filter_by(
-        session_id=session_id,
-        sender=sample_record.sender,
-        subject=sample_record.subject,
-        attachments=sample_record.attachments,
-        time=sample_record.time,
-        justification=sample_record.justification
-    ).order_by(EmailRecord.recipients_email_domain).all()
-    
-    return render_template('email_details.html',
-                         session=session,
-                         sample_record=sample_record,
-                         matching_records=matching_records)
+                         total_low=total_low)
 
 @app.route('/cleared_cases/<session_id>')
 def cleared_cases(session_id):
@@ -4342,204 +4070,3 @@ def update_wordlist_keyword(keyword_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/wordlist/bulk-import", methods=["POST"])
-def bulk_import_wordlist():
-    """Bulk import multiple keywords at once"""
-    try:
-        data = request.get_json()
-        
-        keyword_type = data.get("keyword_type", "risk")
-        category = data.get("category", "Business")
-        risk_score = data.get("risk_score", 3)
-        applies_to = data.get("applies_to", "both")
-        keywords_list = data.get("keywords", [])
-        
-        if not keywords_list:
-            return jsonify({"error": "No keywords provided"}), 400
-        
-        imported_count = 0
-        duplicates = []
-        errors = []
-        
-        for keyword_text in keywords_list:
-            # Clean and validate keyword
-            cleaned_keyword = keyword_text.strip()
-            if not cleaned_keyword:
-                continue
-                
-            # Check if keyword already exists
-            existing = AttachmentKeyword.query.filter_by(
-                keyword=cleaned_keyword,
-                keyword_type=keyword_type
-            ).first()
-            
-            if existing:
-                duplicates.append(cleaned_keyword)
-                continue
-            
-            try:
-                # Create new keyword
-                new_keyword = AttachmentKeyword(
-                    keyword=cleaned_keyword,
-                    category=category if keyword_type == "risk" else None,
-                    keyword_type=keyword_type,
-                    applies_to=applies_to,
-                    risk_score=risk_score if keyword_type == "risk" else None,
-                    is_active=True,
-                    created_at=datetime.utcnow()
-                )
-                
-                db.session.add(new_keyword)
-                imported_count += 1
-                
-            except Exception as e:
-                errors.append(f"Error with '{cleaned_keyword}': {str(e)}")
-                continue
-        
-        # Commit all new keywords
-        db.session.commit()
-        
-        response_data = {
-            "message": f"Bulk import completed successfully",
-            "imported_count": imported_count,
-            "total_provided": len(keywords_list)
-        }
-        
-        if duplicates:
-            response_data["duplicates_skipped"] = len(duplicates)
-            response_data["duplicate_keywords"] = duplicates[:10]  # Show first 10
-            
-        if errors:
-            response_data["errors"] = errors[:10]  # Show first 10 errors
-        
-        return jsonify(response_data)
-        
-    except Exception as e:
-        logger.error(f"Error in bulk import: {str(e)}")
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/admin/excluded-emails')
-def admin_excluded_emails():
-    """Admin page to view and manage excluded emails"""
-    try:
-        # Get all excluded emails from all sessions
-        excluded_emails = EmailRecord.query.filter(
-            EmailRecord.excluded_by_rule.isnot(None)
-        ).order_by(EmailRecord.id.desc()).all()
-        
-        # Group by session for better organization
-        sessions_with_excluded = {}
-        for email in excluded_emails:
-            session_id = email.session_id
-            if session_id not in sessions_with_excluded:
-                session = ProcessingSession.query.get(session_id)
-                sessions_with_excluded[session_id] = {
-                    'session': session,
-                    'excluded_emails': []
-                }
-            sessions_with_excluded[session_id]['excluded_emails'].append(email)
-        
-        # Calculate stats
-        stats = {
-            'total_excluded': len(excluded_emails),
-            'total_sessions_affected': len(sessions_with_excluded),
-            'exclusion_reasons': {}
-        }
-        
-        # Count exclusion reasons
-        for email in excluded_emails:
-            reason = email.excluded_by_rule or 'Unknown'
-            stats['exclusion_reasons'][reason] = stats['exclusion_reasons'].get(reason, 0) + 1
-        
-        return render_template('admin_excluded_emails.html', 
-                             sessions_with_excluded=sessions_with_excluded,
-                             stats=stats)
-        
-    except Exception as e:
-        logger.error(f"Error loading excluded emails admin page: {str(e)}")
-        flash(f"Error loading excluded emails: {str(e)}", 'error')
-        return redirect(url_for('admin'))
-
-@app.route('/api/admin/unexclude-email', methods=['POST'])
-def api_unexclude_email():
-    """API to un-exclude a specific email record"""
-    try:
-        data = request.get_json()
-        email_id = data.get('email_id')
-        
-        if not email_id:
-            return jsonify({'error': 'Email ID is required'}), 400
-        
-        # Find the email record
-        email_record = EmailRecord.query.get(email_id)
-        if not email_record:
-            return jsonify({'error': 'Email record not found'}), 404
-        
-        if not email_record.excluded_by_rule:
-            return jsonify({'error': 'Email is not excluded'}), 400
-        
-        # Store the exclusion reason for logging
-        previous_exclusion = email_record.excluded_by_rule
-        
-        # Un-exclude the email
-        email_record.excluded_by_rule = None
-        email_record.case_status = 'Active'  # Move back to active cases
-        
-        db.session.commit()
-        
-        logger.info(f"Email {email_id} un-excluded by admin. Previous exclusion: {previous_exclusion}")
-        
-        return jsonify({
-            'message': 'Email successfully un-excluded and moved back to case manager',
-            'email_id': email_id,
-            'previous_exclusion': previous_exclusion
-        })
-        
-    except Exception as e:
-        logger.error(f"Error un-excluding email: {str(e)}")
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/admin/bulk-unexclude', methods=['POST'])
-def api_bulk_unexclude():
-    """API to un-exclude multiple emails at once"""
-    try:
-        data = request.get_json()
-        email_ids = data.get('email_ids', [])
-        
-        if not email_ids:
-            return jsonify({'error': 'No email IDs provided'}), 400
-        
-        # Find the email records
-        email_records = EmailRecord.query.filter(
-            EmailRecord.id.in_(email_ids),
-            EmailRecord.excluded_by_rule.isnot(None)
-        ).all()
-        
-        if not email_records:
-            return jsonify({'error': 'No excluded emails found with provided IDs'}), 404
-        
-        unexcluded_count = 0
-        exclusion_reasons = []
-        
-        for email_record in email_records:
-            exclusion_reasons.append(email_record.excluded_by_rule)
-            email_record.excluded_by_rule = None
-            email_record.case_status = 'Active'  # Move back to active cases
-            unexcluded_count += 1
-        
-        db.session.commit()
-        
-        logger.info(f"Bulk un-excluded {unexcluded_count} emails by admin")
-        
-        return jsonify({
-            'message': f'Successfully un-excluded {unexcluded_count} emails',
-            'unexcluded_count': unexcluded_count,
-            'exclusion_reasons': list(set(exclusion_reasons))
-        })
-        
-    except Exception as e:
-        logger.error(f"Error bulk un-excluding emails: {str(e)}")
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500

@@ -35,46 +35,129 @@ class MLEngine:
         }
 
     def analyze_session(self, session_id):
-        """Analyze all records in a session"""
-        logger.info(f"Starting ML analysis for session {session_id}")
+        """Perform comprehensive ML analysis on session data"""
+        try:
+            logger.info(f"Starting ML analysis for session {session_id}")
 
-        # Get session info
-        from models import ProcessingSession
-        session = ProcessingSession.query.get(session_id)
-        if not session:
-            raise ValueError(f"Session {session_id} not found")
+            # Get all records first for debugging
+            all_records = EmailRecord.query.filter_by(session_id=session_id).all()
+            logger.info(f"Total records in session: {len(all_records)}")
+            
+            excluded_records = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.excluded_by_rule.isnot(None)
+            ).all()
+            logger.info(f"Excluded records: {len(excluded_records)}")
+            
+            whitelisted_records = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.whitelisted == True
+            ).all()
+            logger.info(f"Whitelisted records: {len(whitelisted_records)}")
 
-        # Get all non-excluded records for this session
-        records = EmailRecord.query.filter_by(session_id=session_id).filter(
-            EmailRecord.excluded_by_rule.is_(None)
-        ).all()
+            # Get non-excluded, non-whitelisted records that haven't been analyzed yet
+            records = EmailRecord.query.filter(
+                EmailRecord.session_id == session_id,
+                EmailRecord.excluded_by_rule.is_(None),
+                db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
+                db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
+            ).all()
+            
+            logger.info(f"Records eligible for ML analysis: {len(records)}")
 
-        # Filter out whitelisted records
-        non_whitelisted_records = [r for r in records if not r.whitelisted]
+            if len(records) < 3:  # Reduced minimum for faster processing
+                logger.warning(f"Too few records ({len(records)}) for ML analysis - updating existing records with default risk levels")
+                
+                # Still update records with basic risk assessment even if too few for ML
+                for record in records:
+                    if record.ml_risk_score is None:
+                        record.ml_risk_score = 0.1  # Low risk default
+                        record.risk_level = 'Low'
+                        record.ml_explanation = 'Low risk - insufficient data for ML analysis'
+                
+                db.session.commit()
+                return {'processing_stats': {'ml_records_analyzed': len(records)}}
 
-        total_records = len(records)
-        eligible_records = len(non_whitelisted_records)
+            # Fast mode: limit records for processing speed
+            if self.fast_mode and len(records) > config.max_ml_records:
+                logger.info(f"Fast mode: Processing sample of {config.max_ml_records} records out of {len(records)}")
+                records = records[:config.max_ml_records]
 
-        logger.info(f"Total records in session: {session.total_records}")
-        logger.info(f"Excluded records: {session.total_records - total_records}")
-        logger.info(f"Whitelisted records: {total_records - eligible_records}")
-        logger.info(f"Records eligible for ML analysis: {eligible_records}")
+            # Convert to DataFrame for analysis
+            df = self._records_to_dataframe(records)
 
-        if eligible_records == 0:
-            logger.info("No records eligible for ML analysis")
-            return
+            # Feature engineering
+            features = self._engineer_features(df)
 
-        # Limit processing for performance - max 10,000 records
-        if eligible_records > 10000:
-            logger.info(f"Large dataset detected. Processing first 10,000 of {eligible_records} records")
-            non_whitelisted_records = non_whitelisted_records[:10000]
-            eligible_records = 10000
+            # Anomaly detection
+            anomaly_scores = self._detect_anomalies(features)
 
-        # Always use ultra-fast mode for Replit to prevent timeouts
-        logger.info(f"Ultra-fast mode: Using simplified risk scoring for {eligible_records} records")
-        self._apply_simplified_risk_scoring(non_whitelisted_records)
+            # Risk scoring
+            risk_scores = self._calculate_risk_scores(df, anomaly_scores)
 
-        logger.info(f"ML analysis completed for session {session_id}")
+            # Update records with ML results
+            self._update_records_with_ml_results(records, anomaly_scores, risk_scores)
+
+            # Generate analysis insights
+            insights = self._generate_insights(df, anomaly_scores, risk_scores)
+
+            logger.info(f"ML analysis completed for session {session_id}")
+
+            return {
+                'processing_stats': {
+                    'ml_records_analyzed': len(records),
+                    'anomalies_detected': sum(1 for score in anomaly_scores if score > 0.5),
+                    'critical_cases': sum(1 for score in risk_scores if score > self.risk_thresholds['critical']),
+                    'high_risk_cases': sum(1 for score in risk_scores if score > self.risk_thresholds['high'])
+                },
+                'insights': insights
+            }
+
+        except Exception as e:
+            logger.error(f"Error in ML analysis for session {session_id}: {str(e)}")
+            
+            # When ML fails, still assign basic risk scores to all records
+            try:
+                records = EmailRecord.query.filter(
+                    EmailRecord.session_id == session_id,
+                    EmailRecord.excluded_by_rule.is_(None),
+                    db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+                ).all()
+                
+                logger.info(f"Applying basic risk scoring to {len(records)} records after ML failure")
+                
+                for record in records:
+                    # Calculate basic risk score without ML
+                    basic_risk = self._calculate_basic_risk_score(record)
+                    record.ml_risk_score = basic_risk
+                    record.risk_level = self._get_risk_level(basic_risk)
+                    record.ml_explanation = f'Basic risk assessment (ML failed): {record.risk_level} risk'
+                
+                db.session.commit()
+                logger.info(f"Applied basic risk scores to {len(records)} records")
+                
+                return {
+                    'processing_stats': {
+                        'ml_records_analyzed': len(records),
+                        'anomalies_detected': 0,
+                        'critical_cases': sum(1 for r in records if r.ml_risk_score > self.risk_thresholds['critical']),
+                        'high_risk_cases': sum(1 for r in records if r.ml_risk_score > self.risk_thresholds['high']),
+                        'basic_scoring_used': True
+                    },
+                    'insights': {'info': f'Used basic risk scoring due to ML error: {str(e)}'}
+                }
+            except Exception as fallback_error:
+                logger.error(f"Fallback basic scoring also failed: {str(fallback_error)}")
+                return {
+                    'processing_stats': {
+                        'ml_records_analyzed': 0,
+                        'anomalies_detected': 0,
+                        'critical_cases': 0,
+                        'high_risk_cases': 0,
+                        'error': str(e)
+                    },
+                    'insights': {'error': f'ML analysis and fallback failed: {str(e)}'}
+                }
 
     def _records_to_dataframe(self, records):
         """Convert EmailRecord objects to pandas DataFrame"""
@@ -188,7 +271,7 @@ class MLEngine:
                 self._attachment_keywords_cache = keywords
             except:
                 self._attachment_keywords_cache = []
-
+                
         for keyword in self._attachment_keywords_cache:
             if keyword.keyword.lower() in attachments_lower:
                 if keyword.category == 'Suspicious':
@@ -208,19 +291,19 @@ class MLEngine:
                     keyword_type='risk'
                 ).all()
                 self._attachment_keywords_cache = keywords
-
+            
             subject_lower = (subject or '').lower()
             attachments_lower = (attachments or '').lower()
-
+            
             for keyword in self._attachment_keywords_cache:
                 keyword_lower = keyword.keyword.lower()
-
+                
                 # Check based on applies_to setting
                 if keyword.applies_to in ['subject', 'both'] and keyword_lower in subject_lower:
                     return 1
                 if keyword.applies_to in ['attachment', 'both'] and keyword_lower in attachments_lower:
                     return 1
-
+            
             return 0
         except Exception as e:
             logger.error(f"Error checking custom wordlist: {str(e)}")
@@ -235,21 +318,21 @@ class MLEngine:
                     keyword_type='risk'
                 ).all()
                 self._attachment_keywords_cache = keywords
-
+            
             subject_lower = (subject or '').lower()
             attachments_lower = (attachments or '').lower()
             total_risk = 0.0
-
+            
             for keyword in self._attachment_keywords_cache:
                 keyword_lower = keyword.keyword.lower()
                 matched = False
-
+                
                 # Check based on applies_to setting
                 if keyword.applies_to in ['subject', 'both'] and keyword_lower in subject_lower:
                     matched = True
                 elif keyword.applies_to in ['attachment', 'both'] and keyword_lower in attachments_lower:
                     matched = True
-
+                
                 if matched:
                     # Scale risk score based on category
                     if keyword.category == 'Suspicious':
@@ -258,7 +341,7 @@ class MLEngine:
                         total_risk += keyword.risk_score * 0.03
                     else:  # Business
                         total_risk += keyword.risk_score * 0.01
-
+            
             return min(total_risk, 0.3)  # Cap wordlist contribution at 0.3
         except Exception as e:
             logger.error(f"Error calculating wordlist risk: {str(e)}")
@@ -289,7 +372,7 @@ class MLEngine:
             try:
                 anomaly_labels = self.isolation_forest.fit_predict(features_scaled)
                 anomaly_scores = self.isolation_forest.decision_function(features_scaled)
-
+                
                 # Convert to 0-1 scale (higher = more anomalous)
                 if len(set(anomaly_scores)) > 1:  # Check if we have variation
                     anomaly_scores_normalized = np.interp(anomaly_scores, 
@@ -300,10 +383,10 @@ class MLEngine:
                 else:
                     # All scores are the same, return zeros
                     anomaly_scores_normalized = np.zeros(len(features))
-
+                
                 logger.info(f"Anomaly detection completed successfully for {len(features)} records")
                 return anomaly_scores_normalized
-
+                
             except Exception as fit_error:
                 logger.error(f"Error during IsolationForest fit/predict: {str(fit_error)}")
                 # Fallback to simple rule-based anomaly scoring
@@ -527,53 +610,53 @@ class MLEngine:
                 'processing_complete': False,
                 'error': str(e)
             }
-
+    
     def _calculate_basic_risk_score(self, record):
         """Calculate basic risk score without ML analysis"""
         risk_score = 0.0
-
+        
         # Leaver status (30% of risk)
         if record.leaver and record.leaver.lower() in ['yes', 'true', '1']:
             risk_score += 0.3
-
+        
         # External domain (20% of risk)
         if record.recipients_email_domain:
             domain = record.recipients_email_domain.lower()
             if any(pub in domain for pub in ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com']):
                 risk_score += 0.2
-
+        
         # Attachment risk (25% of risk)
         if record.attachments:
             attachment_risk = self._calculate_attachment_risk(record.attachments)
             risk_score += attachment_risk * 0.25
-
+        
         # Wordlist matches (15% of risk)
         if record.wordlist_attachment or record.wordlist_subject:
             risk_score += 0.15
-
+        
         # Subject length (10% of risk) - very long or very short subjects can be suspicious
         if record.subject:
             subject_len = len(record.subject)
             if subject_len < 5 or subject_len > 100:
                 risk_score += 0.1
-
+        
         return min(risk_score, 1.0)  # Cap at 1.0
-
+    
     def _simple_anomaly_scoring(self, features):
         """Simple rule-based anomaly scoring as fallback"""
         try:
             logger.info("Using simple anomaly scoring fallback")
             anomaly_scores = []
-
+            
             for feature_vector in features:
                 # Simple scoring based on feature values
                 # feature_vector indices: [subject_len, has_attachments, has_wordlist_match, 
                 #                         is_external, is_public_domain, is_weekend, 
                 #                         is_after_hours, is_leaver, attachment_risk, 
                 #                         justification_len, has_justification]
-
+                
                 score = 0.0
-
+                
                 # High risk indicators
                 if len(feature_vector) > 7 and feature_vector[7] > 0:  # is_leaver
                     score += 0.4
@@ -585,12 +668,12 @@ class MLEngine:
                     score += 0.2
                 if len(feature_vector) > 6 and feature_vector[6] > 0:  # is_after_hours
                     score += 0.1
-
+                
                 # Cap the score at 1.0
                 anomaly_scores.append(min(score, 1.0))
-
+            
             return np.array(anomaly_scores)
-
+            
         except Exception as e:
             logger.error(f"Error in simple anomaly scoring: {str(e)}")
             return np.zeros(len(features))
@@ -605,121 +688,3 @@ class MLEngine:
             return 'Medium'
         else:
             return 'Low'
-
-    def _apply_simplified_risk_scoring(self, records):
-        """Apply simplified risk scoring for fast processing"""
-        logger.info(f"Applying simplified risk scoring to {len(records)} records")
-
-        if not records:
-            logger.info("No records to process")
-            return
-
-        # Process in smaller batches to prevent memory issues
-        batch_size = 500
-        total_batches = (len(records) + batch_size - 1) // batch_size
-        processed_count = 0
-
-        for i in range(0, len(records), batch_size):
-            batch = records[i:i + batch_size]
-            batch_num = i // batch_size + 1
-
-            logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} records)")
-
-            for record in batch:
-                try:
-                    # Simple risk scoring based on basic factors
-                    risk_score = 0.1  # Base risk
-                    risk_factors = []
-
-                    # Check for external domains
-                    if record.recipients_email_domain and any(domain in str(record.recipients_email_domain).lower() 
-                                                            for domain in ['gmail', 'yahoo', 'hotmail', 'outlook']):
-                        risk_score += 0.3
-                        risk_factors.append("External email domain")
-
-                    # Check for attachments
-                    if record.attachments and str(record.attachments).lower() not in ['none', 'null', '', 'nan']:
-                        risk_score += 0.2
-                        risk_factors.append("Has attachments")
-
-                    # Check if user is a leaver
-                    if record.leaver and str(record.leaver).lower() == 'yes':
-                        risk_score += 0.4
-                        risk_factors.append("User is a leaver")
-
-                    # Cap risk score at 1.0
-                    risk_score = min(risk_score, 1.0)
-
-                    # Determine risk level
-                    if risk_score >= 0.7:
-                        risk_level = 'Critical'
-                    elif risk_score >= 0.5:
-                        risk_level = 'High'
-                    elif risk_score >= 0.3:
-                        risk_level = 'Medium'
-                    else:
-                        risk_level = 'Low'
-
-                    # Update record
-                    record.ml_risk_score = risk_score
-                    record.ml_anomaly_score = risk_score * 0.8
-                    record.risk_level = risk_level
-                    record.ml_explanation = f"Risk factors: {', '.join(risk_factors) if risk_factors else 'No significant risk factors'}"
-
-                    processed_count += 1
-
-                except Exception as e:
-                    logger.error(f"Error processing record {record.id}: {str(e)}")
-                    continue
-
-            # Commit batch
-            try:
-                db.session.commit()
-                logger.info(f"Batch {batch_num} committed successfully")
-            except Exception as e:
-                logger.error(f"Error committing batch {batch_num}: {str(e)}")
-                db.session.rollback()
-
-        logger.info(f"Simplified risk scoring completed. Processed {processed_count} records")
-
-    def _combine_chunk_insights(self, chunk_insights_list):
-        """Combine insights from multiple chunks into final insights"""
-        try:
-            if not chunk_insights_list:
-                return {
-                    'summary': 'No insights available',
-                    'key_findings': [],
-                    'recommendations': []
-                }
-
-            # Combine key findings and recommendations from all chunks
-            all_findings = []
-            all_recommendations = []
-
-            for chunk_insights in chunk_insights_list:
-                if isinstance(chunk_insights, dict):
-                    if 'key_findings' in chunk_insights:
-                        all_findings.extend(chunk_insights['key_findings'])
-                    if 'recommendations' in chunk_insights:
-                        all_recommendations.extend(chunk_insights['recommendations'])
-
-            # Remove duplicates while preserving order
-            unique_findings = list(dict.fromkeys(all_findings))
-            unique_recommendations = list(dict.fromkeys(all_recommendations))
-
-            # Create combined insights
-            combined_insights = {
-                'summary': f'Analysis completed across {len(chunk_insights_list)} chunks with optimized processing',
-                'key_findings': unique_findings[:10],  # Limit to top 10 findings
-                'recommendations': unique_recommendations[:10]  # Limit to top 10 recommendations
-            }
-
-            return combined_insights
-
-        except Exception as e:
-            logger.error(f"Error combining chunk insights: {str(e)}")
-            return {
-                'summary': 'Chunk processing completed with some errors',
-                'key_findings': ['Large dataset processed successfully in chunks'],
-                'recommendations': ['Review processing logs for any chunk-specific issues']
-            }

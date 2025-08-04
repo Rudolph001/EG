@@ -77,215 +77,79 @@
                     </div>
 
                     <div class="processing-stages">
-                        <h6><i class="fas fa-cogs"></i> Complete Processing Workflow</h6>
-                        <p class="text-muted small mb-3">Real-time progress through all 8 processing stages</p>
+                        <h6><i class="fas fa-cogs"></i> Processing Workflow</h6>
+                        <p class="text-muted small mb-3">Email counts for each processing stage</p>
 
-                        <!-- Overall Workflow Progress -->
-                        <div class="workflow-progress-bar">
-                            <div class="workflow-progress-fill"></div>
-                        </div>
-                        <div class="d-flex justify-content-between mb-4">
-                            <small class="text-muted">Stage Progress</small>
-                            <small class="text-muted">All stages complete when processing finished</small>
-                        </div>
-
-                        <!-- Complete Processing Workflow -->
+                        <!-- Workflow Status Cards -->
                         <div class="row g-3" id="workflowStages">
-                            <!-- Stage 1: Data Ingestion -->
-                            <div class="col-md-6 col-xl-3">
-                                <div class="card h-100 stage-card" id="stage-ingestion">
-                                    <div class="card-body text-center">
-                                        <div class="stage-icon-wrapper mb-2">
-                                            <i class="fas fa-upload stage-icon text-info" id="ingestion-icon"></i>
-                                            <div class="stage-number">1</div>
-                                        </div>
-                                        <h6 class="card-title">Data Ingestion</h6>
-                                        <p class="text-muted small">CSV parsing and database loading</p>
-                                        <div class="stage-stats">
-                                            <h4 class="text-info mb-1" id="ingested-count">-</h4>
-                                            <small class="text-muted">Records Loaded</small>
-                                        </div>
-                                        <div class="stage-status" id="ingestion-status">
-                                            <small class="text-muted">Starting...</small>
-                                        </div>
-                                        <div class="completion-indicator" id="ingestion-complete" style="display: none;">
-                                            <i class="fas fa-check-circle text-success"></i>
-                                            <small class="text-success">Complete</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Stage 2: Exclusion Rules -->
-                            <div class="col-md-6 col-xl-3">
+                            <div class="col-md-6 col-lg-3">
                                 <div class="card h-100 stage-card" id="stage-exclusion">
                                     <div class="card-body text-center">
                                         <div class="stage-icon-wrapper mb-2">
-                                            <i class="fas fa-filter stage-icon text-secondary" id="exclusion-icon"></i>
-                                            <div class="stage-number">2</div>
+                                            <i class="fas fa-filter stage-icon text-secondary"></i>
                                         </div>
                                         <h6 class="card-title">Exclusion Rules</h6>
-                                        <p class="text-muted small">Apply business exclusion criteria</p>
+                                        <p class="text-muted small">Filter records based on exclusion criteria</p>
                                         <div class="stage-stats">
                                             <h4 class="text-secondary mb-1" id="excluded-count">-</h4>
-                                            <small class="text-muted">Records Excluded</small>
+                                            <small class="text-muted">Emails Excluded</small>
                                         </div>
                                         <div class="stage-status" id="exclusion-status">
                                             <small class="text-muted">Waiting...</small>
                                         </div>
-                                        <div class="completion-indicator" id="exclusion-complete" style="display: none;">
-                                            <i class="fas fa-check-circle text-success"></i>
-                                            <small class="text-success">Complete</small>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Stage 3: Whitelist Filtering -->
-                            <div class="col-md-6 col-xl-3">
+                            <div class="col-md-6 col-lg-3">
                                 <div class="card h-100 stage-card" id="stage-whitelist">
                                     <div class="card-body text-center">
                                         <div class="stage-icon-wrapper mb-2">
-                                            <i class="fas fa-shield-alt stage-icon text-success" id="whitelist-icon"></i>
-                                            <div class="stage-number">3</div>
+                                            <i class="fas fa-shield-check stage-icon text-success"></i>
                                         </div>
                                         <h6 class="card-title">Whitelist Filtering</h6>
                                         <p class="text-muted small">Remove trusted domain communications</p>
                                         <div class="stage-stats">
                                             <h4 class="text-success mb-1" id="whitelisted-count">-</h4>
-                                            <small class="text-muted">Records Whitelisted</small>
+                                            <small class="text-muted">Emails Whitelisted</small>
                                         </div>
                                         <div class="stage-status" id="whitelist-status">
                                             <small class="text-muted">Waiting...</small>
                                         </div>
-                                        <div class="completion-indicator" id="whitelist-complete" style="display: none;">
-                                            <i class="fas fa-check-circle text-success"></i>
-                                            <small class="text-success">Complete</small>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Stage 4: Security Rules -->
-                            <div class="col-md-6 col-xl-3">
-                                <div class="card h-100 stage-card" id="stage-security">
+                            <div class="col-md-6 col-lg-3">
+                                <div class="card h-100 stage-card" id="stage-rules">
                                     <div class="card-body text-center">
                                         <div class="stage-icon-wrapper mb-2">
-                                            <i class="fas fa-exclamation-triangle stage-icon text-warning" id="security-icon"></i>
-                                            <div class="stage-number">4</div>
+                                            <i class="fas fa-exclamation-triangle stage-icon text-warning"></i>
                                         </div>
                                         <h6 class="card-title">Security Rules</h6>
-                                        <p class="text-muted small">Apply threat detection rules</p>
+                                        <p class="text-muted small">Apply security rules and threat detection</p>
                                         <div class="stage-stats">
                                             <h4 class="text-warning mb-1" id="rules-matched-count">-</h4>
                                             <small class="text-muted">Rule Matches</small>
                                         </div>
-                                        <div class="stage-status" id="security-status">
+                                        <div class="stage-status" id="rules-status">
                                             <small class="text-muted">Waiting...</small>
                                         </div>
-                                        <div class="completion-indicator" id="security-complete" style="display: none;">
-                                            <i class="fas fa-check-circle text-success"></i>
-                                            <small class="text-success">Complete</small>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Stage 5: Custom Wordlist Analysis -->
-                            <div class="col-md-6 col-xl-3">
-                                <div class="card h-100 stage-card" id="stage-wordlist">
-                                    <div class="card-body text-center">
-                                        <div class="stage-icon-wrapper mb-2">
-                                            <i class="fas fa-tags stage-icon text-purple" id="wordlist-icon"></i>
-                                            <div class="stage-number">5</div>
-                                        </div>
-                                        <h6 class="card-title">Wordlist Analysis</h6>
-                                        <p class="text-muted small">Custom keyword matching</p>
-                                        <div class="stage-stats">
-                                            <h4 class="text-purple mb-1" id="wordlist-matches-count">-</h4>
-                                            <small class="text-muted">Keyword Matches</small>
-                                        </div>
-                                        <div class="stage-status" id="wordlist-status">
-                                            <small class="text-muted">Processing...</small>
-                                        </div>
-                                        <div class="completion-indicator" id="wordlist-complete" style="display: none;">
-                                            <i class="fas fa-check-circle text-success"></i>
-                                            <small class="text-success">Complete</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Stage 6: ML Analysis -->
-                            <div class="col-md-6 col-xl-3">
+                            <div class="col-md-6 col-lg-3">
                                 <div class="card h-100 stage-card" id="stage-ml">
                                     <div class="card-body text-center">
                                         <div class="stage-icon-wrapper mb-2">
-                                            <i class="fas fa-brain stage-icon text-danger" id="ml-icon"></i>
-                                            <div class="stage-number">6</div>
+                                            <i class="fas fa-brain stage-icon text-danger"></i>
                                         </div>
                                         <h6 class="card-title">ML Analysis</h6>
-                                        <p class="text-muted small">Machine learning risk scoring</p>
+                                        <p class="text-muted small">Machine learning anomaly detection</p>
                                         <div class="stage-stats">
-                                            <h4 class="text-danger mb-1" id="ml-analyzed-count">-</h4>
-                                            <small class="text-muted">Records Analyzed</small>
+                                            <h4 class="text-danger mb-1" id="critical-cases-count">-</h4>
+                                            <small class="text-muted">Critical Cases</small>
                                         </div>
                                         <div class="stage-status" id="ml-status">
                                             <small class="text-muted">Waiting...</small>
-                                        </div>
-                                        <div class="completion-indicator" id="ml-complete" style="display: none;">
-                                            <i class="fas fa-check-circle text-success"></i>
-                                            <small class="text-success">Complete</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Stage 7: Case Generation -->
-                            <div class="col-md-6 col-xl-3">
-                                <div class="card h-100 stage-card" id="stage-cases">
-                                    <div class="card-body text-center">
-                                        <div class="stage-icon-wrapper mb-2">
-                                            <i class="fas fa-folder-open stage-icon text-primary" id="cases-icon"></i>
-                                            <div class="stage-number">7</div>
-                                        </div>
-                                        <h6 class="card-title">Case Generation</h6>
-                                        <p class="text-muted small">Create security cases</p>
-                                        <div class="stage-stats">
-                                            <h4 class="text-primary mb-1" id="cases-generated-count">-</h4>
-                                            <small class="text-muted">Cases Created</small>
-                                        </div>
-                                        <div class="stage-status" id="cases-status">
-                                            <small class="text-muted">Waiting...</small>
-                                        </div>
-                                        <div class="completion-indicator" id="cases-complete" style="display: none;">
-                                            <i class="fas fa-check-circle text-success"></i>
-                                            <small class="text-success">Complete</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Stage 8: Final Validation -->
-                            <div class="col-md-6 col-xl-3">
-                                <div class="card h-100 stage-card" id="stage-validation">
-                                    <div class="card-body text-center">
-                                        <div class="stage-icon-wrapper mb-2">
-                                            <i class="fas fa-check-double stage-icon text-success" id="validation-icon"></i>
-                                            <div class="stage-number">8</div>
-                                        </div>
-                                        <h6 class="card-title">Final Validation</h6>
-                                        <p class="text-muted small">Data integrity check</p>
-                                        <div class="stage-stats">
-                                            <h4 class="text-success mb-1" id="validation-score">-</h4>
-                                            <small class="text-muted">Validation Score</small>
-                                        </div>
-                                        <div class="stage-status" id="validation-status">
-                                            <small class="text-muted">Waiting...</small>
-                                        </div>
-                                        <div class="completion-indicator" id="validation-complete" style="display: none;">
-                                            <i class="fas fa-check-circle text-success"></i>
-                                            <small class="text-success">Complete</small>
                                         </div>
                                     </div>
                                 </div>
@@ -431,22 +295,27 @@
                                     chunkProgressText.textContent = data.chunk_progress_percent + '%';
                                 }
 
-                                // Update workflow stages based on actual step completion
-                                updateWorkflowStagesFromStatus(data.workflow_stats || {}, data.status);
-
                                 // Update workflow stage statistics
                                 if (data.workflow_stats) {
                                     const stats = data.workflow_stats;
 
                                     // Update counts with animation
-                                    updateStageCount('ingested-count', stats.ingested_count || data.processed_records || 0);
                                     updateStageCount('excluded-count', stats.excluded_count || 0);
                                     updateStageCount('whitelisted-count', stats.whitelisted_count || 0);
                                     updateStageCount('rules-matched-count', stats.rules_matched_count || 0);
-                                    updateStageCount('wordlist-matches-count', stats.wordlist_matches_count || 0);
-                                    updateStageCount('ml-analyzed-count', stats.ml_analyzed_count || 0);
-                                    updateStageCount('cases-generated-count', stats.cases_generated_count || 0);
-                                    updateStageCount('validation-score', Math.round((data.progress_percent || 0)) + '%');
+                                    updateStageCount('critical-cases-count', stats.critical_cases_count || 0);
+
+                                    // Update stage status indicators
+                                    updateStageStatus('exclusion-status', stats.excluded_count > 0 ? 'Complete' : 'No exclusions', 'success');
+                                    updateStageStatus('whitelist-status', stats.whitelisted_count > 0 ? 'Complete' : 'No matches', 'success');
+                                    updateStageStatus('rules-status', stats.rules_matched_count > 0 ? 'Matches found' : 'No violations', stats.rules_matched_count > 0 ? 'warning' : 'success');
+                                    updateStageStatus('ml-status', stats.critical_cases_count > 0 ? 'Threats detected' : 'Analysis complete', stats.critical_cases_count > 0 ? 'danger' : 'success');
+
+                                    // Highlight stages with significant results
+                                    highlightStage('stage-exclusion', stats.excluded_count > 0);
+                                    highlightStage('stage-whitelist', stats.whitelisted_count > 0);
+                                    highlightStage('stage-rules', stats.rules_matched_count > 0);
+                                    highlightStage('stage-ml', stats.critical_cases_count > 0);
                                 }
 
                                 // Check if session appears stuck
@@ -531,144 +400,12 @@
                         }
                     });
 
-                    function updateWorkflowStagesFromStatus(workflowStats, sessionStatus) {
-                        // Define the 8 stages in strict sequential order
-                        const stages = [
-                            { 
-                                id: 'stage-ingestion', 
-                                name: 'ingestion', 
-                                statusId: 'ingestion-status', 
-                                completeId: 'ingestion-complete',
-                                isComplete: () => workflowStats.ingested_count > 0,
-                                isActive: () => workflowStats.current_step === 'ingestion'
-                            },
-                            { 
-                                id: 'stage-exclusion', 
-                                name: 'exclusion', 
-                                statusId: 'exclusion-status', 
-                                completeId: 'exclusion-complete',
-                                isComplete: () => workflowStats.exclusion_applied === true,
-                                isActive: () => workflowStats.current_step === 'exclusion'
-                            },
-                            { 
-                                id: 'stage-whitelist', 
-                                name: 'whitelist', 
-                                statusId: 'whitelist-status', 
-                                completeId: 'whitelist-complete',
-                                isComplete: () => workflowStats.whitelist_applied === true,
-                                isActive: () => workflowStats.current_step === 'whitelist'
-                            },
-                            { 
-                                id: 'stage-security', 
-                                name: 'security', 
-                                statusId: 'security-status', 
-                                completeId: 'security-complete',
-                                isComplete: () => workflowStats.rules_applied === true,
-                                isActive: () => workflowStats.current_step === 'security'
-                            },
-                            { 
-                                id: 'stage-wordlist', 
-                                name: 'wordlist', 
-                                statusId: 'wordlist-status', 
-                                completeId: 'wordlist-complete',
-                                isComplete: () => workflowStats.rules_applied === true, // Wordlist is part of security rules
-                                isActive: () => false // This runs as part of security rules step
-                            },
-                            { 
-                                id: 'stage-ml', 
-                                name: 'ml', 
-                                statusId: 'ml-status', 
-                                completeId: 'ml-complete',
-                                isComplete: () => workflowStats.ml_applied === true,
-                                isActive: () => workflowStats.current_step === 'ml'
-                            },
-                            { 
-                                id: 'stage-cases', 
-                                name: 'cases', 
-                                statusId: 'cases-status', 
-                                completeId: 'cases-complete',
-                                isComplete: () => workflowStats.ml_applied === true, // Cases are generated as part of ML
-                                isActive: () => false // This runs as part of ML step
-                            },
-                            { 
-                                id: 'stage-validation', 
-                                name: 'validation', 
-                                statusId: 'validation-status', 
-                                completeId: 'validation-complete',
-                                isComplete: () => sessionStatus === 'completed',
-                                isActive: () => workflowStats.current_step === 'completed'
-                            }
-                        ];
-
-                        let completedStages = 0;
-                        let activeStageFound = false;
-
-                        // Process stages in strict order - only one can be active at a time
-                        stages.forEach((stage, index) => {
-                            const stageEl = document.getElementById(stage.id);
-                            const statusEl = document.getElementById(stage.statusId);
-                            const completeEl = document.getElementById(stage.completeId);
-
-                            if (!stageEl) return;
-
-                            // Reset all classes
-                            stageEl.classList.remove('active', 'completed', 'processing');
-                            if (completeEl) completeEl.style.display = 'none';
-
-                            // Check stage status in strict order
-                            if (stage.isComplete()) {
-                                // Stage is complete
-                                stageEl.classList.add('completed');
-                                completedStages++;
-
-                                if (statusEl) {
-                                    statusEl.innerHTML = '<small class="text-success"><i class="fas fa-check-circle"></i> Complete</small>';
-                                }
-                                if (completeEl) {
-                                    completeEl.style.display = 'block';
-                                }
-                            } else if (stage.isActive() && !activeStageFound) {
-                                // This stage is currently active
-                                stageEl.classList.add('processing', 'active');
-                                activeStageFound = true;
-
-                                if (statusEl) {
-                                    statusEl.innerHTML = '<small class="text-warning"><i class="fas fa-spinner fa-spin"></i> Processing...</small>';
-                                }
-                            } else if (!activeStageFound && completedStages === index) {
-                                // This is the next stage waiting to start (all previous complete)
-                                stageEl.classList.add('processing', 'active');
-                                activeStageFound = true;
-
-                                if (statusEl) {
-                                    statusEl.innerHTML = '<small class="text-primary"><i class="fas fa-clock"></i> Starting...</small>';
-                                }
-                            } else {
-                                // Stage is waiting
-                                if (statusEl) {
-                                    statusEl.innerHTML = '<small class="text-muted"><i class="fas fa-clock"></i> Waiting...</small>';
-                                }
-                            }
-                        });
-
-                        // Update workflow progress bar based on completed stages
-                        const workflowProgressFill = document.querySelector('.workflow-progress-fill');
-                        if (workflowProgressFill) {
-                            const progressPercent = (completedStages / stages.length) * 100;
-                            workflowProgressFill.style.width = progressPercent + '%';
-                        }
-
-                        // Log current workflow state for debugging
-                        console.log(`Workflow Status: ${completedStages}/${stages.length} stages complete, Current step: ${workflowStats.current_step || 'unknown'}`);
-                    }
-
                     function updateStageCount(elementId, count) {
                         const element = document.getElementById(elementId);
                         if (element) {
-                            const countStr = typeof count === 'string' ? count : count.toString();
-                            if (element.textContent !== countStr) {
+                            if (element.textContent !== count.toString()) {
                                 element.style.transform = 'scale(1.1)';
-                                element.textContent = countStr;
+                                element.textContent = count;
                                 setTimeout(() => {
                                     element.style.transform = 'scale(1)';
                                 }, 200);
@@ -717,123 +454,70 @@
 </div>
 
 <style>
-        .stage-card {
-            transition: all 0.3s ease;
-            border: 2px solid #e9ecef;
-            position: relative;
-            opacity: 0.6;
-        }
+.stage-card {
+    transition: all 0.3s ease;
+    border: 1px solid #dee2e6;
+}
 
-        .stage-card.active {
-            border-color: #007bff;
-            box-shadow: 0 4px 8px rgba(0,123,255,0.3);
-            transform: translateY(-2px);
-            opacity: 1;
-        }
+.stage-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
 
-        .stage-card.completed {
-            border-color: #28a745;
-            background-color: #f8fff9;
-            opacity: 1;
-        }
+.stage-icon {
+    font-size: 2rem;
+}
 
-        .stage-card.processing {
-            border-color: #ffc107;
-            background-color: #fffdf5;
-            opacity: 1;
-            animation: pulse 2s infinite;
-        }
+.stage-stats h4 {
+    transition: transform 0.2s ease;
+}
 
-        .stage-card:not(.active):not(.completed):not(.processing) {
-            border-color: #e9ecef;
-            background-color: #f8f9fa;
-            opacity: 0.6;
-        }
+.stage-item {
+    text-align: center;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background: #f8f9fa;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
 
-        .stage-icon-wrapper {
-            position: relative;
-            display: inline-block;
-        }
+.stage-item.active {
+    background: #e7f3ff;
+    border: 2px solid #007bff;
+}
 
-        .stage-icon {
-            font-size: 2rem;
-            transition: all 0.3s ease;
-        }
+.stage-item.completed {
+    background: #d4edda;
+    border: 2px solid #28a745;
+}
 
-        .stage-number {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: #007bff;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
+.stage-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: #6c757d;
+}
 
-        .processing-spinner {
-            animation: spin 1s linear infinite;
-        }
+.stage-item.active .stage-icon {
+    color: #007bff;
+}
 
-        .pulse-animation {
-            animation: pulse 2s infinite;
-        }
+.stage-item.completed .stage-icon {
+    color: #28a745;
+}
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+.stage-stats {
+    margin-top: 0.5rem;
+}
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
+.stage-stats .badge {
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+}
 
-        .animated-count {
-            transition: all 0.5s ease;
-        }
-
-        .completion-indicator {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 10;
-        }
-
-        .text-purple {
-            color: #6f42c1 !important;
-        }
-
-        .workflow-progress-bar {
-            ```text
-height: 8px;
-            background: #e9ecef;
-            border-radius: 4px;
-            overflow: hidden;
-            margin: 20px 0;
-        }
-
-        .workflow-progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #007bff, #28a745);
-            width: 0%;
-            transition: width 0.5s ease;
-        }
-
-        .stage-dependency {
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-            font-size: 10px;
-            color: #6c757d;
-        }
-    </style>
+.stage-stats small {
+    font-size: 0.7rem;
+}
+</style>
 
 <script>
 function checkProcessingStatus() {
@@ -913,135 +597,64 @@ function updateWorkflowStages(workflowStats) {
 
     const stages = [
         {
-            name: 'Data Ingestion',
-            icon: 'fas fa-upload',
-            description: 'CSV parsing and database loading',
-            count: workflowStats.ingested_count || 0,
-            label: 'Records Loaded',
-            status: workflowStats.ingested_count !== undefined ? 'complete' : 'pending',
-            color: 'info',
-            elementId: 'stage-ingestion'
-        },
-        {
             name: 'Exclusion Rules',
             icon: 'fas fa-filter',
-            description: 'Apply business exclusion criteria',
+            description: 'Filter records based on exclusion criteria',
             count: workflowStats.excluded_count || 0,
-            label: 'Records Excluded',
+            label: 'Emails Excluded',
             status: workflowStats.excluded_count !== undefined ? 'complete' : 'pending',
-            color: 'secondary',
-            elementId: 'stage-exclusion'
+            color: 'secondary'
         },
         {
             name: 'Whitelist Filtering',
             icon: 'fas fa-shield-alt',
             description: 'Remove trusted domain communications',
             count: workflowStats.whitelisted_count || 0,
-            label: 'Records Whitelisted',
+            label: 'Emails Whitelisted',
             status: workflowStats.whitelisted_count !== undefined ? 'complete' : 'pending',
-            color: 'success',
-            elementId: 'stage-whitelist'
+            color: 'success'
         },
         {
             name: 'Security Rules',
             icon: 'fas fa-exclamation-triangle',
-            description: 'Apply threat detection rules',
+            description: 'Apply security rules and threat detection',
             count: workflowStats.rules_matched_count || 0,
             label: 'Rule Matches',
             status: workflowStats.rules_matched_count !== undefined ? 'complete' : 'pending',
-            color: 'warning',
-            elementId: 'stage-security'
-        },
-        {
-            name: 'Wordlist Analysis',
-            icon: 'fas fa-tags',
-            description: 'Custom keyword matching',
-            count: workflowStats.wordlist_matches_count || 0,
-            label: 'Keyword Matches',
-            status: workflowStats.wordlist_matches_count !== undefined ? 'complete' : 'pending',
-            color: 'purple',
-            elementId: 'stage-wordlist'
+            color: 'warning'
         },
         {
             name: 'ML Analysis',
             icon: 'fas fa-brain',
-            description: 'Machine learning risk scoring',
-            count: workflowStats.ml_analyzed_count || 0,
-            label: 'Records Analyzed',
-            status: workflowStats.ml_analyzed_count !== undefined ? 'complete' : 'pending',
-            color: 'danger',
-            elementId: 'stage-ml'
-        },
-        {
-            name: 'Case Generation',
-            icon: 'fas fa-folder-open',
-            description: 'Create security cases',
-            count: workflowStats.cases_generated_count || 0,
-            label: 'Cases Created',
-            status: workflowStats.cases_generated_count !== undefined ? 'complete' : 'pending',
-            color: 'primary',
-            elementId: 'stage-cases'
-        },
-        {
-            name: 'Final Validation',
-            icon: 'fas fa-check-double',
-            description: 'Data integrity check',
-            count: workflowStats.validation_score || 0,
-            label: 'Validation Score',
-            status: workflowStats.validation_score !== undefined ? 'complete' : 'pending',
-            color: 'success',
-            elementId: 'stage-validation'
+            description: 'Machine learning anomaly detection',
+            count: workflowStats.critical_cases_count || 0,
+            label: 'Critical Cases',
+            status: workflowStats.critical_cases_count !== undefined ? 'complete' : 'pending',
+            color: 'danger'
         }
     ];
 
     workflowContainer.innerHTML = stages.map(stage => `
-        <div class="col-md-6 col-xl-3">
-            <div class="card h-100 stage-card" id="${stage.elementId}">
+        <div class="col-md-3 col-6">
+            <div class="card h-100 border-${stage.color}">
                 <div class="card-body text-center">
-                    <div class="stage-icon-wrapper mb-2">
-                        <i class="${stage.icon} fa-2x text-${stage.color}" id="${stage.elementId.replace('stage-', '')}-icon"></i>
-                        <div class="stage-number">${stages.indexOf(stage) + 1}</div>
+                    <div class="mb-2">
+                        <i class="${stage.icon} fa-2x text-${stage.color}"></i>
                     </div>
                     <h6 class="card-title">${stage.name}</h6>
                     <p class="text-muted small">${stage.description}</p>
-                    <h4 class="text-${stage.color}">${stage.count}</h4>
+                    <h3 class="text-${stage.color}">${stage.count}</h3>
                     <small class="text-muted">${stage.label}</small>
                     <div class="mt-2">
-                        ${stage.status === 'complete' ? `
-                            <span class="badge bg-success"><i class="fas fa-check"></i> Complete</span>
-                        ` : `
-                            <span class="badge bg-secondary"><i class="fas fa-clock"></i> Pending</span>
-                        `}
-                    </div>
-                    <div class="completion-indicator" id="${stage.elementId.replace('stage-', '')}-complete" style="display: none;">
-                        <i class="fas fa-check-circle text-success"></i>
-                        <small class="text-success">Complete</small>
+                        ${stage.status === 'complete' ? 
+                            '<span class="badge bg-success"><i class="fas fa-check"></i> Complete</span>' : 
+                            '<span class="badge bg-secondary"><i class="fas fa-clock"></i> Pending</span>'
+                        }
                     </div>
                 </div>
             </div>
         </div>
     `).join('');
-
-    // Update workflow progress bar
-    updateWorkflowProgressBar(workflowStats);
-}
-
-function updateWorkflowProgressBar(workflowStats) {
-    const progressBarFill = document.querySelector('.workflow-progress-fill');
-    if (!progressBarFill) return;
-
-    let completedStages = 0;
-    if (workflowStats.ingested_count !== undefined) completedStages++;
-    if (workflowStats.excluded_count !== undefined) completedStages++;
-    if (workflowStats.whitelisted_count !== undefined) completedStages++;
-    if (workflowStats.rules_matched_count !== undefined) completedStages++;
-    if (workflowStats.wordlist_matches_count !== undefined) completedStages++;
-    if (workflowStats.ml_analyzed_count !== undefined) completedStages++;
-    if (workflowStats.cases_generated_count !== undefined) completedStages++;
-    if (workflowStats.validation_score !== undefined) completedStages++;
-
-    const progressPercent = (completedStages / 8) * 100;
-    progressBarFill.style.width = `${progressPercent}%`;
 }
 
 function refreshStatus() {

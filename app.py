@@ -33,56 +33,48 @@ if database_url.startswith('sqlite:///'):
     db_path = database_url.replace('sqlite:///', '')
     db_dir = os.path.dirname(db_path)
 
-    try:
-        # Create directory with proper permissions
-        os.makedirs(db_dir, mode=0o755, exist_ok=True)
+try:
+    # Create directory with proper permissions
+    os.makedirs(db_dir, mode=0o755, exist_ok=True)
+    
+    # Create database file if it doesn't exist
+    if not os.path.exists(db_path):
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
+        conn.commit()
+        conn.close()
+        # Set proper file permissions
+        os.chmod(db_path, 0o664)
+        print(f"✓ Created database file: {db_path}")
+    else:
+        # Test existing database file
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.execute("SELECT 1")
+        conn.close()
+        print(f"✓ Database file accessible: {db_path}")
         
-        # Create database file if it doesn't exist
-        if not os.path.exists(db_path):
-            import sqlite3
-            conn = sqlite3.connect(db_path)
-            conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
-            conn.commit()
-            conn.close()
-            # Set proper file permissions
-            os.chmod(db_path, 0o664)
-            print(f"✓ Created database file: {db_path}")
-        else:
-            # Test existing database file
-            import sqlite3
-            conn = sqlite3.connect(db_path)
-            conn.execute("SELECT 1")
-            conn.close()
-            print(f"✓ Database file accessible: {db_path}")
-            
-    except Exception as e:
-        print(f"✗ Database setup error: {e}")
-        # Try to recreate the database file
-        try:
-            if os.path.exists(db_path):
-                os.remove(db_path)
-            import sqlite3
-            conn = sqlite3.connect(db_path)
-            conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
-            conn.commit()
-            conn.close()
-            os.chmod(db_path, 0o664)
-            print(f"✓ Recreated database file: {db_path}")
-        except Exception as e2:
-            print(f"✗ Failed to recreate database: {e2}")
-else:
-    print(f"✓ Using PostgreSQL database: {database_url[:50]}...")
+except Exception as e:
+    print(f"✗ Database setup error: {e}")
+    # Try to recreate the database file
+    try:
+        if os.path.exists(db_path):
+            os.remove(db_path)
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
+        conn.commit()
+        conn.close()
+        os.chmod(db_path, 0o664)
+        print(f"✓ Recreated database file: {db_path}")
+    except Exception as e2:
+        print(f"✗ Failed to recreate database: {e2}")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
-    "pool_size": 20,  # Increased pool size for large datasets
-    "max_overflow": 40,  # Allow more overflow connections
-    "pool_timeout": 60,  # Longer timeout for busy periods
-    "connect_args": {
-        "connect_timeout": 300  # 5 minute connection timeout for large datasets
-    } if database_url and "postgresql" in database_url else {}
 }
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'

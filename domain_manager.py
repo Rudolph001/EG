@@ -38,10 +38,6 @@ class DomainManager:
             'domain_reputation': 0.1
         }
 
-    def apply_whitelist(self, session_id):
-        """Apply whitelist filtering to session records (alias for compatibility)"""
-        return self.apply_whitelist_filtering(session_id)
-    
     def apply_whitelist_filtering(self, session_id):
         """Apply whitelist filtering to session records"""
         try:
