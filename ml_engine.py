@@ -78,10 +78,15 @@ class MLEngine:
                 db.session.commit()
                 return {'processing_stats': {'ml_records_analyzed': len(records)}}
 
-            # Fast mode: limit records for processing speed
+            # Fast mode: limit records for processing speed and use simplified analysis
             if self.fast_mode and len(records) > config.max_ml_records:
                 logger.info(f"Fast mode: Processing sample of {config.max_ml_records} records out of {len(records)}")
                 records = records[:config.max_ml_records]
+            
+            # In ultra-fast mode, use simplified risk scoring instead of full ML
+            if config.skip_complex_ml:
+                logger.info(f"Ultra-fast mode: Using simplified risk scoring for {len(records)} records")
+                return self._apply_simplified_risk_scoring(records)
 
             # Process records in chunks to prevent memory issues and timeouts
             chunk_size = getattr(config, 'ml_chunk_size', 2000)
@@ -731,6 +736,51 @@ class MLEngine:
         else:
             return 'Low'
     
+    def _apply_simplified_risk_scoring(self, records):
+        """Apply simplified risk scoring for ultra-fast processing"""
+        try:
+            logger.info(f"Applying simplified risk scoring to {len(records)} records")
+            
+            for record in records:
+                if record.ml_risk_score is None:
+                    # Calculate basic risk score without ML
+                    basic_risk = self._calculate_basic_risk_score(record)
+                    record.ml_risk_score = basic_risk
+                    record.risk_level = self._get_risk_level(basic_risk)
+                    record.ml_explanation = f'Simplified risk assessment: {record.risk_level} risk'
+            
+            # Commit all records at once
+            db.session.commit()
+            logger.info(f"Applied simplified risk scores to {len(records)} records")
+            
+            # Generate simple stats
+            critical_count = sum(1 for r in records if r.ml_risk_score > self.risk_thresholds['critical'])
+            high_count = sum(1 for r in records if r.ml_risk_score > self.risk_thresholds['high'])
+            
+            return {
+                'processing_stats': {
+                    'ml_records_analyzed': len(records),
+                    'simplified_scoring_used': True,
+                    'critical_cases': critical_count,
+                    'high_risk_cases': high_count
+                },
+                'insights': {
+                    'summary': 'Simplified risk scoring completed for maximum speed',
+                    'key_findings': [f'Processed {len(records)} records with simplified scoring'],
+                    'recommendations': ['Full ML analysis available in normal mode']
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in simplified risk scoring: {str(e)}")
+            return {
+                'processing_stats': {
+                    'ml_records_analyzed': 0,
+                    'error': str(e)
+                },
+                'insights': {'error': f'Simplified scoring failed: {str(e)}'}
+            }
+
     def _combine_chunk_insights(self, chunk_insights_list):
         """Combine insights from multiple chunks into final insights"""
         try:

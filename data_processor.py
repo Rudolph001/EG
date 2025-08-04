@@ -18,7 +18,11 @@ class DataProcessor:
     def __init__(self):
         self.chunk_size = config.chunk_size
         self.batch_commit_size = config.batch_commit_size
-        logger.info(f"DataProcessor initialized with config: {config.__dict__}")
+        # Cache keywords globally to avoid repeated DB queries
+        self._risk_keywords_cache = None
+        self._exclusion_keywords_cache = None
+        self._keywords_cached = False
+        logger.info(f"DataProcessor initialized with config: {config.get_config_summary()}")
     
     def process_csv(self, session_id, file_path):
         """Process CSV file with comprehensive analysis pipeline"""
@@ -153,16 +157,23 @@ class DataProcessor:
     def _apply_custom_wordlist_analysis(self, record_data):
         """Apply custom wordlist matching for risk and exclusion analysis"""
         try:
-            # Get active wordlists from database
-            risk_keywords = AttachmentKeyword.query.filter_by(
-                is_active=True,
-                keyword_type='risk'
-            ).all()
+            # Use cached keywords to avoid repeated database queries
+            if not self._keywords_cached:
+                self._risk_keywords_cache = AttachmentKeyword.query.filter_by(
+                    is_active=True,
+                    keyword_type='risk'
+                ).all()
+                
+                self._exclusion_keywords_cache = AttachmentKeyword.query.filter_by(
+                    is_active=True,
+                    keyword_type='exclusion'
+                ).all()
+                
+                self._keywords_cached = True
+                logger.info(f"Cached {len(self._risk_keywords_cache)} risk keywords and {len(self._exclusion_keywords_cache)} exclusion keywords")
             
-            exclusion_keywords = AttachmentKeyword.query.filter_by(
-                is_active=True,
-                keyword_type='exclusion'
-            ).all()
+            risk_keywords = self._risk_keywords_cache
+            exclusion_keywords = self._exclusion_keywords_cache
             
             # Initialize wordlist fields
             subject_matches = []
