@@ -805,6 +805,47 @@ function updateWhitelistAnalysisDisplay(data) {
     }
 }
 
+function formatAttachments(attachments) {
+    // Handle null, undefined, empty, or "-" cases
+    if (!attachments || attachments === '' || attachments === '-' || attachments === 'None') {
+        return '<span class="text-muted"><i class="fas fa-ban"></i> No attachments</span>';
+    }
+    
+    // If it's a string with multiple attachments (comma or semicolon separated)
+    if (typeof attachments === 'string') {
+        const attachmentList = attachments.split(/[,;]/).map(att => att.trim()).filter(att => att && att !== '-');
+        
+        if (attachmentList.length === 0) {
+            return '<span class="text-muted"><i class="fas fa-ban"></i> No attachments</span>';
+        }
+        
+        if (attachmentList.length === 1) {
+            return `<span class="text-success"><i class="fas fa-paperclip"></i> ${attachmentList[0]}</span>`;
+        }
+        
+        // Multiple attachments
+        return `<span class="text-success"><i class="fas fa-paperclip"></i> ${attachmentList.length} attachments:</span><br>` +
+               attachmentList.map(att => `<small class="text-muted">• ${att}</small>`).join('<br>');
+    }
+    
+    // If it's an array
+    if (Array.isArray(attachments)) {
+        if (attachments.length === 0) {
+            return '<span class="text-muted"><i class="fas fa-ban"></i> No attachments</span>';
+        }
+        
+        if (attachments.length === 1) {
+            return `<span class="text-success"><i class="fas fa-paperclip"></i> ${attachments[0]}</span>`;
+        }
+        
+        return `<span class="text-success"><i class="fas fa-paperclip"></i> ${attachments.length} attachments:</span><br>` +
+               attachments.map(att => `<small class="text-muted">• ${att}</small>`).join('<br>');
+    }
+    
+    // Fallback - just display as is
+    return `<span class="text-info"><i class="fas fa-paperclip"></i> ${attachments}</span>`;
+}
+
 function displayCaseDetailsModal(caseData) {
     const modalHtml = `
         <div class="modal fade" id="caseDetailsModal" tabindex="-1">
@@ -835,7 +876,7 @@ function displayCaseDetailsModal(caseData) {
                         <div class="row">
                             <div class="col-12">
                                 <h6>Attachments</h6>
-                                <p>${caseData.attachments || 'No attachments'}</p>
+                                <p>${formatAttachments(caseData.attachments)}</p>
                                 <h6>ML Explanation</h6>
                                 <p>${caseData.ml_explanation || 'No explanation available'}</p>
                                 <h6>Justification</h6>
