@@ -29,6 +29,7 @@ class DataProcessor:
             logger.info(f"Starting CSV processing for session {session_id}")
 
             # Update session status
+            from models import ProcessingSession
             session = ProcessingSession.query.get(session_id)
             if not session:
                 raise Exception(f"Session {session_id} not found")
@@ -74,6 +75,7 @@ class DataProcessor:
 
         except Exception as e:
             logger.error(f"Error processing CSV for session {session_id}: {str(e)}")
+            from models import ProcessingSession
             session = ProcessingSession.query.get(session_id)
             if session:
                 session.status = 'error'
