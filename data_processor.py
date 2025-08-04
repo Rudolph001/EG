@@ -357,7 +357,7 @@ class DataProcessor:
         try:
             # Get text content to analyze
             subject_text = (record.subject or '').lower()
-            attachment_text = (record.attachment_name or '').lower()
+            attachment_text = (record.attachments or '').lower()
             
             for keyword_obj in keywords:
                 keyword = keyword_obj.keyword.lower()
