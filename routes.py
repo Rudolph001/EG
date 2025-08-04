@@ -4479,4 +4479,3 @@ def api_bulk_unexclude():
         logger.error(f"Error bulk un-excluding emails: {str(e)}")
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
-
