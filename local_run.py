@@ -51,19 +51,44 @@ def main():
     # Setup environment
     setup_local_environment()
     
+    # Verify database file can be created
+    db_path = Path("instance/email_guardian.db")
+    try:
+        # Test database connection
+        import sqlite3
+        conn = sqlite3.connect(str(db_path))
+        conn.close()
+        print("✓ Database connection test successful")
+    except Exception as e:
+        print(f"✗ Database connection failed: {e}")
+        print("Creating database file...")
+        try:
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            db_path.touch()
+        except Exception as create_error:
+            print(f"✗ Failed to create database file: {create_error}")
+            sys.exit(1)
+    
     # Import and run the app
     try:
         from app import app
+        
+        # Initialize database tables
+        with app.app_context():
+            from models import db
+            db.create_all()
+            print("✓ Database tables created/verified")
+        
         print("Starting local development server...")
         print("Database: SQLite (instance/email_guardian.db)")
-        print("Access the application at: http://localhost:5000")
+        print("Access the application at: http://0.0.0.0:5000")
         print("Press Ctrl+C to stop the server")
         print()
         
         # Run the Flask development server
         app.run(
             debug=True,
-            host='127.0.0.1',
+            host='0.0.0.0',
             port=5000,
             use_reloader=True
         )
@@ -74,6 +99,7 @@ def main():
         sys.exit(1)
     except Exception as e:
         print(f"✗ Failed to start application: {e}")
+        print(f"Error details: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
