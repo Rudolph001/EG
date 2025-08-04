@@ -104,7 +104,7 @@ class DataProcessor:
             logger.info(f"Data Ingestion completed: {processed_count} records processed")
             
             # Apply remaining 7-stage processing workflow
-            self._apply_8_stage_workflow(session_id)
+            self._apply_9_stage_workflow(session_id)
             
             # Final completion
             session = self._get_session_with_retry(session_id)
@@ -217,7 +217,7 @@ class DataProcessor:
             if processed_records >= total_records:
                 logger.info(f"Data ingestion already complete, proceeding to workflow stages")
                 self.workflow_manager.complete_stage(session_id, 1)
-                self._apply_8_stage_workflow(session_id)
+                self._apply_9_stage_workflow(session_id)
                 return
             
             # Resume data ingestion from current position
@@ -257,7 +257,7 @@ class DataProcessor:
             
             # Complete data ingestion and continue with workflow
             self.workflow_manager.complete_stage(session_id, 1)
-            self._apply_8_stage_workflow(session_id)
+            self._apply_9_stage_workflow(session_id)
             
             logger.info(f"Resume processing completed for session {session_id}")
             
@@ -428,10 +428,10 @@ class DataProcessor:
             logger.warning(f"Error parsing datetime {date_value}: {str(e)}")
             return None
     
-    def _apply_8_stage_workflow(self, session_id):
-        """Apply the comprehensive 8-stage processing workflow"""
+    def _apply_9_stage_workflow(self, session_id):
+        """Apply the comprehensive 9-stage processing workflow"""
         try:
-            logger.info(f"Starting 8-stage workflow for session {session_id}")
+            logger.info(f"Starting 9-stage workflow for session {session_id}")
             
             # Stage 2: Exclusion Rules (5-20%)
             self.workflow_manager.start_stage(session_id, 2)
@@ -448,30 +448,35 @@ class DataProcessor:
             self._apply_security_rules(session_id)
             self.workflow_manager.complete_stage(session_id, 4)
             
-            # Stage 5: Wordlist Analysis (50-65%)
+            # Stage 5: Risk Keywords (50-60%)
             self.workflow_manager.start_stage(session_id, 5)
-            self._apply_wordlist_analysis(session_id)
+            self._apply_risk_keywords(session_id)
             self.workflow_manager.complete_stage(session_id, 5)
             
-            # Stage 6: ML Analysis (65-80%)
+            # Stage 6: Exclusion Keywords (60-70%)
             self.workflow_manager.start_stage(session_id, 6)
-            self._apply_ml_analysis(session_id)
+            self._apply_exclusion_keywords(session_id)
             self.workflow_manager.complete_stage(session_id, 6)
             
-            # Stage 7: Case Generation (80-90%)
+            # Stage 7: ML Analysis (70-80%)
             self.workflow_manager.start_stage(session_id, 7)
-            self._generate_cases(session_id)
+            self._apply_ml_analysis(session_id)
             self.workflow_manager.complete_stage(session_id, 7)
             
-            # Stage 8: Final Validation (90-100%)
+            # Stage 8: Case Generation (80-90%)
             self.workflow_manager.start_stage(session_id, 8)
-            self._final_validation(session_id)
+            self._generate_cases(session_id)
             self.workflow_manager.complete_stage(session_id, 8)
             
-            logger.info(f"8-stage workflow completed for session {session_id}")
+            # Stage 9: Final Validation (90-100%)
+            self.workflow_manager.start_stage(session_id, 9)
+            self._final_validation(session_id)
+            self.workflow_manager.complete_stage(session_id, 9)
+            
+            logger.info(f"9-stage workflow completed for session {session_id}")
             
         except Exception as e:
-            logger.error(f"Error in 8-stage workflow for session {session_id}: {str(e)}")
+            logger.error(f"Error in 9-stage workflow for session {session_id}: {str(e)}")
             session = ProcessingSession.query.get(session_id)
             if session and session.current_stage > 0:
                 self.workflow_manager.error_stage(session_id, session.current_stage, str(e))
@@ -513,31 +518,26 @@ class DataProcessor:
             logger.error(f"Error in security rules stage: {str(e)}")
             raise
     
-    def _apply_wordlist_analysis(self, session_id):
-        """Stage 5: Apply wordlist analysis using keywords from AttachmentKeyword model"""
+    def _apply_risk_keywords(self, session_id):
+        """Stage 5: Apply risk keywords analysis and scoring"""
         try:
-            logger.info(f"Starting wordlist analysis for session {session_id}")
+            logger.info(f"Starting risk keywords analysis for session {session_id}")
             
-            # Get active keywords from AttachmentKeyword model
-            keywords = AttachmentKeyword.query.filter_by(is_active=True).all()
-            if not keywords:
-                logger.warning("No active keywords found in AttachmentKeyword table")
+            # Get active risk keywords from AttachmentKeyword model
+            risk_keywords = AttachmentKeyword.query.filter_by(is_active=True, keyword_type='risk').all()
+            if not risk_keywords:
+                logger.warning("No active risk keywords found in AttachmentKeyword table")
                 return
             
-            logger.info(f"Found {len(keywords)} active keywords for analysis")
+            logger.info(f"Found {len(risk_keywords)} active risk keywords for analysis")
             
-            # Separate keywords by type
-            risk_keywords = [k for k in keywords if k.keyword_type == 'risk']
-            exclusion_keywords = [k for k in keywords if k.keyword_type == 'exclusion']
+            # Get records to analyze (not excluded)
+            records = EmailRecord.query.filter_by(session_id=session_id).filter(
+                db.or_(EmailRecord.excluded_by_rule.is_(None), EmailRecord.excluded_by_rule == '')
+            ).all()
+            logger.info(f"Analyzing {len(records)} non-excluded records for risk keywords")
             
-            logger.info(f"Risk keywords: {len(risk_keywords)}, Exclusion keywords: {len(exclusion_keywords)}")
-            
-            # Get records to analyze
-            records = EmailRecord.query.filter_by(session_id=session_id).all()
-            logger.info(f"Analyzing {len(records)} records for wordlist matches")
-            
-            wordlist_matches_count = 0
-            exclusion_matches_count = 0
+            risk_matches_count = 0
             
             # Process records in batches for performance
             batch_size = 1000
@@ -551,28 +551,77 @@ class DataProcessor:
                     if subject_matches or attachment_matches:
                         record.wordlist_subject = ', '.join(subject_matches) if subject_matches else None
                         record.wordlist_attachment = ', '.join(attachment_matches) if attachment_matches else None
-                        wordlist_matches_count += 1
-                    
+                        
+                        # Calculate risk score based on matched keywords
+                        max_risk_score = 0
+                        for keyword_obj in risk_keywords:
+                            if keyword_obj.keyword in (subject_matches + attachment_matches):
+                                max_risk_score = max(max_risk_score, keyword_obj.risk_score or 1)
+                        
+                        # Store the highest risk score from matched keywords
+                        if max_risk_score > 0:
+                            record.ml_risk_score = min(1.0, max_risk_score / 10.0)  # Normalize to 0-1 scale
+                        
+                        risk_matches_count += 1
+                
+                # Commit batch
+                db.session.commit()
+                logger.info(f"Processed risk keywords batch {i//batch_size + 1}: {min(i + batch_size, len(records))}/{len(records)} records")
+            
+            logger.info(f"Risk keywords analysis completed: {risk_matches_count} records with risk keyword matches")
+            
+        except Exception as e:
+            logger.error(f"Error in risk keywords analysis stage: {str(e)}")
+            db.session.rollback()
+            raise
+    
+    def _apply_exclusion_keywords(self, session_id):
+        """Stage 6: Apply exclusion keywords to exclude emails"""
+        try:
+            logger.info(f"Starting exclusion keywords analysis for session {session_id}")
+            
+            # Get active exclusion keywords from AttachmentKeyword model
+            exclusion_keywords = AttachmentKeyword.query.filter_by(is_active=True, keyword_type='exclusion').all()
+            if not exclusion_keywords:
+                logger.warning("No active exclusion keywords found in AttachmentKeyword table")
+                return
+            
+            logger.info(f"Found {len(exclusion_keywords)} active exclusion keywords for analysis")
+            
+            # Get records to analyze (not already excluded)
+            records = EmailRecord.query.filter_by(session_id=session_id).filter(
+                db.or_(EmailRecord.excluded_by_rule.is_(None), EmailRecord.excluded_by_rule == '')
+            ).all()
+            logger.info(f"Analyzing {len(records)} non-excluded records for exclusion keywords")
+            
+            exclusion_matches_count = 0
+            
+            # Process records in batches for performance
+            batch_size = 1000
+            for i in range(0, len(records), batch_size):
+                batch_records = records[i:i + batch_size]
+                
+                for record in batch_records:
                     # Apply exclusion keywords
                     exclusion_subject_matches, exclusion_attachment_matches = self._analyze_record_keywords(record, exclusion_keywords)
                     
                     if exclusion_subject_matches or exclusion_attachment_matches:
-                        record.excluded_by_rule = f"Wordlist exclusion: {', '.join(exclusion_subject_matches + exclusion_attachment_matches)}"
+                        record.excluded_by_rule = f"Exclusion keywords: {', '.join(exclusion_subject_matches + exclusion_attachment_matches)}"
                         exclusion_matches_count += 1
                 
                 # Commit batch
                 db.session.commit()
-                logger.info(f"Processed batch {i//batch_size + 1}: {min(i + batch_size, len(records))}/{len(records)} records")
+                logger.info(f"Processed exclusion keywords batch {i//batch_size + 1}: {min(i + batch_size, len(records))}/{len(records)} records")
             
-            logger.info(f"Wordlist analysis completed: {wordlist_matches_count} records with wordlist matches, {exclusion_matches_count} records excluded")
+            logger.info(f"Exclusion keywords analysis completed: {exclusion_matches_count} records excluded by keywords")
             
         except Exception as e:
-            logger.error(f"Error in wordlist analysis stage: {str(e)}")
+            logger.error(f"Error in exclusion keywords analysis stage: {str(e)}")
             db.session.rollback()
             raise
     
     def _apply_ml_analysis(self, session_id):
-        """Stage 6: Apply ML analysis"""
+        """Stage 7: Apply ML analysis"""
         try:
             from ml_engine import MLEngine
             ml_engine = MLEngine()
@@ -584,7 +633,7 @@ class DataProcessor:
             raise
     
     def _generate_cases(self, session_id):
-        """Stage 7: Generate security cases"""
+        """Stage 8: Generate security cases"""
         try:
             # Cases are automatically generated based on risk levels
             records = EmailRecord.query.filter_by(session_id=session_id).all()
@@ -595,7 +644,7 @@ class DataProcessor:
             raise
     
     def _final_validation(self, session_id):
-        """Stage 8: Final validation and cleanup"""
+        """Stage 9: Final validation and cleanup"""
         try:
             session = ProcessingSession.query.get(session_id)
             if not session:

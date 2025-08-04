@@ -12,9 +12,9 @@ from app import db
 logger = logging.getLogger(__name__)
 
 class WorkflowManager:
-    """Manages the 8-stage sequential workflow for email processing"""
+    """Manages the 9-stage sequential workflow for email processing"""
     
-    # Define the 8 workflow stages with their progress ranges
+    # Define the 9 workflow stages with their progress ranges
     WORKFLOW_STAGES = {
         1: {
             'name': 'Data Ingestion',
@@ -45,27 +45,34 @@ class WorkflowManager:
             'icon': 'fas fa-shield-virus'
         },
         5: {
-            'name': 'Wordlist Analysis',
-            'description': 'Analyzing keywords and content',
+            'name': 'Risk Keywords',
+            'description': 'Analyzing risk keywords and scoring',
             'progress_start': 50,
-            'progress_end': 65,
-            'icon': 'fas fa-list-alt'
+            'progress_end': 60,
+            'icon': 'fas fa-exclamation-triangle'
         },
         6: {
+            'name': 'Exclusion Keywords',
+            'description': 'Processing exclusion keywords',
+            'progress_start': 60,
+            'progress_end': 70,
+            'icon': 'fas fa-ban'
+        },
+        7: {
             'name': 'ML Analysis',
             'description': 'Machine learning risk assessment',
-            'progress_start': 65,
+            'progress_start': 70,
             'progress_end': 80,
             'icon': 'fas fa-brain'
         },
-        7: {
+        8: {
             'name': 'Case Generation',
             'description': 'Creating security cases',
             'progress_start': 80,
             'progress_end': 90,
             'icon': 'fas fa-folder-open'
         },
-        8: {
+        9: {
             'name': 'Final Validation',
             'description': 'Validating and finalizing results',
             'progress_start': 90,
