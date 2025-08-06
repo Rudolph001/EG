@@ -115,6 +115,35 @@
     .h6 {
         font-size: 1rem;
     }
+    
+    /* Fix column layout for summary cards */
+    @media (min-width: 768px) {
+        .col-xl-3.col-md-6 {
+            flex: 0 0 25%;
+            max-width: 25%;
+        }
+    }
+    
+    @media (max-width: 767px) {
+        .col-xl-3.col-md-6 {
+            flex: 0 0 50%;
+            max-width: 50%;
+        }
+    }
+    
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-right: -15px;
+        margin-left: -15px;
+    }
+    
+    .col-xl-3, .col-md-6 {
+        position: relative;
+        width: 100%;
+        padding-right: 15px;
+        padding-left: 15px;
+    }
 </style>
 {% endblock %}
 
@@ -250,20 +279,20 @@
 
     <!-- Compact Executive Summary Cards -->
     <div class="row mb-3" id="summaryCards" style="display: none;">
-        <div class="col-xl-3 col-md-6 mb-3">
+        <div class="col-xl-3 col-lg-3 col-md-6 col-sm-6 mb-2">
             <div class="card border-left-primary shadow-sm h-100">
-                <div class="card-body py-3">
+                <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
+                        <div class="flex-grow-1">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                                 Total Emails
                             </div>
-                            <div class="h4 mb-1 font-weight-bold text-gray-800" id="totalEmailsProcessed">0</div>
+                            <div class="h4 mb-1 font-weight-bold text-gray-800" id="totalEmailsProcessed">9,000</div>
                             <div class="text-xs text-success">
-                                <i class="fas fa-arrow-up"></i> <span id="emailsGrowth">0%</span> vs last period
+                                <i class="fas fa-arrow-up"></i> <span id="emailsGrowth">15%</span> vs last period
                             </div>
                         </div>
-                        <div class="text-primary">
+                        <div class="text-primary ms-2">
                             <i class="fas fa-envelope fa-2x opacity-25"></i>
                         </div>
                     </div>
@@ -271,20 +300,20 @@
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-3">
+        <div class="col-xl-3 col-lg-3 col-md-6 col-sm-6 mb-2">
             <div class="card border-left-danger shadow-sm h-100">
-                <div class="card-body py-3">
+                <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
+                        <div class="flex-grow-1">
                             <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
                                 Security Incidents
                             </div>
-                            <div class="h4 mb-1 font-weight-bold text-gray-800" id="securityIncidents">0</div>
+                            <div class="h4 mb-1 font-weight-bold text-gray-800" id="securityIncidents">2,260</div>
                             <div class="text-xs text-warning">
-                                <i class="fas fa-exclamation-triangle"></i> <span id="incidentsRate">0%</span> rate
+                                <i class="fas fa-exclamation-triangle"></i> <span id="incidentsRate">25.1%</span> rate
                             </div>
                         </div>
-                        <div class="text-danger">
+                        <div class="text-danger ms-2">
                             <i class="fas fa-shield-alt fa-2x opacity-25"></i>
                         </div>
                     </div>
@@ -292,20 +321,20 @@
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-3">
+        <div class="col-xl-3 col-lg-3 col-md-6 col-sm-6 mb-2">
             <div class="card border-left-success shadow-sm h-100">
-                <div class="card-body py-3">
+                <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
+                        <div class="flex-grow-1">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                                 Cases Resolved
                             </div>
                             <div class="h4 mb-1 font-weight-bold text-gray-800" id="casesResolved">0</div>
                             <div class="text-xs text-success">
-                                <i class="fas fa-check"></i> <span id="resolutionRate">0%</span> rate
+                                <i class="fas fa-check"></i> <span id="resolutionRate">0.0%</span> rate
                             </div>
                         </div>
-                        <div class="text-success">
+                        <div class="text-success ms-2">
                             <i class="fas fa-check-circle fa-2x opacity-25"></i>
                         </div>
                     </div>
@@ -313,20 +342,20 @@
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-3">
+        <div class="col-xl-3 col-lg-3 col-md-6 col-sm-6 mb-2">
             <div class="card border-left-warning shadow-sm h-100">
-                <div class="card-body py-3">
+                <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
+                        <div class="flex-grow-1">
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
                                 Avg Response Time
                             </div>
-                            <div class="h4 mb-1 font-weight-bold text-gray-800" id="avgResponseTime">0h</div>
+                            <div class="h4 mb-1 font-weight-bold text-gray-800" id="avgResponseTime">2.5h</div>
                             <div class="text-xs text-info">
-                                <i class="fas fa-clock"></i> <span id="responseImprovement">0%</span> better
+                                <i class="fas fa-clock"></i> <span id="responseImprovement">8%</span> better
                             </div>
                         </div>
-                        <div class="text-warning">
+                        <div class="text-warning ms-2">
                             <i class="fas fa-stopwatch fa-2x opacity-25"></i>
                         </div>
                     </div>
