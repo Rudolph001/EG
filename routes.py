@@ -792,30 +792,41 @@ def adaptive_ml_dashboard(session_id):
             'recommendations': []
         }
     
+    # Ensure analytics is always a dictionary before serialization
+    if not isinstance(analytics, dict):
+        analytics = {
+            'model_evolution': {'improvement_over_time': [], 'weight_progression': [], 'accuracy_trends': []},
+            'learning_trends': {'learning_sessions': 0, 'total_decisions_learned': 0, 'total_escalations': 0, 'total_cleared': 0, 'learning_rate': 0.0},
+            'decision_patterns': {'escalation_reasons': {}, 'pattern_analysis': {}, 'confidence_distribution': []},
+            'performance_metrics': {'model_trained': False, 'adaptive_weight': 0.1, 'learning_confidence': 0.0, 'latest_session_feedback': 0, 'model_maturity': 'Initial'},
+            'feature_insights': {'top_features': [], 'feature_weights': {}, 'correlation_matrix': []},
+            'recommendations': []
+        }
+    
     # Create safe analytics data for JavaScript serialization
     safe_analytics = {
         'model_evolution': {
-            'improvement_over_time': analytics.get('model_evolution', {}).get('improvement_over_time', []),
-            'weight_progression': analytics.get('model_evolution', {}).get('weight_progression', []),
-            'accuracy_trends': analytics.get('model_evolution', {}).get('accuracy_trends', [])
+            'improvement_over_time': analytics.get('model_evolution', {}).get('improvement_over_time', []) if isinstance(analytics.get('model_evolution'), dict) else [],
+            'weight_progression': analytics.get('model_evolution', {}).get('weight_progression', []) if isinstance(analytics.get('model_evolution'), dict) else [],
+            'accuracy_trends': analytics.get('model_evolution', {}).get('accuracy_trends', []) if isinstance(analytics.get('model_evolution'), dict) else []
         },
         'learning_trends': {
-            'learning_sessions': analytics.get('learning_trends', {}).get('learning_sessions', 0),
-            'total_decisions_learned': analytics.get('learning_trends', {}).get('total_decisions_learned', 0),
-            'total_escalations': analytics.get('learning_trends', {}).get('total_escalations', 0),
-            'total_cleared': analytics.get('learning_trends', {}).get('total_cleared', 0),
-            'learning_rate': analytics.get('learning_trends', {}).get('learning_rate', 0.0)
+            'learning_sessions': analytics.get('learning_trends', {}).get('learning_sessions', 0) if isinstance(analytics.get('learning_trends'), dict) else 0,
+            'total_decisions_learned': analytics.get('learning_trends', {}).get('total_decisions_learned', 0) if isinstance(analytics.get('learning_trends'), dict) else 0,
+            'total_escalations': analytics.get('learning_trends', {}).get('total_escalations', 0) if isinstance(analytics.get('learning_trends'), dict) else 0,
+            'total_cleared': analytics.get('learning_trends', {}).get('total_cleared', 0) if isinstance(analytics.get('learning_trends'), dict) else 0,
+            'learning_rate': analytics.get('learning_trends', {}).get('learning_rate', 0.0) if isinstance(analytics.get('learning_trends'), dict) else 0.0
         },
-        'decision_patterns': analytics.get('decision_patterns', {}),
+        'decision_patterns': analytics.get('decision_patterns', {}) if isinstance(analytics.get('decision_patterns'), dict) else {},
         'performance_metrics': {
-            'model_trained': analytics.get('performance_metrics', {}).get('model_trained', False),
-            'adaptive_weight': analytics.get('performance_metrics', {}).get('adaptive_weight', 0.1),
-            'learning_confidence': analytics.get('performance_metrics', {}).get('learning_confidence', 0.0),
-            'latest_session_feedback': analytics.get('performance_metrics', {}).get('latest_session_feedback', 0),
-            'model_maturity': analytics.get('performance_metrics', {}).get('model_maturity', 'Initial')
+            'model_trained': analytics.get('performance_metrics', {}).get('model_trained', False) if isinstance(analytics.get('performance_metrics'), dict) else False,
+            'adaptive_weight': analytics.get('performance_metrics', {}).get('adaptive_weight', 0.1) if isinstance(analytics.get('performance_metrics'), dict) else 0.1,
+            'learning_confidence': analytics.get('performance_metrics', {}).get('learning_confidence', 0.0) if isinstance(analytics.get('performance_metrics'), dict) else 0.0,
+            'latest_session_feedback': analytics.get('performance_metrics', {}).get('latest_session_feedback', 0) if isinstance(analytics.get('performance_metrics'), dict) else 0,
+            'model_maturity': analytics.get('performance_metrics', {}).get('model_maturity', 'Initial') if isinstance(analytics.get('performance_metrics'), dict) else 'Initial'
         },
-        'feature_insights': analytics.get('feature_insights', {}),
-        'recommendations': analytics.get('recommendations', [])
+        'feature_insights': analytics.get('feature_insights', {}) if isinstance(analytics.get('feature_insights'), dict) else {},
+        'recommendations': analytics.get('recommendations', []) if isinstance(analytics.get('recommendations'), list) else []
     }
     
     return render_template('adaptive_ml_dashboard.html',
