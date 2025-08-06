@@ -25,6 +25,14 @@ Preferred communication style: Simple, everyday language.
 - Added flagging columns (`is_flagged`, `flag_reason`, `flagged_at`, `flagged_by`, `previously_flagged`) to both databases
 - Enhanced timestamp parsing for format: `2025-08-04T23:58:20.543+0200`
 
+**Recent Improvements (2025-08-06)**:
+- ✓ Updated Case Manager case view modal to match Flag Event dashboard format exactly
+- ✓ Added "Leaver" badge display for senders who are leavers in grouped email view
+- ✓ Implemented Flag Sender functionality that properly updates Flag Event dashboard
+- ✓ Enhanced grouped cases API to include leaver status information
+- ✓ Added comprehensive sender flagging endpoint (`/api/flag-sender/<session_id>`)
+- ✓ Fixed case view modal layout with proper two-column structure and blue section headers
+
 ## System Architecture
 
 Email Guardian is built on a modular Flask-based architecture, ensuring clear separation of concerns and maintainability.

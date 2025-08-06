@@ -650,11 +650,48 @@ function viewGroupDetails(index) {
     }
 }
 
-function flagSender(senderEmail) {
-    if (confirm(`Flag all emails from sender: ${senderEmail}?`)) {
-        // Add logic to flag all emails from this sender
-        alert(`Flagged all emails from: ${senderEmail}`);
-        // You can implement actual flagging logic here
+async function flagSender(senderEmail) {
+    const flagReason = prompt(`Enter reason for flagging all emails from ${senderEmail}:`);
+    if (!flagReason) {
+        return;
+    }
+    
+    const flaggedBy = prompt('Flagged by (optional):') || 'System User';
+    
+    try {
+        showLoading('Flagging all emails from sender...');
+        
+        const response = await fetch(`/api/flag-sender/${window.currentSessionId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                sender_email: senderEmail,
+                flag_reason: flagReason,
+                flagged_by: flaggedBy
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Failed to flag sender: ' + data.error);
+            return;
+        }
+        
+        showSuccess(`Successfully flagged ${data.flagged_count} emails from ${senderEmail}`);
+        
+        // Reload the page to show updated flags
+        setTimeout(() => {
+            location.reload();
+        }, 2000);
+        
+        hideLoading();
+    } catch (error) {
+        console.error('Error flagging sender:', error);
+        showError('Failed to flag sender');
+        hideLoading();
     }
 }
 
@@ -795,6 +832,7 @@ function createGroupRow(group, index) {
         </td>
         <td>
             <strong>${truncateText(group.sender || 'Unknown', 30)}</strong>
+            ${group.is_leaver ? '<span class="badge bg-warning text-dark ms-2">Leaver</span>' : ''}
             <button class="btn btn-sm btn-outline-warning ms-2" onclick="event.stopPropagation(); flagSender('${group.sender}')" title="Flag Sender">
                 <i class="fas fa-flag"></i>
             </button>

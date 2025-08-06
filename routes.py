@@ -969,7 +969,8 @@ def api_grouped_cases(session_id):
                     'highest_risk_score': 0,
                     'risk_level': 'Low',
                     'case_statuses': set(),
-                    'primary_record': record
+                    'primary_record': record,
+                    'is_leaver': hasattr(record, 'leaver_status') and record.leaver_status == 'Leaver'
                 }
             
             # Add recipient info to group
@@ -4218,6 +4219,50 @@ def generate_professional_report():
     except Exception as e:
         logger.error(f"Error generating professional report: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/flag-sender/<session_id>', methods=['POST'])
+def api_flag_sender(session_id):
+    """Flag all emails from a specific sender"""
+    try:
+        data = request.get_json()
+        sender_email = data.get('sender_email')
+        flag_reason = data.get('flag_reason')
+        flagged_by = data.get('flagged_by', 'System User')
+        
+        if not sender_email or not flag_reason:
+            return jsonify({'error': 'Sender email and flag reason are required'}), 400
+        
+        # Get all records from this sender in the session
+        records_to_flag = EmailRecord.query.filter_by(
+            sender=sender_email,
+            session_id=session_id
+        ).all()
+        
+        if not records_to_flag:
+            return jsonify({'error': f'No emails found from sender {sender_email}'}), 404
+        
+        # Flag all records from this sender
+        flagged_count = 0
+        for record in records_to_flag:
+            record.is_flagged = True
+            record.flag_reason = flag_reason
+            record.flagged_at = datetime.utcnow()
+            record.flagged_by = flagged_by
+            record.previously_flagged = True
+            flagged_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully flagged {flagged_count} emails from {sender_email}',
+            'flagged_count': flagged_count
+        })
+        
+    except Exception as e:
+        logger.error(f"Error flagging sender {sender_email}: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': 'Failed to flag sender', 'details': str(e)}), 500
 
 def _generate_comprehensive_report(sessions):
     """Generate comprehensive professional report data"""
