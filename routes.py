@@ -970,7 +970,7 @@ def api_grouped_cases(session_id):
                     'risk_level': 'Low',
                     'case_statuses': set(),
                     'primary_record': record,
-                    'is_leaver': record.leaver == 'Leaver'
+                    'is_leaver': False  # Will be updated to True if any record is a leaver
                 }
             
             # Add recipient info to group
@@ -990,6 +990,10 @@ def api_grouped_cases(session_id):
             # Update group metadata
             groups[group_key]['record_count'] += 1
             groups[group_key]['case_statuses'].add(record.case_status or 'Active')
+            
+            # Update leaver status - mark as leaver if ANY record in group is a leaver
+            if record.leaver == 'YES':
+                groups[group_key]['is_leaver'] = True
             
             # Track highest risk score in group
             if record.ml_risk_score and record.ml_risk_score > groups[group_key]['highest_risk_score']:
