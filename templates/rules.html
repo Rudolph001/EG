@@ -235,17 +235,10 @@
                     </div>
                     <div class="mb-3 mt-3">
                         <label class="form-label">Conditions</label>
-                        <div class="mb-2">
-                            <select class="form-select" id="globalLogic">
-                                <option value="AND">AND</option>
-                                <option value="OR">OR</option>
-                                <option value="NOT">NOT</option>
-                            </select>
-                        </div>
                         <div id="conditionsContainer">
-                            <div class="condition-group border p-3 mb-2">
+                            <div class="condition-group border p-3 mb-2" data-condition-index="0">
                                 <div class="row">
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
                                         <select class="form-select condition-field">
                                             <option value="sender">Sender</option>
                                             <option value="subject">Subject</option>
@@ -253,6 +246,7 @@
                                             <option value="recipients_email_domain">Recipient Domain</option>
                                             <option value="leaver">Leaver Status</option>
                                             <option value="justification">Justification</option>
+                                            <option value="risk_level">Risk Level</option>
                                         </select>
                                     </div>
                                     <div class="col-md-3">
@@ -268,13 +262,23 @@
                                             <option value="is_not_empty">Is Not Empty</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-4">
-                                        <input type="text" class="form-control condition-value" placeholder="Value">
+                                    <div class="col-md-3">
+                                        <div class="condition-value-container">
+                                            <input type="text" class="form-control condition-value" placeholder="Value">
+                                            <select class="form-select condition-risk-level d-none">
+                                                <option value="Critical">Critical</option>
+                                                <option value="High">High</option>
+                                                <option value="Medium">Medium</option>
+                                                <option value="Low">Low</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div class="col-md-1">
-                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeCondition(this)">
-                                            <i class="fas fa-times"></i>
-                                        </button>
+                                    <div class="col-md-3">
+                                        <div class="d-flex align-items-center">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeCondition(this)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -357,13 +361,6 @@
                     </div>
                     <div class="mb-3 mt-3">
                         <label class="form-label">Conditions</label>
-                         <div class="mb-2">
-                            <select class="form-select" id="editGlobalLogic">
-                                <option value="AND">AND</option>
-                                <option value="OR">OR</option>
-                                <option value="NOT">NOT</option>
-                            </select>
-                        </div>
                         <div id="editConditionsContainer">
                             <!-- Conditions will be populated dynamically -->
                         </div>
@@ -416,17 +413,35 @@ let editingRuleId = null;
 
 function addCondition() {
     const container = document.getElementById('conditionsContainer');
+    const conditionCount = container.children.length;
+    
+    // Add logic connector if this is not the first condition
+    let logicConnectorHtml = '';
+    if (conditionCount > 0) {
+        logicConnectorHtml = `
+            <div class="logic-connector d-flex justify-content-center mb-2">
+                <select class="form-select logic-operator" style="width: auto;">
+                    <option value="AND">AND</option>
+                    <option value="OR">OR</option>
+                    <option value="NOR">NOR</option>
+                </select>
+            </div>
+        `;
+    }
+    
     const conditionHtml = `
-        <div class="condition-group border p-3 mb-2">
+        ${logicConnectorHtml}
+        <div class="condition-group border p-3 mb-2" data-condition-index="${conditionCount}">
             <div class="row">
-                <div class="col-md-4">
-                    <select class="form-select condition-field">
+                <div class="col-md-3">
+                    <select class="form-select condition-field" onchange="toggleValueField(this)">
                         <option value="sender">Sender</option>
                         <option value="subject">Subject</option>
                         <option value="attachments">Attachments</option>
                         <option value="recipients_email_domain">Recipient Domain</option>
                         <option value="leaver">Leaver Status</option>
                         <option value="justification">Justification</option>
+                        <option value="risk_level">Risk Level</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -442,13 +457,23 @@ function addCondition() {
                         <option value="is_not_empty">Is Not Empty</option>
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <input type="text" class="form-control condition-value" placeholder="Value">
+                <div class="col-md-3">
+                    <div class="condition-value-container">
+                        <input type="text" class="form-control condition-value" placeholder="Value">
+                        <select class="form-select condition-risk-level d-none">
+                            <option value="Critical">Critical</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="col-md-1">
-                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeCondition(this)">
-                        <i class="fas fa-times"></i>
-                    </button>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeCondition(this)">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -458,24 +483,55 @@ function addCondition() {
 
 function removeCondition(button) {
     const container = document.getElementById('conditionsContainer');
+    const conditionGroup = button.closest('.condition-group');
+    
     if (container.children.length > 1) {
-        button.closest('.condition-group').remove();
+        // Find the logic connector that precedes this condition
+        let prevElement = conditionGroup.previousElementSibling;
+        if (prevElement && prevElement.classList.contains('logic-connector')) {
+            prevElement.remove();
+        }
+        conditionGroup.remove();
+        
+        // If we removed the first condition and there's still a logic connector at the start, remove it
+        const firstChild = container.firstElementChild;
+        if (firstChild && firstChild.classList.contains('logic-connector')) {
+            firstChild.remove();
+        }
     }
 }
 
 function addEditCondition() {
     const container = document.getElementById('editConditionsContainer');
+    const conditionCount = container.children.length;
+    
+    // Add logic connector if this is not the first condition
+    let logicConnectorHtml = '';
+    if (conditionCount > 0) {
+        logicConnectorHtml = `
+            <div class="logic-connector d-flex justify-content-center mb-2">
+                <select class="form-select logic-operator" style="width: auto;">
+                    <option value="AND">AND</option>
+                    <option value="OR">OR</option>
+                    <option value="NOR">NOR</option>
+                </select>
+            </div>
+        `;
+    }
+    
     const conditionHtml = `
-        <div class="condition-group border p-3 mb-2">
+        ${logicConnectorHtml}
+        <div class="condition-group border p-3 mb-2" data-condition-index="${conditionCount}">
             <div class="row">
-                <div class="col-md-4">
-                    <select class="form-select condition-field">
+                <div class="col-md-3">
+                    <select class="form-select condition-field" onchange="toggleValueField(this)">
                         <option value="sender">Sender</option>
                         <option value="subject">Subject</option>
                         <option value="attachments">Attachments</option>
                         <option value="recipients_email_domain">Recipient Domain</option>
                         <option value="leaver">Leaver Status</option>
                         <option value="justification">Justification</option>
+                        <option value="risk_level">Risk Level</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -491,13 +547,23 @@ function addEditCondition() {
                         <option value="is_not_empty">Is Not Empty</option>
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <input type="text" class="form-control condition-value" placeholder="Value">
+                <div class="col-md-3">
+                    <div class="condition-value-container">
+                        <input type="text" class="form-control condition-value" placeholder="Value">
+                        <select class="form-select condition-risk-level d-none">
+                            <option value="Critical">Critical</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="col-md-1">
-                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeEditCondition(this)">
-                        <i class="fas fa-times"></i>
-                    </button>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeEditCondition(this)">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -507,8 +573,37 @@ function addEditCondition() {
 
 function removeEditCondition(button) {
     const container = document.getElementById('editConditionsContainer');
+    const conditionGroup = button.closest('.condition-group');
+    
     if (container.children.length > 1) {
-        button.closest('.condition-group').remove();
+        // Find the logic connector that precedes this condition
+        let prevElement = conditionGroup.previousElementSibling;
+        if (prevElement && prevElement.classList.contains('logic-connector')) {
+            prevElement.remove();
+        }
+        conditionGroup.remove();
+        
+        // If we removed the first condition and there's still a logic connector at the start, remove it
+        const firstChild = container.firstElementChild;
+        if (firstChild && firstChild.classList.contains('logic-connector')) {
+            firstChild.remove();
+        }
+    }
+}
+
+// Function to toggle between text input and risk level dropdown
+function toggleValueField(selectElement) {
+    const conditionGroup = selectElement.closest('.condition-group');
+    const valueContainer = conditionGroup.querySelector('.condition-value-container');
+    const textInput = valueContainer.querySelector('.condition-value');
+    const riskLevelSelect = valueContainer.querySelector('.condition-risk-level');
+    
+    if (selectElement.value === 'risk_level') {
+        textInput.classList.add('d-none');
+        riskLevelSelect.classList.remove('d-none');
+    } else {
+        textInput.classList.remove('d-none');
+        riskLevelSelect.classList.add('d-none');
     }
 }
 
@@ -517,28 +612,42 @@ function saveRule() {
     const description = document.getElementById('ruleDescription').value;
     const ruleType = document.getElementById('ruleType').value;
     const priority = document.getElementById('rulePriority').value;
-    const globalLogic = document.getElementById('globalLogic').value;
-
     if (!name.trim()) {
         alert('Please enter a rule name');
         return;
     }
 
-    // Collect conditions
+    // Collect conditions with logic operators
     const conditions = [];
-    const conditionGroups = document.querySelectorAll('#conditionsContainer .condition-group');
+    const container = document.getElementById('conditionsContainer');
+    const conditionGroups = container.querySelectorAll('.condition-group');
+    const logicOperators = container.querySelectorAll('.logic-operator');
 
-    conditionGroups.forEach(group => {
+    conditionGroups.forEach((group, index) => {
         const field = group.querySelector('.condition-field').value;
         const operator = group.querySelector('.condition-operator').value;
-        const value = group.querySelector('.condition-value').value;
+        let value;
+        
+        // Get value based on field type
+        if (field === 'risk_level') {
+            value = group.querySelector('.condition-risk-level').value;
+        } else {
+            value = group.querySelector('.condition-value').value;
+        }
 
         if (field && operator && (value || ['is_empty', 'is_not_empty'].includes(operator))) {
-            conditions.push({
+            const condition = {
                 field: field,
                 operator: operator,
                 value: value
-            });
+            };
+            
+            // Add logic operator for conditions after the first one
+            if (index > 0 && logicOperators[index - 1]) {
+                condition.logic = logicOperators[index - 1].value;
+            }
+            
+            conditions.push(condition);
         }
     });
 
@@ -572,7 +681,6 @@ function saveRule() {
         rule_type: ruleType,
         priority: parseInt(priority),
         conditions: conditions,
-        global_logic: globalLogic,
         actions: actions
     };
 
