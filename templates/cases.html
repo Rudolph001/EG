@@ -860,10 +860,21 @@ function createGroupRow(group, index) {
         <td>
             <small>${group.time_display}</small>
         </td>
-        <td>
-            <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewGroupDetails(${index})">
-                <i class="fas fa-eye"></i> View All
-            </button>
+        <td class="actions-column">
+            <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewGroupDetails(${index})" title="View">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-warning" onclick="event.stopPropagation(); flagGroup('${group.group_id}')" title="Flag">
+                    <i class="fas fa-flag"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); clearGroup('${group.group_id}')" title="Clear">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); escalateGroup('${group.group_id}')" title="Escalate">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </button>
+            </div>
         </td>
     `;
     
@@ -1027,8 +1038,157 @@ function viewRecipientDetails(recordId) {
 }
 
 function viewGroupDetails(index) {
-    // Toggle the group details view
-    toggleGroupDetails(index);
+    // Get group data
+    const group = window.groupedCasesData[index];
+    if (!group) {
+        console.error('Group data not found for index:', index);
+        return;
+    }
+    
+    // Create all recipients list
+    const allRecipients = group.recipients.map(r => r.recipient).join(', ');
+    
+    // Create modal using the same format as Case Details
+    const modalHtml = `
+        <div class="modal fade" id="groupDetailsModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Case Details - ${group.group_id}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <!-- Left Column - Email Information -->
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3">Email Information</h6>
+                                <div class="mb-2">
+                                    <strong>Sender:</strong> ${group.sender || 'N/A'}
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Recipients:</strong> ${allRecipients || 'N/A'}
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Domain:</strong> ${group.recipients[0]?.recipient_domain || 'N/A'}
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Subject:</strong> ${group.subject || 'N/A'}
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Time:</strong> ${group.time_display || 'N/A'}
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Business Unit:</strong> N/A
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Department:</strong> N/A
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Account Type:</strong> N/A
+                                </div>
+                                
+                                ${group.attachments ? `
+                                <h6 class="text-primary mb-2">Attachments</h6>
+                                <div class="mb-3">
+                                    <i class="fas fa-paperclip text-success"></i> ${group.attachments}
+                                </div>
+                                ` : ''}
+                                
+                                <h6 class="text-primary mb-2">ML Explanation</h6>
+                                <div class="mb-2">
+                                    Medium risk
+                                </div>
+                                
+                                <h6 class="text-primary mb-2">Justification</h6>
+                                <div class="mb-2">
+                                    home
+                                </div>
+                            </div>
+                            
+                            <!-- Right Column - Risk Assessment -->
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3">Risk Assessment</h6>
+                                <div class="mb-2">
+                                    <strong>Risk Level:</strong> 
+                                    <span class="badge ${getRiskBadgeClass(group.risk_level)}">${group.risk_level || 'Low'}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>ML Risk Score:</strong> ${group.highest_risk_score ? parseFloat(group.highest_risk_score).toFixed(3) : '0.000'}
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Case Status:</strong> 
+                                    <span class="badge ${getStatusBadgeClass(group.group_status)}">${group.group_status || 'Active'}</span>
+                                </div>
+                                
+                                <h6 class="text-primary mb-3">Risk-Based Factors Analysis</h6>
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <strong>Leaver Status</strong><br>
+                                        <small class="text-muted">${group.is_leaver ? 'Employee marked as leaver' : 'Employee not marked as leaver'}</small>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <span class="badge ${group.is_leaver ? 'bg-danger' : 'bg-success'}">${group.is_leaver ? 'HIGH RISK' : 'CLEAR'}</span><br>
+                                        <small class="text-muted">Risk: ${group.is_leaver ? 'High (0.8)' : 'None (0.0)'}</small>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <strong>External Domain</strong><br>
+                                        <small class="text-muted">Communication to internal/corporate domain</small>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <span class="badge bg-success">CLEAR</span><br>
+                                        <small class="text-muted">Risk: None (0.0)</small>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <strong>Time-based Risk</strong><br>
+                                        <small class="text-muted">Email sent during business hours</small>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <span class="badge bg-info">TRIGGERED</span><br>
+                                        <small class="text-muted">Risk: Low (0.1)</small>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <strong>Justification Analysis</strong><br>
+                                        <small class="text-muted">Justification appears normal</small>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <span class="badge bg-success">CLEAR</span><br>
+                                        <small class="text-muted">Risk: None (0.0)</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-info mt-3">
+                                    <i class="fas fa-info-circle"></i> 
+                                    <strong>Total ML Risk Score:</strong> ${group.highest_risk_score ? parseFloat(group.highest_risk_score).toFixed(3) : '0.000'} (combines rule-based factors with anomaly detection)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-success" onclick="clearGroup('${group.group_id}')">Clear Case</button>
+                        <button type="button" class="btn btn-danger" onclick="escalateGroup('${group.group_id}')">Escalate</button>
+                        <button type="button" class="btn btn-primary" onclick="generateEmail('${group.group_id}')">Generate Email</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Clean up any existing modal
+    const existingModal = document.getElementById('groupDetailsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('groupDetailsModal'));
+    modal.show();
 }
 
 // Executive Summary filtering functionality
@@ -1681,6 +1841,29 @@ async function unflagEvent(sessionId, recordId) {
 function generateEmail(recordId) {
     alert(`Generate email functionality for record ${recordId} would be implemented here.`);
     // TODO: Implement email generation logic
+}
+
+// Group action functions
+function clearGroup(groupId) {
+    if (confirm('Clear all cases in this group?')) {
+        alert(`Clear group functionality for ${groupId} would be implemented here.`);
+        // TODO: Implement group clear logic
+    }
+}
+
+function escalateGroup(groupId) {
+    if (confirm('Escalate all cases in this group?')) {
+        alert(`Escalate group functionality for ${groupId} would be implemented here.`);
+        // TODO: Implement group escalate logic
+    }
+}
+
+function flagGroup(groupId) {
+    const flagReason = prompt('Enter reason for flagging all emails in this group:');
+    if (flagReason) {
+        alert(`Flag group functionality for ${groupId} with reason: ${flagReason} would be implemented here.`);
+        // TODO: Implement group flag logic
+    }
 }
 </script>
 {% endblock %}
