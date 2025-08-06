@@ -754,14 +754,14 @@ async function loadGroupedCases() {
         // Render grouped cases
         renderGroupedCases(groupedCasesData);
         
-        // Update summary info
-        updateGroupedSummary(data.total_groups, data.total_records);
+        // DO NOT update summary info from filtered data - preserve original totals
+        // updateGroupedSummary(data.total_groups, data.total_records);
         
-        // Store original summary data on first load only (don't update when filtering)
+        // Always restore original summary data (never update from filtered results)
         if (!window.originalSummaryData) {
             storeOriginalSummaryData();
         } else {
-            // If we already have original data, just restore the display (filtering scenario)
+            // Always restore original display, never update from filtered data
             updateExecutiveSummaryDisplay();
         }
         
@@ -1334,11 +1334,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load grouped view automatically and store original summary data
     loadGroupedCases().then(() => {
-        // Store original summary data on first load (don't update when filtering)
+        // Always restore original summary data (never update from filtered results)
         if (!window.originalSummaryData) {
             storeOriginalSummaryData();
         } else {
-            // If we already have original data, just restore the display (e.g., after filtering)
+            // Always restore original display, never update from filtered data
             updateExecutiveSummaryDisplay();
         }
     }).catch(error => {
@@ -1386,7 +1386,7 @@ function storeOriginalSummaryData() {
     // Update the DOM with original data
     updateExecutiveSummaryDisplay();
     
-    console.log('Original summary data stored:', window.originalSummaryData);
+    console.log('✓ Original summary data stored and will remain static:', window.originalSummaryData);
 }
 
 // Function to update executive summary display with stored original data
@@ -1397,6 +1397,7 @@ function updateExecutiveSummaryDisplay() {
     }
     
     const data = window.originalSummaryData;
+    console.log('✓ Restoring original summary values (filtering does not change these):', data);
     
     // Update the DOM elements with original values
     const updates = [
