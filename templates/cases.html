@@ -746,7 +746,7 @@ async function whitelistSenderFromGroup(senderEmail, groupId) {
 }
 
 // Clear group action with record removal
-async function clearGroup(groupId) {
+window.clearGroup = async function(groupId) {
     console.log('clearGroup function executed with groupId:', groupId);
     console.log('Current session ID:', window.currentSessionId);
     console.log('Available grouped cases data:', window.groupedCasesData ? window.groupedCasesData.length : 'undefined');
@@ -803,8 +803,8 @@ async function clearGroup(groupId) {
     }
 }
 
-// Escalate group action with record removal
-async function escalateGroup(groupId) {
+// Escalate group action with record removal  
+window.escalateGroup = async function(groupId) {
     console.log('escalateGroup called with groupId:', groupId);
     
     if (!confirm('Are you sure you want to escalate this grouped case?')) {
@@ -859,7 +859,7 @@ async function escalateGroup(groupId) {
 }
 
 // Flag group action with record removal
-async function flagGroup(groupId, senderEmail) {
+window.flagGroup = async function(groupId, senderEmail) {
     console.log('flagGroup called with groupId:', groupId, 'senderEmail:', senderEmail);
     
     const flagReason = prompt(`Enter reason for flagging all emails in this group from ${senderEmail}:`);
