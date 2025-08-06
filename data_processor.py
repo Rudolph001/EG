@@ -533,11 +533,16 @@ class DataProcessor:
         pass
     
     def _parse_datetime(self, date_value):
-        """Parse datetime with caching for better performance"""
+        """Parse datetime with caching and malformed timestamp handling"""
         if pd.isna(date_value) or date_value is None or str(date_value).strip() == '':
             return None
         
         date_str = str(date_value).strip()
+        
+        # Fix malformed timestamps before parsing
+        date_str = self._sanitize_timestamp(date_str)
+        if not date_str:
+            return None
         
         # Check cache first
         if date_str in self._datetime_format_cache:
@@ -549,10 +554,11 @@ class DataProcessor:
                 del self._datetime_format_cache[date_str]
         
         try:
-            if isinstance(date_value, str):
+            if isinstance(date_value, str) or isinstance(date_str, str):
                 # Try common formats (prioritize most likely)
                 formats = [
                     '%Y-%m-%dT%H:%M:%S',  # ISO 8601 format: 2025-07-21T14:44:19
+                    '%Y-%m-%dT%H:%M:%S%z',  # ISO 8601 with timezone: 2025-07-21T14:44:19+0200
                     '%Y-%m-%d %H:%M:%S',
                     '%m/%d/%Y %H:%M:%S', 
                     '%Y-%m-%d',
@@ -579,6 +585,49 @@ class DataProcessor:
         except Exception as e:
             logger.warning(f"Error parsing datetime {date_value}: {str(e)}")
             return None
+
+    def _sanitize_timestamp(self, timestamp_str):
+        """Sanitize malformed timestamps to fix common data quality issues"""
+        if not timestamp_str:
+            return None
+            
+        try:
+            # Fix malformed seconds field (e.g., "12:12:700" -> "12:12:07")
+            # Pattern to match timestamps with 3-digit seconds
+            import re
+            
+            # Pattern: HH:MM:SSS where SSS is 3 digits (invalid seconds)
+            pattern = r'(\d{1,2}):(\d{1,2}):(\d{3})'
+            match = re.search(pattern, timestamp_str)
+            
+            if match:
+                hour, minute, invalid_seconds = match.groups()
+                # Convert 3-digit seconds to valid 2-digit seconds
+                # Take first 2 digits, or convert to valid range if > 59
+                if len(invalid_seconds) == 3:
+                    # Take first 2 digits
+                    seconds = invalid_seconds[:2]
+                    # If seconds > 59, use modulo to get valid seconds
+                    seconds_int = int(seconds)
+                    if seconds_int > 59:
+                        seconds = str(seconds_int % 60).zfill(2)
+                    
+                    # Replace the invalid time with corrected time
+                    corrected_time = f"{hour}:{minute}:{seconds}"
+                    timestamp_str = timestamp_str.replace(match.group(0), corrected_time)
+                    logger.debug(f"Fixed malformed timestamp: {match.group(0)} -> {corrected_time}")
+            
+            # Remove or fix timezone info that might be malformed
+            # Handle formats like "+0200" at the end
+            if re.search(r'\+\d{4}$', timestamp_str):
+                # For now, remove timezone to focus on core timestamp parsing
+                timestamp_str = re.sub(r'\+\d{4}$', '', timestamp_str)
+            
+            return timestamp_str.strip()
+            
+        except Exception as e:
+            logger.warning(f"Error sanitizing timestamp {timestamp_str}: {str(e)}")
+            return timestamp_str
     
     def _apply_9_stage_workflow(self, session_id):
         """Apply the comprehensive 9-stage processing workflow"""
