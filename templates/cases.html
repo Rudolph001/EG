@@ -733,8 +733,8 @@ async function whitelistSenderFromGroup(senderEmail, groupId) {
         
         showSuccess(data.message);
         
-        // Remove the group from the current view
-        removeGroupFromView(groupId);
+        // Refresh the entire grouped cases view to reflect database changes
+        await refreshGroupedCases();
         
         hideLoading();
         
@@ -783,8 +783,8 @@ async function clearGroup(groupId) {
         
         showSuccess(`Successfully cleared ${recordIds.length} records`);
         
-        // Remove the group from the view
-        removeGroupFromView(groupId);
+        // Refresh the entire grouped cases view to reflect database changes
+        await refreshGroupedCases();
         
         hideLoading();
         
@@ -833,8 +833,8 @@ async function escalateGroup(groupId) {
         
         showSuccess(`Successfully escalated ${recordIds.length} records`);
         
-        // Remove the group from the view
-        removeGroupFromView(groupId);
+        // Refresh the entire grouped cases view to reflect database changes
+        await refreshGroupedCases();
         
         hideLoading();
         
@@ -887,8 +887,8 @@ async function flagGroup(groupId, senderEmail) {
         
         showSuccess(`Successfully flagged ${recordIds.length} records`);
         
-        // Remove the group from the view
-        removeGroupFromView(groupId);
+        // Refresh the entire grouped cases view to reflect database changes
+        await refreshGroupedCases();
         
         hideLoading();
         
@@ -1003,7 +1003,20 @@ function truncateText(text, maxLength) {
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
 }
 
-async function loadGroupedCases() {
+// Refresh grouped cases data from server
+async function refreshGroupedCases() {
+    try {
+        showLoading('Refreshing cases...');
+        await loadGroupedCases();
+        hideLoading();
+    } catch (error) {
+        console.error('Error refreshing grouped cases:', error);
+        showError('Failed to refresh cases');
+        hideLoading();
+    }
+}
+
+function loadGroupedCases() {
     try {
         console.log('Loading grouped cases for session:', window.currentSessionId);
         
