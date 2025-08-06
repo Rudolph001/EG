@@ -71,7 +71,7 @@ with app.app_context():
     import models
     import routes
     
-    # Create all tables
+    # Create all tables first
     try:
         # Test database connection first
         result = db.session.execute(db.text("SELECT 1"))
