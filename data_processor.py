@@ -374,6 +374,158 @@ class DataProcessor:
             logger.warning(f"Error analyzing keywords for record {record.record_id}: {str(e)}")
         
         return subject_matches, attachment_matches
+
+    def _analyze_exclusion_keywords_smart(self, record, exclusion_keywords):
+        """Smart exclusion keyword analysis for multiple attachments with configurable logic"""
+        try:
+            result = {
+                'should_exclude': False,
+                'exclusion_reason': '',
+                'matched_keywords': [],
+                'attachment_analysis': []
+            }
+            
+            # Analyze subject first
+            subject_text = (record.subject or '').lower()
+            subject_matches = []
+            
+            for keyword_obj in exclusion_keywords:
+                if keyword_obj.applies_to in ['subject', 'both']:
+                    keyword = keyword_obj.keyword.lower()
+                    if keyword in subject_text:
+                        subject_matches.append(keyword_obj.keyword)
+            
+            # If subject has exclusion keywords, exclude entire email
+            if subject_matches:
+                result['should_exclude'] = True
+                result['exclusion_reason'] = f"Exclusion keywords in subject: {', '.join(subject_matches)}"
+                result['matched_keywords'] = subject_matches
+                return result
+            
+            # Smart attachment analysis
+            attachments_text = record.attachments or ''
+            
+            # Handle empty or null attachments
+            if not attachments_text or attachments_text.lower() in ['nan', 'none', 'null', '']:
+                return result
+            
+            # Split attachments by common delimiters
+            attachment_list = self._parse_attachment_list(attachments_text)
+            
+            exclusion_attachments = []
+            safe_attachments = []
+            
+            # Analyze each attachment individually
+            for attachment in attachment_list:
+                attachment_lower = attachment.lower().strip()
+                has_exclusion = False
+                matched_exclusion_keywords = []
+                
+                for keyword_obj in exclusion_keywords:
+                    if keyword_obj.applies_to in ['attachment', 'both']:
+                        keyword = keyword_obj.keyword.lower()
+                        if keyword in attachment_lower:
+                            has_exclusion = True
+                            matched_exclusion_keywords.append(keyword_obj.keyword)
+                
+                attachment_info = {
+                    'name': attachment.strip(),
+                    'has_exclusion': has_exclusion,
+                    'exclusion_keywords': matched_exclusion_keywords
+                }
+                
+                result['attachment_analysis'].append(attachment_info)
+                
+                if has_exclusion:
+                    exclusion_attachments.append(attachment.strip())
+                    result['matched_keywords'].extend(matched_exclusion_keywords)
+                else:
+                    safe_attachments.append(attachment.strip())
+            
+            # Exclusion Logic Options:
+            # Option 1: STRICT - Exclude if ANY attachment has exclusion keywords (current behavior)
+            # Option 2: PERMISSIVE - Only exclude if ALL attachments have exclusion keywords
+            # Option 3: SMART - Exclude based on risk assessment
+            
+            exclusion_mode = self._get_exclusion_mode()  # Can be configured
+            
+            if exclusion_mode == 'strict' or exclusion_mode == 'default':
+                # Exclude if any attachment matches exclusion keywords
+                if exclusion_attachments:
+                    result['should_exclude'] = True
+                    result['exclusion_reason'] = f"Exclusion keywords in attachments: {', '.join(set(result['matched_keywords']))} (affected files: {', '.join(exclusion_attachments[:3])}{'...' if len(exclusion_attachments) > 3 else ''})"
+            
+            elif exclusion_mode == 'permissive':
+                # Only exclude if ALL attachments have exclusion keywords
+                if exclusion_attachments and not safe_attachments:
+                    result['should_exclude'] = True
+                    result['exclusion_reason'] = f"All attachments contain exclusion keywords: {', '.join(set(result['matched_keywords']))}"
+            
+            elif exclusion_mode == 'smart':
+                # Smart mode: exclude based on ratio and risk assessment
+                total_attachments = len(attachment_list)
+                exclusion_ratio = len(exclusion_attachments) / total_attachments if total_attachments > 0 else 0
+                
+                # Exclude if >50% of attachments have exclusion keywords OR if high-risk patterns detected
+                if exclusion_ratio > 0.5 or self._has_high_risk_exclusion_pattern(exclusion_attachments, result['matched_keywords']):
+                    result['should_exclude'] = True
+                    result['exclusion_reason'] = f"Smart exclusion: {len(exclusion_attachments)}/{total_attachments} attachments flagged for keywords: {', '.join(set(result['matched_keywords']))}"
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in smart exclusion keyword analysis for record {record.record_id}: {str(e)}")
+            return {'should_exclude': False, 'exclusion_reason': '', 'matched_keywords': [], 'attachment_analysis': []}
+
+    def _parse_attachment_list(self, attachments_text):
+        """Parse attachment text into individual attachment names"""
+        if not attachments_text:
+            return []
+        
+        # Common delimiters for attachment lists
+        delimiters = [',', ';', '|', '\n', '\r\n']
+        
+        # Start with the full text
+        attachment_list = [attachments_text]
+        
+        # Split by each delimiter
+        for delimiter in delimiters:
+            new_list = []
+            for item in attachment_list:
+                new_list.extend([part.strip() for part in item.split(delimiter) if part.strip()])
+            attachment_list = new_list
+        
+        # Filter out empty items and common non-attachment text
+        filtered_list = []
+        for item in attachment_list:
+            item = item.strip()
+            if item and item.lower() not in ['none', 'null', 'nan', '', 'no attachments']:
+                filtered_list.append(item)
+        
+        return filtered_list if filtered_list else [attachments_text.strip()]
+
+    def _get_exclusion_mode(self):
+        """Get exclusion mode configuration - can be made configurable via database/config"""
+        # This can be moved to a configuration table or environment variable
+        # Options: 'strict', 'permissive', 'smart'
+        return 'strict'  # Default to current behavior
+
+    def _has_high_risk_exclusion_pattern(self, exclusion_attachments, matched_keywords):
+        """Detect high-risk patterns that should always trigger exclusion"""
+        high_risk_keywords = ['malware', 'virus', 'trojan', 'backdoor', 'exploit']
+        high_risk_extensions = ['.exe', '.scr', '.bat', '.cmd']
+        
+        # Check for high-risk keywords
+        for keyword in matched_keywords:
+            if any(risk_word in keyword.lower() for risk_word in high_risk_keywords):
+                return True
+        
+        # Check for high-risk file extensions
+        for attachment in exclusion_attachments:
+            if any(attachment.lower().endswith(ext) for ext in high_risk_extensions):
+                return True
+        
+        return False
     
     def _apply_custom_wordlist_analysis(self, record_data):
         """Legacy method - wordlist analysis now done in Stage 5"""
@@ -576,7 +728,7 @@ class DataProcessor:
             raise
     
     def _apply_exclusion_keywords(self, session_id):
-        """Stage 6: Apply exclusion keywords to exclude emails"""
+        """Stage 6: Apply exclusion keywords to exclude emails with smart multi-attachment handling"""
         try:
             logger.info(f"Starting exclusion keywords analysis for session {session_id}")
             
@@ -602,12 +754,13 @@ class DataProcessor:
                 batch_records = records[i:i + batch_size]
                 
                 for record in batch_records:
-                    # Apply exclusion keywords
-                    exclusion_subject_matches, exclusion_attachment_matches = self._analyze_record_keywords(record, exclusion_keywords)
+                    # Apply smart exclusion keyword logic for multiple attachments
+                    exclusion_result = self._analyze_exclusion_keywords_smart(record, exclusion_keywords)
                     
-                    if exclusion_subject_matches or exclusion_attachment_matches:
-                        record.excluded_by_rule = f"Exclusion keywords: {', '.join(exclusion_subject_matches + exclusion_attachment_matches)}"
+                    if exclusion_result['should_exclude']:
+                        record.excluded_by_rule = exclusion_result['exclusion_reason']
                         exclusion_matches_count += 1
+                        logger.debug(f"Record {record.record_id} excluded: {exclusion_result['exclusion_reason']}")
                 
                 # Commit batch
                 db.session.commit()
