@@ -1,3 +1,214 @@
+
+// Function to generate risk factors analysis based on email data
+function generateRiskFactorsAnalysis(caseData) {
+    const factors = [];
+    
+    // Leaver Status Factor
+    if (caseData.leaver && caseData.leaver.toLowerCase() === 'yes') {
+        factors.push({
+            name: 'Leaver Status',
+            status: 'TRIGGERED',
+            description: 'Employee marked as leaver',
+            risk_contribution: 'High (0.3)',
+            class: 'danger'
+        });
+    } else {
+        factors.push({
+            name: 'Leaver Status',
+            status: 'CLEAR',
+            description: 'Employee not marked as leaver',
+            risk_contribution: 'None (0.0)',
+            class: 'success'
+        });
+    }
+    
+    // External Domain Factor
+    const externalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'];
+    const isExternalDomain = caseData.recipients_email_domain && 
+                            externalDomains.some(domain => 
+                                caseData.recipients_email_domain.toLowerCase().includes(domain));
+    
+    if (isExternalDomain) {
+        factors.push({
+            name: 'External Domain',
+            status: 'TRIGGERED',
+            description: `Communication to external domain: ${caseData.recipients_email_domain}`,
+            risk_contribution: 'Medium (0.2)',
+            class: 'warning'
+        });
+    } else {
+        factors.push({
+            name: 'External Domain',
+            status: 'CLEAR',
+            description: 'Communication to internal/corporate domain',
+            risk_contribution: 'None (0.0)',
+            class: 'success'
+        });
+    }
+    
+    // Attachment Risk Factor
+    if (caseData.attachments && caseData.attachments.trim() !== '') {
+        const highRiskExtensions = ['.exe', '.scr', '.bat', '.cmd', '.com', '.pif', '.vbs', '.js'];
+        const mediumRiskExtensions = ['.zip', '.rar', '.7z', '.doc', '.docx', '.xls', '.xlsx', '.pdf'];
+        
+        const hasHighRiskAttachment = highRiskExtensions.some(ext => 
+            caseData.attachments.toLowerCase().includes(ext));
+        const hasMediumRiskAttachment = mediumRiskExtensions.some(ext => 
+            caseData.attachments.toLowerCase().includes(ext));
+        
+        if (hasHighRiskAttachment) {
+            factors.push({
+                name: 'Attachment Risk',
+                status: 'HIGH RISK',
+                description: 'Contains high-risk file extensions',
+                risk_contribution: 'High (0.3)',
+                class: 'danger'
+            });
+        } else if (hasMediumRiskAttachment) {
+            factors.push({
+                name: 'Attachment Risk',
+                status: 'MEDIUM RISK',
+                description: 'Contains medium-risk file types',
+                risk_contribution: 'Medium (0.15)',
+                class: 'warning'
+            });
+        } else {
+            factors.push({
+                name: 'Attachment Risk',
+                status: 'LOW RISK',
+                description: 'Contains standard file types',
+                risk_contribution: 'Low (0.05)',
+                class: 'info'
+            });
+        }
+    } else {
+        factors.push({
+            name: 'Attachment Risk',
+            status: 'CLEAR',
+            description: 'No attachments present',
+            risk_contribution: 'None (0.0)',
+            class: 'success'
+        });
+    }
+    
+    // Wordlist Matches Factor
+    const hasWordlistMatches = (caseData.wordlist_subject && caseData.wordlist_subject.trim() !== '') ||
+                              (caseData.wordlist_attachment && caseData.wordlist_attachment.trim() !== '');
+    
+    if (hasWordlistMatches) {
+        factors.push({
+            name: 'Wordlist Matches',
+            status: 'TRIGGERED',
+            description: `Suspicious keywords detected in ${caseData.wordlist_subject ? 'subject' : ''} ${caseData.wordlist_attachment ? 'attachments' : ''}`,
+            risk_contribution: 'Medium (0.2)',
+            class: 'warning'
+        });
+    } else {
+        factors.push({
+            name: 'Wordlist Matches',
+            status: 'CLEAR',
+            description: 'No suspicious keywords detected',
+            risk_contribution: 'None (0.0)',
+            class: 'success'
+        });
+    }
+    
+    // Time-based Risk Factor
+    if (caseData.time) {
+        const emailTime = new Date(caseData.time);
+        const isWeekend = emailTime.getDay() === 0 || emailTime.getDay() === 6;
+        const hour = emailTime.getHours();
+        const isAfterHours = hour < 8 || hour > 18;
+        
+        if (isWeekend || isAfterHours) {
+            factors.push({
+                name: 'Time-based Risk',
+                status: 'TRIGGERED',
+                description: `Email sent during ${isWeekend ? 'weekend' : 'after-hours'}`,
+                risk_contribution: 'Low (0.1)',
+                class: 'info'
+            });
+        } else {
+            factors.push({
+                name: 'Time-based Risk',
+                status: 'CLEAR',
+                description: 'Email sent during business hours',
+                risk_contribution: 'None (0.0)',
+                class: 'success'
+            });
+        }
+    } else {
+        factors.push({
+            name: 'Time-based Risk',
+            status: 'UNKNOWN',
+            description: 'Email time not available',
+            risk_contribution: 'Unknown',
+            class: 'secondary'
+        });
+    }
+    
+    // Justification Analysis Factor
+    if (caseData.justification && caseData.justification.trim() !== '') {
+        const suspiciousTerms = ['personal use', 'backup', 'external', 'urgent', 'confidential'];
+        const hasSuspiciousTerms = suspiciousTerms.some(term => 
+            caseData.justification.toLowerCase().includes(term));
+        
+        if (hasSuspiciousTerms) {
+            factors.push({
+                name: 'Justification Analysis',
+                status: 'TRIGGERED',
+                description: 'Suspicious terms found in justification',
+                risk_contribution: 'Low (0.1)',
+                class: 'warning'
+            });
+        } else {
+            factors.push({
+                name: 'Justification Analysis',
+                status: 'CLEAR',
+                description: 'Justification appears normal',
+                risk_contribution: 'None (0.0)',
+                class: 'success'
+            });
+        }
+    } else {
+        factors.push({
+            name: 'Justification Analysis',
+            status: 'NO DATA',
+            description: 'No justification provided',
+            risk_contribution: 'None (0.0)',
+            class: 'secondary'
+        });
+    }
+    
+    // Generate HTML for factors
+    return `
+        <div class="row">
+            ${factors.map(factor => `
+                <div class="col-md-6 mb-3">
+                    <div class="card border-${factor.class}">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h6 class="card-title mb-1">${factor.name}</h6>
+                                <span class="badge bg-${factor.class}">${factor.status}</span>
+                            </div>
+                            <p class="card-text small mb-1">${factor.description}</p>
+                            <small class="text-muted">Risk: ${factor.risk_contribution}</small>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        <div class="alert alert-info mt-3">
+            <small>
+                <i class="fas fa-info-circle me-1"></i>
+                <strong>Total ML Risk Score:</strong> ${(caseData.ml_risk_score || 0).toFixed(3)} 
+                (combines rule-based factors with anomaly detection)
+            </small>
+        </div>
+    `;
+}
+
+
 // Email Guardian - Main JavaScript File
 
 // Global variables
@@ -864,6 +1075,9 @@ function displayCaseDetailsModal(caseData) {
                                 <p><strong>Domain:</strong> ${caseData.recipients_email_domain || 'N/A'}</p>
                                 <p><strong>Subject:</strong> ${caseData.subject || 'N/A'}</p>
                                 <p><strong>Time:</strong> ${caseData.time || 'N/A'}</p>
+                                <p><strong>Business Unit:</strong> ${caseData.bunit || 'N/A'}</p>
+                                <p><strong>Department:</strong> ${caseData.department || 'N/A'}</p>
+                                <p><strong>Account Type:</strong> ${caseData.account_type || 'N/A'}</p>
                             </div>
                             <div class="col-md-6">
                                 <h6>Risk Assessment</h6>
@@ -885,7 +1099,7 @@ function displayCaseDetailsModal(caseData) {
                         </div>
                         ${caseData.rule_matches && caseData.rule_matches.length > 0 ? `
                             <hr>
-                            <h6>Rule Matches</h6>
+                            <h6>Security Rule Matches</h6>
                             <ul class="list-group">
                                 ${caseData.rule_matches.map(rule => `
                                     <li class="list-group-item">
@@ -895,6 +1109,12 @@ function displayCaseDetailsModal(caseData) {
                                 `).join('')}
                             </ul>
                         ` : ''}
+                        
+                        <hr>
+                        <h6>Risk-Based Factors Analysis</h6>
+                        <div class="risk-factors-analysis">
+                            ${generateRiskFactorsAnalysis(caseData)}
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

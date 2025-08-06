@@ -55,6 +55,7 @@ class EmailRecord(db.Model):
     wordlist_subject = db.Column(Text)
     bunit = db.Column(db.String(255))
     department = db.Column(db.String(255))
+    account_type = db.Column(db.String(255))
     status = db.Column(db.String(100))
     user_response = db.Column(Text)
     final_outcome = db.Column(db.String(255))

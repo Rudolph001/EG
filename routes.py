@@ -1253,7 +1253,10 @@ def api_case_details(session_id, record_id):
         'case_status': case.case_status,
         'justification': case.justification,
         'policy_name': case.policy_name,
-        'time': case.time
+        'time': case.time,
+        'bunit': case.bunit,
+        'department': case.department,
+        'account_type': getattr(case, 'account_type', None)  # Use getattr in case field doesn't exist
     }
 
     return jsonify(case_data)
