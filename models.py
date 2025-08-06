@@ -77,6 +77,13 @@ class EmailRecord(db.Model):
     escalated_at = db.Column(db.DateTime)
     resolved_at = db.Column(db.DateTime)
     
+    # Flag tracking
+    is_flagged = db.Column(db.Boolean, default=False)
+    flag_reason = db.Column(Text)
+    flagged_at = db.Column(db.DateTime)
+    flagged_by = db.Column(db.String(255))
+    previously_flagged = db.Column(db.Boolean, default=False)  # Flagged in previous import
+    
     def __repr__(self):
         return f'<EmailRecord {self.record_id}>'
 
@@ -160,3 +167,24 @@ class ProcessingError(db.Model):
     
     def __repr__(self):
         return f'<ProcessingError {self.error_type}>'
+
+class FlaggedEvent(db.Model):
+    __tablename__ = 'flagged_events'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    sender_email = db.Column(db.String(255), nullable=False, index=True)
+    original_session_id = db.Column(db.String(36), nullable=False)
+    original_record_id = db.Column(db.String(100), nullable=False)
+    flag_reason = db.Column(Text, nullable=False)
+    flagged_by = db.Column(db.String(255), default='System User')
+    flagged_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Optional: Store original email details for reference
+    original_subject = db.Column(Text)
+    original_recipients_domain = db.Column(db.String(255))
+    original_risk_level = db.Column(db.String(20))
+    original_ml_score = db.Column(db.Float)
+    
+    def __repr__(self):
+        return f'<FlaggedEvent {self.sender_email}>'

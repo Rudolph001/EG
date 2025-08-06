@@ -1,0 +1,487 @@
+
+{% extends "base.html" %}
+
+{% block title %}Flagged Events - Session {{ session.id[:8] }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .flagged-card {
+        border-left: 4px solid #ffc107;
+        transition: all 0.3s ease;
+    }
+    
+    .flagged-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    
+    .previous-flag-card {
+        border-left: 4px solid #fd7e14;
+        background-color: #fff3cd;
+    }
+    
+    .flag-reason {
+        background-color: #f8f9fa;
+        border-left: 3px solid #ffc107;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 0 4px 4px 0;
+        font-style: italic;
+    }
+    
+    .timeline-item {
+        border-left: 2px solid #dee2e6;
+        padding-left: 20px;
+        margin-bottom: 20px;
+        position: relative;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -8px;
+        top: 10px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background-color: #ffc107;
+        border: 3px solid #fff;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Upload</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('dashboard', session_id=session.id) }}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('cases', session_id=session.id) }}">Cases</a></li>
+<li class="breadcrumb-item active">Flagged Events</li>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="h2">
+                <i class="fas fa-flag text-warning"></i>
+                Flagged Events Dashboard
+            </h1>
+            <div class="session-info">
+                <span class="badge bg-primary fs-6">{{ session.filename }}</span>
+                <span class="badge bg-warning fs-6">{{ flagged_records|length }} currently flagged</span>
+                <span class="badge bg-info fs-6">{{ previously_flagged|length }} previously flagged</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Navigation Tabs -->
+<ul class="nav nav-tabs" id="flaggedTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="current-tab" data-bs-toggle="tab" data-bs-target="#current-flagged" 
+                type="button" role="tab">
+            <i class="fas fa-flag"></i> Currently Flagged ({{ flagged_records|length }})
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="previous-tab" data-bs-toggle="tab" data-bs-target="#previous-flagged" 
+                type="button" role="tab">
+            <i class="fas fa-history"></i> Previously Flagged Senders ({{ previously_flagged|length }})
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-flagged" 
+                type="button" role="tab">
+            <i class="fas fa-list"></i> All Flagged Events
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="flaggedTabsContent">
+    <!-- Currently Flagged Events -->
+    <div class="tab-pane fade show active" id="current-flagged" role="tabpanel">
+        <div class="mt-4">
+            {% if flagged_records %}
+            <div class="row">
+                {% for record in flagged_records %}
+                <div class="col-md-6 mb-4">
+                    <div class="card flagged-card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-flag text-warning me-2"></i>
+                                    {{ record.sender }}
+                                </h6>
+                                <span class="badge risk-{{ record.risk_level.lower() if record.risk_level else 'low' }}">
+                                    {{ record.risk_level or 'Low' }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Subject:</strong> {{ record.subject[:80] }}{% if record.subject|length > 80 %}...{% endif %}</p>
+                            <p><strong>Recipients Domain:</strong> {{ record.recipients_email_domain }}</p>
+                            <p><strong>ML Score:</strong> {{ "%.3f"|format(record.ml_risk_score or 0) }}</p>
+                            
+                            <div class="flag-reason">
+                                <strong>Flag Reason:</strong><br>
+                                {{ record.flag_reason }}
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <small class="text-muted">
+                                    Flagged by {{ record.flagged_by }} on 
+                                    {{ record.flagged_at.strftime('%Y-%m-%d %H:%M') if record.flagged_at else 'Unknown' }}
+                                </small>
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-sm btn-outline-primary view-case-btn" 
+                                            data-record-id="{{ record.record_id }}">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary unflag-event-btn" 
+                                            data-record-id="{{ record.record_id }}">
+                                        <i class="fas fa-flag"></i> Remove Flag
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-flag fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Currently Flagged Events</h5>
+                <p class="text-muted">Flag events from the Case Manager to track suspicious senders.</p>
+                <a href="{{ url_for('cases', session_id=session.id) }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Back to Cases
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Previously Flagged Senders -->
+    <div class="tab-pane fade" id="previous-flagged" role="tabpanel">
+        <div class="mt-4">
+            {% if previously_flagged %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>Previously Flagged Senders:</strong> These senders were flagged in previous imports and have appeared in the current data.
+            </div>
+            <div class="row">
+                {% for record in previously_flagged %}
+                <div class="col-md-6 mb-4">
+                    <div class="card previous-flag-card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-history text-warning me-2"></i>
+                                    {{ record.sender }}
+                                </h6>
+                                <span class="badge bg-warning">Previously Flagged</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Current Subject:</strong> {{ record.subject[:80] }}{% if record.subject|length > 80 %}...{% endif %}</p>
+                            <p><strong>Current Risk:</strong> 
+                                <span class="risk-{{ record.risk_level.lower() if record.risk_level else 'low' }}">
+                                    {{ record.risk_level or 'Low' }}
+                                </span>
+                            </p>
+                            <p><strong>ML Score:</strong> {{ "%.3f"|format(record.ml_risk_score or 0) }}</p>
+                            
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <small class="text-muted">Matched from previous flagged sender</small>
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-sm btn-outline-primary view-case-btn" 
+                                            data-record-id="{{ record.record_id }}">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning flag-current-btn" 
+                                            data-record-id="{{ record.record_id }}">
+                                        <i class="fas fa-flag"></i> Flag Current
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info view-original-flag-btn" 
+                                            data-sender="{{ record.sender }}">
+                                        <i class="fas fa-history"></i> Original Flag
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Previously Flagged Senders</h5>
+                <p class="text-muted">When flagged senders appear in new imports, they will be shown here.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- All Flagged Events -->
+    <div class="tab-pane fade" id="all-flagged" role="tabpanel">
+        <div class="mt-4">
+            <div id="allFlaggedContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Loading all flagged events...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+window.currentSessionId = '{{ session.id }}';
+
+// Load all flagged events when tab is shown
+document.getElementById('all-tab').addEventListener('shown.bs.tab', function () {
+    loadAllFlaggedEvents();
+});
+
+async function loadAllFlaggedEvents() {
+    try {
+        const response = await fetch(`/api/flagged-events/${window.currentSessionId}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Failed to load flagged events: ' + data.error);
+            return;
+        }
+        
+        renderAllFlaggedEvents(data.all_flagged_events);
+    } catch (error) {
+        console.error('Error loading flagged events:', error);
+        showError('Failed to load flagged events');
+    }
+}
+
+function renderAllFlaggedEvents(events) {
+    const container = document.getElementById('allFlaggedContent');
+    
+    if (events.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-flag fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Flagged Events Found</h5>
+                <p class="text-muted">Start flagging events from the Case Manager to track suspicious senders.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>All Flagged Events:</strong> Complete history of all flagged events across all sessions.
+        </div>
+        <div class="timeline">
+    `;
+    
+    events.sort((a, b) => new Date(b.flagged_at) - new Date(a.flagged_at));
+    
+    events.forEach(event => {
+        const flaggedDate = new Date(event.flagged_at).toLocaleDateString();
+        const flaggedTime = new Date(event.flagged_at).toLocaleTimeString();
+        
+        html += `
+            <div class="timeline-item">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-flag text-warning me-2"></i>
+                                ${event.sender_email}
+                            </h6>
+                            <span class="badge bg-secondary">${event.original_session_id.substring(0, 8)}</span>
+                        </div>
+                        
+                        <div class="flag-reason mb-3">
+                            <strong>Reason:</strong> ${event.flag_reason}
+                        </div>
+                        
+                        ${event.original_subject ? `<p><strong>Original Subject:</strong> ${event.original_subject}</p>` : ''}
+                        ${event.original_risk_level ? `
+                            <p><strong>Original Risk Level:</strong> 
+                                <span class="risk-${event.original_risk_level.toLowerCase()}">${event.original_risk_level}</span>
+                            </p>
+                        ` : ''}
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                Flagged by ${event.flagged_by} on ${flaggedDate} at ${flaggedTime}
+                            </small>
+                            <button class="btn btn-sm btn-outline-primary" 
+                                    onclick="viewOriginalSession('${event.original_session_id}', '${event.sender_email}')">
+                                <i class="fas fa-external-link-alt"></i> View Original
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+async function viewOriginalSession(sessionId, senderEmail) {
+    window.open(`/cases/${sessionId}?search=${encodeURIComponent(senderEmail)}`, '_blank');
+}
+
+// Event handlers for buttons
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.view-case-btn')) {
+        const btn = e.target.closest('.view-case-btn');
+        const recordId = btn.getAttribute('data-record-id');
+        showCaseDetails(window.currentSessionId, recordId);
+    }
+    
+    if (e.target.closest('.unflag-event-btn')) {
+        const btn = e.target.closest('.unflag-event-btn');
+        const recordId = btn.getAttribute('data-record-id');
+        unflagEvent(window.currentSessionId, recordId);
+    }
+    
+    if (e.target.closest('.flag-current-btn')) {
+        const btn = e.target.closest('.flag-current-btn');
+        const recordId = btn.getAttribute('data-record-id');
+        showFlagEventModal(window.currentSessionId, recordId);
+    }
+    
+    if (e.target.closest('.view-original-flag-btn')) {
+        const btn = e.target.closest('.view-original-flag-btn');
+        const sender = btn.getAttribute('data-sender');
+        viewOriginalFlagDetails(sender);
+    }
+});
+
+async function viewOriginalFlagDetails(senderEmail) {
+    try {
+        const response = await fetch(`/api/flagged-events/${window.currentSessionId}`);
+        const data = await response.json();
+        
+        const originalFlag = data.all_flagged_events.find(event => 
+            event.sender_email.toLowerCase() === senderEmail.toLowerCase()
+        );
+        
+        if (originalFlag) {
+            showOriginalFlagModal(originalFlag);
+        } else {
+            showError('Original flag details not found');
+        }
+    } catch (error) {
+        console.error('Error loading original flag details:', error);
+        showError('Failed to load original flag details');
+    }
+}
+
+function showOriginalFlagModal(flagEvent) {
+    const flaggedDate = new Date(flagEvent.flagged_at).toLocaleDateString();
+    const flaggedTime = new Date(flagEvent.flagged_at).toLocaleTimeString();
+    
+    const modalHtml = `
+        <div class="modal fade" id="originalFlagModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Original Flag Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Flagged Sender</h6>
+                                <p><strong>Email:</strong> ${flagEvent.sender_email}</p>
+                                <p><strong>Original Session:</strong> ${flagEvent.original_session_id}</p>
+                                <p><strong>Flagged By:</strong> ${flagEvent.flagged_by}</p>
+                                <p><strong>Flagged Date:</strong> ${flaggedDate} ${flaggedTime}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Original Event Details</h6>
+                                ${flagEvent.original_subject ? `<p><strong>Subject:</strong> ${flagEvent.original_subject}</p>` : ''}
+                                ${flagEvent.original_risk_level ? `<p><strong>Risk Level:</strong> <span class="risk-${flagEvent.original_risk_level.toLowerCase()}">${flagEvent.original_risk_level}</span></p>` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <h6>Flag Reason</h6>
+                            <div class="flag-reason">
+                                ${flagEvent.flag_reason}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="viewOriginalSession('${flagEvent.original_session_id}', '${flagEvent.sender_email}')">
+                            <i class="fas fa-external-link-alt"></i> View Original Session
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Clean up existing modal
+    const existingModal = document.getElementById('originalFlagModal');
+    if (existingModal) existingModal.remove();
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('originalFlagModal'));
+    modal.show();
+}
+
+// Include utility functions from cases.html
+async function showCaseDetails(sessionId, recordId) {
+    // Implementation from cases.html
+    try {
+        const response = await fetch(`/api/case/${sessionId}/${recordId}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Failed to load case details: ' + data.error);
+            return;
+        }
+        
+        displayCaseDetailsModal(data);
+    } catch (error) {
+        console.error('Error loading case details:', error);
+        showError('Failed to load case details');
+    }
+}
+
+function showError(message) {
+    showNotification(message, 'danger');
+}
+
+function showSuccess(message) {
+    showNotification(message, 'success');
+}
+
+function showNotification(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

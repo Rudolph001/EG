@@ -64,6 +64,9 @@
                             <li><a class="dropdown-item" href="{{ url_for('cases', session_id=session_id) }}">
                                 <i class="fas fa-briefcase"></i> Case Manager
                             </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flagged_events_dashboard', session_id=session_id) }}">
+                                <i class="fas fa-flag"></i> Flagged Events
+                            </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('escalations', session_id=session_id) }}">
                                 <i class="fas fa-chart-line"></i> Escalation Dashboard
                             </a></li>

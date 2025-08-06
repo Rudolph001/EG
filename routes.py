@@ -3832,6 +3832,212 @@ def reanalyze_session(session_id):
         logger.error(f"Error starting re-analysis for session {session_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# Flagged Events API Endpoints
+@app.route('/api/flag-event/<session_id>/<record_id>', methods=['POST'])
+def flag_event(session_id, record_id):
+    """Flag an email event with a custom note"""
+    try:
+        data = request.get_json()
+        flag_reason = data.get('flag_reason', '').strip()
+        flagged_by = data.get('flagged_by', 'System User')
+        
+        if not flag_reason:
+            return jsonify({'error': 'Flag reason is required'}), 400
+        
+        # Get the email record
+        record = EmailRecord.query.filter_by(session_id=session_id, record_id=record_id).first_or_404()
+        
+        # Update the email record
+        record.is_flagged = True
+        record.flag_reason = flag_reason
+        record.flagged_at = datetime.utcnow()
+        record.flagged_by = flagged_by
+        
+        # Create or update flagged event entry
+        existing_flag = FlaggedEvent.query.filter_by(sender_email=record.sender).first()
+        
+        if existing_flag:
+            # Update existing flag
+            existing_flag.flag_reason = flag_reason
+            existing_flag.flagged_at = datetime.utcnow()
+            existing_flag.flagged_by = flagged_by
+            existing_flag.is_active = True
+            existing_flag.original_session_id = session_id
+            existing_flag.original_record_id = record_id
+        else:
+            # Create new flagged event
+            flagged_event = FlaggedEvent(
+                sender_email=record.sender,
+                original_session_id=session_id,
+                original_record_id=record_id,
+                flag_reason=flag_reason,
+                flagged_by=flagged_by,
+                original_subject=record.subject,
+                original_recipients_domain=record.recipients_email_domain,
+                original_risk_level=record.risk_level,
+                original_ml_score=record.ml_risk_score
+            )
+            db.session.add(flagged_event)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Event flagged successfully for sender {record.sender}',
+            'flag_reason': flag_reason
+        })
+        
+    except Exception as e:
+        logger.error(f"Error flagging event: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/unflag-event/<session_id>/<record_id>', methods=['POST'])
+def unflag_event(session_id, record_id):
+    """Remove flag from an email event"""
+    try:
+        # Get the email record
+        record = EmailRecord.query.filter_by(session_id=session_id, record_id=record_id).first_or_404()
+        
+        # Update the email record
+        record.is_flagged = False
+        record.flag_reason = None
+        record.flagged_at = None
+        record.flagged_by = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Flag removed successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error removing flag: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/flagged-events/<session_id>')
+def flagged_events_dashboard(session_id):
+    """Flagged events dashboard"""
+    session = ProcessingSession.query.get_or_404(session_id)
+    
+    # Get flagged events from current session
+    flagged_records = EmailRecord.query.filter_by(
+        session_id=session_id,
+        is_flagged=True
+    ).order_by(EmailRecord.flagged_at.desc()).all()
+    
+    # Get previously flagged senders in current session
+    previously_flagged = EmailRecord.query.filter_by(
+        session_id=session_id,
+        previously_flagged=True
+    ).order_by(EmailRecord.sender).all()
+    
+    return render_template('flagged_events.html',
+                         session=session,
+                         flagged_records=flagged_records,
+                         previously_flagged=previously_flagged)
+
+@app.route('/api/flagged-events/<session_id>')
+def api_flagged_events(session_id):
+    """Get flagged events data for a session"""
+    try:
+        # Current session flagged events
+        current_flagged = EmailRecord.query.filter_by(
+            session_id=session_id,
+            is_flagged=True
+        ).all()
+        
+        # Previously flagged events in current session
+        previous_flagged = EmailRecord.query.filter_by(
+            session_id=session_id,
+            previously_flagged=True
+        ).all()
+        
+        # All flagged events across all sessions
+        all_flagged_events = FlaggedEvent.query.filter_by(is_active=True).all()
+        
+        return jsonify({
+            'current_flagged': [{
+                'record_id': record.record_id,
+                'sender': record.sender,
+                'subject': record.subject,
+                'recipients_domain': record.recipients_email_domain,
+                'flag_reason': record.flag_reason,
+                'flagged_at': record.flagged_at.isoformat() if record.flagged_at else None,
+                'flagged_by': record.flagged_by,
+                'risk_level': record.risk_level,
+                'ml_score': record.ml_risk_score
+            } for record in current_flagged],
+            'previous_flagged': [{
+                'record_id': record.record_id,
+                'sender': record.sender,
+                'subject': record.subject,
+                'recipients_domain': record.recipients_email_domain,
+                'risk_level': record.risk_level,
+                'ml_score': record.ml_risk_score
+            } for record in previous_flagged],
+            'all_flagged_events': [{
+                'id': event.id,
+                'sender_email': event.sender_email,
+                'flag_reason': event.flag_reason,
+                'flagged_at': event.flagged_at.isoformat() if event.flagged_at else None,
+                'flagged_by': event.flagged_by,
+                'original_session_id': event.original_session_id,
+                'original_subject': event.original_subject,
+                'original_risk_level': event.original_risk_level
+            } for event in all_flagged_events]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting flagged events: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/check-flagged-senders/<session_id>')
+def check_flagged_senders(session_id):
+    """Check for previously flagged senders in current session"""
+    try:
+        # Get all flagged sender emails
+        flagged_senders = {event.sender_email.lower() for event in FlaggedEvent.query.filter_by(is_active=True).all()}
+        
+        if not flagged_senders:
+            return jsonify({'matches': []})
+        
+        # Find records in current session that match flagged senders
+        records = EmailRecord.query.filter_by(session_id=session_id).all()
+        matches = []
+        
+        for record in records:
+            if record.sender and record.sender.lower() in flagged_senders:
+                # Get the original flag info
+                flag_event = FlaggedEvent.query.filter_by(sender_email=record.sender).first()
+                if flag_event:
+                    # Mark as previously flagged if not already flagged in current session
+                    if not record.is_flagged:
+                        record.previously_flagged = True
+                    
+                    matches.append({
+                        'record_id': record.record_id,
+                        'sender': record.sender,
+                        'subject': record.subject,
+                        'original_flag_reason': flag_event.flag_reason,
+                        'original_flagged_at': flag_event.flagged_at.isoformat() if flag_event.flagged_at else None,
+                        'original_session_id': flag_event.original_session_id,
+                        'is_currently_flagged': record.is_flagged
+                    })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'matches': matches,
+            'total_matches': len(matches)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking flagged senders: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/generate-professional-report', methods=['POST'])
 def generate_professional_report():
     """Generate professional report for selected sessions"""

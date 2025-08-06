@@ -271,6 +271,9 @@
                 <a href="{{ url_for('cleared_cases', session_id=session.id) }}" class="btn btn-sm btn-outline-success">
                     <i class="fas fa-check-circle"></i> View Cleared Cases
                 </a>
+                <a href="{{ url_for('flagged_events_dashboard', session_id=session.id) }}" class="btn btn-sm btn-outline-warning">
+                    <i class="fas fa-flag"></i> Flagged Events
+                </a>
             </div>
         </div>
     </div>
@@ -312,6 +315,15 @@
                                 <strong>{{ case.sender[:30] }}{% if case.sender|length > 30 %}...{% endif %}</strong>
                                 {% if case.leaver and case.leaver.lower() in ['yes', 'true', '1'] %}
                                     <span class="badge bg-warning">Leaver</span>
+                                {% endif %}
+                                {% if case.is_flagged %}
+                                    <span class="badge bg-danger" title="Flagged: {{ case.flag_reason }}">
+                                        <i class="fas fa-flag"></i> Flagged
+                                    </span>
+                                {% elif case.previously_flagged %}
+                                    <span class="badge bg-warning" title="Previously flagged sender">
+                                        <i class="fas fa-flag"></i> Prev. Flagged
+                                    </span>
                                 {% endif %}
                             </div>
                         </td>
@@ -356,6 +368,17 @@
                                         data-record-id="{{ case.record_id }}" title="View Details">
                                     <i class="fas fa-eye"></i>
                                 </button>
+                                {% if case.is_flagged %}
+                                <button class="btn btn-sm btn-warning unflag-case-btn" 
+                                        data-record-id="{{ case.record_id }}" title="Remove Flag">
+                                    <i class="fas fa-flag"></i>
+                                </button>
+                                {% else %}
+                                <button class="btn btn-sm btn-outline-warning flag-case-btn" 
+                                        data-record-id="{{ case.record_id }}" title="Flag Event">
+                                    <i class="fas fa-flag"></i>
+                                </button>
+                                {% endif %}
                                 <button class="btn btn-sm btn-outline-success update-case-status-btn" 
                                         data-record-id="{{ case.record_id }}" data-new-status="Cleared" title="Clear Case">
                                     <i class="fas fa-check"></i>
@@ -634,6 +657,18 @@ document.addEventListener('DOMContentLoaded', function() {
             const recordId = btn.getAttribute('data-record-id');
             updateCaseStatus(currentSessionId, recordId, 'Escalated');
         }
+        
+        if (e.target.closest('.flag-case-btn')) {
+            const btn = e.target.closest('.flag-case-btn');
+            const recordId = btn.getAttribute('data-record-id');
+            showFlagEventModal(currentSessionId, recordId);
+        }
+        
+        if (e.target.closest('.unflag-case-btn')) {
+            const btn = e.target.closest('.unflag-case-btn');
+            const recordId = btn.getAttribute('data-record-id');
+            unflagEvent(currentSessionId, recordId);
+        }
     });
 });
 
@@ -848,6 +883,135 @@ function showNotification(message, type) {
             alertDiv.remove();
         }
     }, 5000);
+}
+
+// Flag event functionality
+function showFlagEventModal(sessionId, recordId) {
+    const modalHtml = `
+        <div class="modal fade" id="flagEventModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Flag Email Event</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="flagEventForm">
+                            <div class="mb-3">
+                                <label for="flagReason" class="form-label">Reason for flagging <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="flagReason" rows="3" 
+                                          placeholder="Explain why this event should be flagged..." required></textarea>
+                                <div class="form-text">This note will be saved and shown when this sender appears in future imports.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="flaggedBy" class="form-label">Flagged by</label>
+                                <input type="text" class="form-control" id="flaggedBy" value="System User" placeholder="Your name or ID">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-warning" onclick="submitFlagEvent('${sessionId}', '${recordId}')">
+                            <i class="fas fa-flag"></i> Flag Event
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Clean up any existing modal
+    const existingModal = document.getElementById('flagEventModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('flagEventModal'));
+    modal.show();
+}
+
+async function submitFlagEvent(sessionId, recordId) {
+    const flagReason = document.getElementById('flagReason').value.trim();
+    const flaggedBy = document.getElementById('flaggedBy').value.trim();
+    
+    if (!flagReason) {
+        showError('Please provide a reason for flagging this event');
+        return;
+    }
+    
+    try {
+        showLoading('Flagging event...');
+        
+        const response = await fetch(`/api/flag-event/${sessionId}/${recordId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                flag_reason: flagReason,
+                flagged_by: flaggedBy || 'System User'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Failed to flag event: ' + data.error);
+            return;
+        }
+        
+        showSuccess('Event flagged successfully! This sender will be highlighted in future imports.');
+        
+        // Close modal and refresh page
+        const modal = bootstrap.Modal.getInstance(document.getElementById('flagEventModal'));
+        modal.hide();
+        
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
+        
+        hideLoading();
+    } catch (error) {
+        console.error('Error flagging event:', error);
+        showError('Failed to flag event');
+        hideLoading();
+    }
+}
+
+async function unflagEvent(sessionId, recordId) {
+    if (!confirm('Remove flag from this event?')) {
+        return;
+    }
+    
+    try {
+        showLoading('Removing flag...');
+        
+        const response = await fetch(`/api/unflag-event/${sessionId}/${recordId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Failed to remove flag: ' + data.error);
+            return;
+        }
+        
+        showSuccess('Flag removed successfully');
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
+        
+        hideLoading();
+    } catch (error) {
+        console.error('Error removing flag:', error);
+        showError('Failed to remove flag');
+        hideLoading();
+    }
 }
 </script>
 {% endblock %}

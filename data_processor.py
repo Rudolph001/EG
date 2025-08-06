@@ -610,25 +610,30 @@ class DataProcessor:
             self._apply_exclusion_keywords(session_id)
             self.workflow_manager.complete_stage(session_id, 6)
             
-            # Stage 7: ML Analysis (70-80%)
+            # Stage 7: Flag Matching (70-75%)
             self.workflow_manager.start_stage(session_id, 7)
-            self._apply_ml_analysis(session_id)
+            self._check_flagged_senders(session_id)
             self.workflow_manager.complete_stage(session_id, 7)
             
-            # Stage 8: Case Generation (80-90%)
+            # Stage 8: ML Analysis (75-85%)
             self.workflow_manager.start_stage(session_id, 8)
-            self._generate_cases(session_id)
+            self._apply_ml_analysis(session_id)
             self.workflow_manager.complete_stage(session_id, 8)
             
-            # Stage 9: Final Validation (90-100%)
+            # Stage 9: Case Generation (85-95%)
             self.workflow_manager.start_stage(session_id, 9)
-            self._final_validation(session_id)
+            self._generate_cases(session_id)
             self.workflow_manager.complete_stage(session_id, 9)
             
-            logger.info(f"9-stage workflow completed for session {session_id}")
+            # Stage 10: Final Validation (95-100%)
+            self.workflow_manager.start_stage(session_id, 10)
+            self._final_validation(session_id)
+            self.workflow_manager.complete_stage(session_id, 10)
+            
+            logger.info(f"10-stage workflow completed for session {session_id}")
             
         except Exception as e:
-            logger.error(f"Error in 9-stage workflow for session {session_id}: {str(e)}")
+            logger.error(f"Error in workflow for session {session_id}: {str(e)}")
             session = ProcessingSession.query.get(session_id)
             if session and session.current_stage > 0:
                 self.workflow_manager.error_stage(session_id, session.current_stage, str(e))
@@ -773,8 +778,54 @@ class DataProcessor:
             db.session.rollback()
             raise
     
+    def _check_flagged_senders(self, session_id):
+        """Stage 7: Check for previously flagged senders"""
+        try:
+            from models import FlaggedEvent
+            
+            logger.info(f"Starting flagged sender check for session {session_id}")
+            
+            # Get all active flagged events
+            flagged_events = FlaggedEvent.query.filter_by(is_active=True).all()
+            if not flagged_events:
+                logger.info("No flagged events found")
+                return
+            
+            flagged_senders = {event.sender_email.lower(): event for event in flagged_events}
+            logger.info(f"Found {len(flagged_senders)} flagged senders to check against")
+            
+            # Get records from current session
+            records = EmailRecord.query.filter_by(session_id=session_id).all()
+            matches_count = 0
+            
+            # Process records in batches
+            batch_size = 1000
+            for i in range(0, len(records), batch_size):
+                batch_records = records[i:i + batch_size]
+                
+                for record in batch_records:
+                    if record.sender and record.sender.lower() in flagged_senders:
+                        flag_event = flagged_senders[record.sender.lower()]
+                        
+                        # Mark as previously flagged if not already flagged in current session
+                        if not record.is_flagged:
+                            record.previously_flagged = True
+                            matches_count += 1
+                            logger.debug(f"Marked record {record.record_id} as previously flagged (sender: {record.sender})")
+                
+                # Commit batch
+                db.session.commit()
+                logger.info(f"Processed flag check batch {i//batch_size + 1}: {min(i + batch_size, len(records))}/{len(records)} records")
+            
+            logger.info(f"Flagged sender check completed: {matches_count} records marked as previously flagged")
+            
+        except Exception as e:
+            logger.error(f"Error in flagged sender check stage: {str(e)}")
+            db.session.rollback()
+            raise
+    
     def _apply_ml_analysis(self, session_id):
-        """Stage 7: Apply ML analysis"""
+        """Stage 8: Apply ML analysis"""
         try:
             from ml_engine import MLEngine
             ml_engine = MLEngine()
