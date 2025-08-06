@@ -947,15 +947,13 @@ def api_grouped_cases(session_id):
         # Get all matching records
         all_records = base_query.all()
         
-        # Group records by sender, subject, time, and attachments (content identifier)
+        # Group records by sender, subject, and attachments (content identifier)
+        # We exclude time from grouping to better group duplicates sent to multiple recipients
         groups = {}
         for record in all_records:
-            # Create grouping key - normalize time to handle minor variations
-            time_key = record.time[:16] if record.time and len(record.time) >= 16 else record.time or ''
             group_key = (
                 record.sender or '',
                 record.subject or '',
-                time_key,
                 record.attachments or ''
             )
             

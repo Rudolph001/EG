@@ -162,6 +162,7 @@
                 </label>
             </div>
             <small class="text-muted">Groups same email to multiple recipients</small>
+            <div id="groupingStatus" class="small text-info mt-1" style="display:none;"></div>
         </div>
         
         <div class="col-md-2">
@@ -529,23 +530,38 @@ async function toggleGrouping() {
     const groupToggle = document.getElementById('groupEmails');
     const individualTable = document.getElementById('casesTable');
     const groupedTable = document.getElementById('groupedCasesTable');
+    const statusDiv = document.getElementById('groupingStatus');
     
+    console.log('Toggle grouping called, checked:', groupToggle.checked);
     isGroupingEnabled = groupToggle.checked;
     
     if (isGroupingEnabled) {
+        statusDiv.style.display = 'block';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading grouped view...';
+        
         // Show grouped view
         individualTable.style.display = 'none';
         groupedTable.style.display = 'table';
         
-        // Load grouped data if not already loaded
-        if (!groupedCasesData) {
+        // Always reload grouped data to get latest
+        try {
             await loadGroupedCases();
+            statusDiv.innerHTML = '<i class="fas fa-check"></i> Grouped view active';
+        } catch (error) {
+            console.error('Error loading grouped cases:', error);
+            statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error loading groups';
+            // Revert to individual view on error
+            groupToggle.checked = false;
+            individualTable.style.display = 'table';
+            groupedTable.style.display = 'none';
+            isGroupingEnabled = false;
         }
         
         // Update UI indicators
         document.querySelector('.card-title').innerHTML = '<i class="fas fa-layer-group text-primary"></i> Grouped Email Cases';
         
     } else {
+        statusDiv.style.display = 'none';
         // Show individual view
         individualTable.style.display = 'table';
         groupedTable.style.display = 'none';
@@ -557,6 +573,8 @@ async function toggleGrouping() {
 
 async function loadGroupedCases() {
     try {
+        console.log('Loading grouped cases for session:', window.currentSessionId);
+        
         // Show loading indicator
         const tbody = document.getElementById('groupedCasesBody');
         tbody.innerHTML = '<tr><td colspan="9" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading grouped cases...</td></tr>';
@@ -571,13 +589,24 @@ async function loadGroupedCases() {
             }
         });
         
+        console.log('Filter params:', filterParams.toString());
+        
         // Fetch grouped data
-        const response = await fetch(`/api/grouped-cases/${window.currentSessionId}?${filterParams}`);
+        const url = `/api/grouped-cases/${window.currentSessionId}?${filterParams}`;
+        console.log('Fetching URL:', url);
+        
+        const response = await fetch(url);
+        console.log('Response status:', response.status);
+        
         if (!response.ok) {
-            throw new Error('Failed to load grouped cases');
+            const errorText = await response.text();
+            console.error('Response error:', errorText);
+            throw new Error(`Failed to load grouped cases: ${response.status} ${errorText}`);
         }
         
         const data = await response.json();
+        console.log('Received data:', data);
+        
         groupedCasesData = data.grouped_cases;
         
         // Render grouped cases
@@ -589,7 +618,8 @@ async function loadGroupedCases() {
     } catch (error) {
         console.error('Error loading grouped cases:', error);
         const tbody = document.getElementById('groupedCasesBody');
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger"><i class="fas fa-exclamation-triangle"></i> Error loading grouped cases</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger"><i class="fas fa-exclamation-triangle"></i> Error loading grouped cases: ${error.message}</td></tr>`;
+        throw error; // Re-throw for the calling function to handle
     }
 }
 
