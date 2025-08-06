@@ -901,6 +901,160 @@ def api_attachment_risk_analytics(session_id):
     analytics = advanced_ml_engine.analyze_attachment_risks(session_id)
     return jsonify(analytics)
 
+@app.route('/api/grouped-cases/<session_id>')
+def api_grouped_cases(session_id):
+    """Get grouped email cases for case manager - groups by sender, subject, time, and content"""
+    try:
+        # Get filter parameters
+        risk_level = request.args.get('risk_level', '')
+        case_status = request.args.get('case_status', '')
+        search = request.args.get('search', '')
+        show_whitelisted = request.args.get('show_whitelisted', False)
+        show_excluded = request.args.get('show_excluded', False)
+        
+        # Base query
+        if show_whitelisted:
+            base_query = EmailRecord.query.filter_by(session_id=session_id).filter(
+                EmailRecord.whitelisted == True
+            )
+        elif show_excluded:
+            base_query = EmailRecord.query.filter_by(session_id=session_id).filter(
+                EmailRecord.excluded_by_rule.isnot(None),
+                db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+            )
+        else:
+            base_query = EmailRecord.query.filter_by(session_id=session_id).filter(
+                db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+            )
+        
+        # Apply filters
+        if risk_level:
+            base_query = base_query.filter(EmailRecord.risk_level == risk_level)
+        if case_status:
+            base_query = base_query.filter(EmailRecord.case_status == case_status)
+        if search:
+            search_term = f"%{search}%"
+            base_query = base_query.filter(
+                db.or_(
+                    EmailRecord.sender.ilike(search_term),
+                    EmailRecord.subject.ilike(search_term),
+                    EmailRecord.recipients_email_domain.ilike(search_term),
+                    EmailRecord.recipients.ilike(search_term),
+                    EmailRecord.attachments.ilike(search_term)
+                )
+            )
+        
+        # Get all matching records
+        all_records = base_query.all()
+        
+        # Group records by sender, subject, time, and attachments (content identifier)
+        groups = {}
+        for record in all_records:
+            # Create grouping key - normalize time to handle minor variations
+            time_key = record.time[:16] if record.time and len(record.time) >= 16 else record.time or ''
+            group_key = (
+                record.sender or '',
+                record.subject or '',
+                time_key,
+                record.attachments or ''
+            )
+            
+            if group_key not in groups:
+                groups[group_key] = {
+                    'group_id': f"group_{len(groups)}",
+                    'sender': record.sender,
+                    'subject': record.subject,
+                    'time': record.time,
+                    'attachments': record.attachments,
+                    'recipients': [],
+                    'record_count': 0,
+                    'highest_risk_score': 0,
+                    'risk_level': 'Low',
+                    'case_statuses': set(),
+                    'primary_record': record
+                }
+            
+            # Add recipient info to group
+            groups[group_key]['recipients'].append({
+                'record_id': record.record_id,
+                'recipient': record.recipients,
+                'recipient_domain': record.recipients_email_domain,
+                'risk_level': record.risk_level,
+                'ml_score': float(record.ml_risk_score or 0),
+                'case_status': record.case_status or 'Active',
+                'is_flagged': record.is_flagged,
+                'flag_reason': record.flag_reason,
+                'notes': record.notes,
+                'policy_name': record.policy_name
+            })
+            
+            # Update group metadata
+            groups[group_key]['record_count'] += 1
+            groups[group_key]['case_statuses'].add(record.case_status or 'Active')
+            
+            # Track highest risk score in group
+            if record.ml_risk_score and record.ml_risk_score > groups[group_key]['highest_risk_score']:
+                groups[group_key]['highest_risk_score'] = record.ml_risk_score
+                groups[group_key]['risk_level'] = record.risk_level or 'Low'
+        
+        # Convert to list and sort by highest risk score
+        grouped_data = []
+        for group_key, group_data in groups.items():
+            # Convert set to list for JSON serialization
+            group_data['case_statuses'] = list(group_data['case_statuses'])
+            
+            # Add summary status
+            if 'Escalated' in group_data['case_statuses']:
+                group_data['group_status'] = 'Escalated'
+            elif 'Cleared' in group_data['case_statuses']:
+                group_data['group_status'] = 'Mixed' if len(group_data['case_statuses']) > 1 else 'Cleared'
+            else:
+                group_data['group_status'] = 'Active'
+            
+            # Format time for display
+            try:
+                if group_data['time']:
+                    if isinstance(group_data['time'], str):
+                        time_obj = datetime.fromisoformat(group_data['time'].replace('Z', '+00:00'))
+                    else:
+                        time_obj = group_data['time']
+                    group_data['time_display'] = time_obj.strftime('%Y-%m-%d %H:%M')
+                else:
+                    group_data['time_display'] = 'Unknown'
+            except:
+                group_data['time_display'] = 'Invalid Date'
+            
+            # Remove primary_record object (not JSON serializable)
+            del group_data['primary_record']
+            
+            grouped_data.append(group_data)
+        
+        # Sort by highest risk score descending
+        grouped_data.sort(key=lambda x: x['highest_risk_score'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'grouped_cases': grouped_data,
+            'total_groups': len(grouped_data),
+            'total_records': len(all_records)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting grouped cases for session {session_id}: {str(e)}")
+        return jsonify({'error': 'Failed to load grouped cases', 'details': str(e)}), 500
+
+@app.route('/api/group-details/<session_id>/<group_id>')
+def api_group_details(session_id, group_id):
+    """Get detailed records for a specific group"""
+    try:
+        # This endpoint will be called when user expands a group
+        # For now, return the group data from the grouped-cases endpoint
+        # In a production system, you might cache group data or recreate it
+        return jsonify({'message': 'Group details - use grouped-cases endpoint with group expansion'})
+    except Exception as e:
+        logger.error(f"Error getting group details: {str(e)}")
+        return jsonify({'error': 'Failed to load group details'}), 500
+
 # Reports Dashboard API Endpoints
 @app.route('/api/cases/<session_id>')
 def api_cases_data(session_id):
