@@ -235,6 +235,10 @@
                     </div>
                     <div class="mb-3 mt-3">
                         <label class="form-label">Conditions</label>
+                        <div class="alert alert-info alert-sm mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Multiple Keywords:</strong> For <em>Contains</em> and <em>Not Contains</em> operators, you can enter multiple keywords separated by commas. Example: <code>resignation, quit, leaving</code> will match any email containing any of these words.
+                        </div>
                         <div id="conditionsContainer">
                             <div class="condition-group border p-3 mb-2" data-condition-index="0">
                                 <div class="row">
@@ -264,7 +268,7 @@
                                     </div>
                                     <div class="col-md-3">
                                         <div class="condition-value-container">
-                                            <input type="text" class="form-control condition-value" placeholder="Value">
+                                            <input type="text" class="form-control condition-value" placeholder="Value (use commas for multiple keywords: word1, word2, word3)">
                                             <select class="form-select condition-risk-level d-none">
                                                 <option value="Critical">Critical</option>
                                                 <option value="High">High</option>
@@ -361,6 +365,10 @@
                     </div>
                     <div class="mb-3 mt-3">
                         <label class="form-label">Conditions</label>
+                        <div class="alert alert-info alert-sm mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Multiple Keywords:</strong> For <em>Contains</em> and <em>Not Contains</em> operators, you can enter multiple keywords separated by commas. Example: <code>resignation, quit, leaving</code> will match any email containing any of these words.
+                        </div>
                         <div id="editConditionsContainer">
                             <!-- Conditions will be populated dynamically -->
                         </div>
@@ -478,7 +486,8 @@ function addCondition() {
             </div>
         </div>
     `;
-    container.insertAdjacentHTML('beforeend', conditionHtml);
+    // Update placeholder text for multiple keywords
+    container.insertAdjacentHTML('beforeend', conditionHtml.replace('placeholder="Value"', 'placeholder="Value (use commas for multiple keywords: word1, word2, word3)"'));
 }
 
 function removeCondition(button) {
@@ -568,7 +577,8 @@ function addEditCondition() {
             </div>
         </div>
     `;
-    container.insertAdjacentHTML('beforeend', conditionHtml);
+    // Update placeholder text for multiple keywords
+    container.insertAdjacentHTML('beforeend', conditionHtml.replace('placeholder="Value"', 'placeholder="Value (use commas for multiple keywords: word1, word2, word3)"'));
 }
 
 function removeEditCondition(button) {

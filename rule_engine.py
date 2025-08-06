@@ -301,11 +301,21 @@ class RuleEngine:
             if operator == 'equals':
                 result = record_str_lower == condition_str_lower
             elif operator == 'contains':
-                result = condition_str_lower in record_str_lower
+                # Support multiple keywords separated by commas
+                if ',' in condition_str_lower:
+                    keywords = [k.strip() for k in condition_str_lower.split(',') if k.strip()]
+                    result = any(keyword in record_str_lower for keyword in keywords)
+                else:
+                    result = condition_str_lower in record_str_lower
             elif operator == 'not_equals':
                 result = record_str_lower != condition_str_lower
             elif operator == 'not_contains':
-                result = condition_str_lower not in record_str_lower
+                # Support multiple keywords separated by commas
+                if ',' in condition_str_lower:
+                    keywords = [k.strip() for k in condition_str_lower.split(',') if k.strip()]
+                    result = not any(keyword in record_str_lower for keyword in keywords)
+                else:
+                    result = condition_str_lower not in record_str_lower
             elif operator == 'starts_with':
                 result = record_str_lower.startswith(condition_str_lower)
             elif operator == 'ends_with':
