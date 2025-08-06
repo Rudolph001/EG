@@ -970,7 +970,7 @@ def api_grouped_cases(session_id):
                     'risk_level': 'Low',
                     'case_statuses': set(),
                     'primary_record': record,
-                    'is_leaver': hasattr(record, 'leaver_status') and record.leaver_status == 'Leaver'
+                    'is_leaver': record.leaver == 'Leaver'
                 }
             
             # Add recipient info to group
