@@ -285,6 +285,25 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Actions</label>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="actionRiskLevel" class="form-label">Assign Risk Level</label>
+                                <select class="form-select" id="actionRiskLevel">
+                                    <option value="">No Override</option>
+                                    <option value="Critical">Critical</option>
+                                    <option value="High">High</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                                <small class="text-muted">Override the ML-calculated risk level</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="actionRiskScore" class="form-label">Risk Score Modifier</label>
+                                <input type="number" class="form-control" id="actionRiskScore" 
+                                       min="-1.0" max="1.0" step="0.1" placeholder="e.g., 0.2">
+                                <small class="text-muted">Adjust risk score (-1.0 to +1.0)</small>
+                            </div>
+                        </div>
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="actionFlag">
                             <label class="form-check-label" for="actionFlag">Flag for Review</label>
@@ -354,6 +373,25 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Actions</label>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="editActionRiskLevel" class="form-label">Assign Risk Level</label>
+                                <select class="form-select" id="editActionRiskLevel">
+                                    <option value="">No Override</option>
+                                    <option value="Critical">Critical</option>
+                                    <option value="High">High</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                                <small class="text-muted">Override the ML-calculated risk level</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editActionRiskScore" class="form-label">Risk Score Modifier</label>
+                                <input type="number" class="form-control" id="editActionRiskScore" 
+                                       min="-1.0" max="1.0" step="0.1" placeholder="e.g., 0.2">
+                                <small class="text-muted">Adjust risk score (-1.0 to +1.0)</small>
+                            </div>
+                        </div>
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="editActionFlag">
                             <label class="form-check-label" for="editActionFlag">Flag for Review</label>
@@ -517,6 +555,16 @@ function saveRule() {
     if (document.getElementById('actionEscalate').checked) {
         actions.escalate = true;
     }
+    
+    const riskLevel = document.getElementById('actionRiskLevel').value;
+    if (riskLevel) {
+        actions.assign_risk_level = riskLevel;
+    }
+    
+    const riskScoreModifier = document.getElementById('actionRiskScore').value;
+    if (riskScoreModifier) {
+        actions.score_modifier = parseFloat(riskScoreModifier);
+    }
 
     const ruleData = {
         name: name,
@@ -583,6 +631,8 @@ function editRule(ruleId) {
         // Populate actions
         document.getElementById('editActionFlag').checked = rule.actions && rule.actions.flag;
         document.getElementById('editActionEscalate').checked = rule.actions && rule.actions.escalate;
+        document.getElementById('editActionRiskLevel').value = rule.actions && rule.actions.assign_risk_level || '';
+        document.getElementById('editActionRiskScore').value = rule.actions && rule.actions.score_modifier || '';
 
         // Show modal
         new bootstrap.Modal(document.getElementById('editRuleModal')).show();
@@ -636,6 +686,16 @@ function updateRule() {
     }
     if (document.getElementById('editActionEscalate').checked) {
         actions.escalate = true;
+    }
+    
+    const riskLevel = document.getElementById('editActionRiskLevel').value;
+    if (riskLevel) {
+        actions.assign_risk_level = riskLevel;
+    }
+    
+    const riskScoreModifier = document.getElementById('editActionRiskScore').value;
+    if (riskScoreModifier) {
+        actions.score_modifier = parseFloat(riskScoreModifier);
     }
 
     const ruleData = {

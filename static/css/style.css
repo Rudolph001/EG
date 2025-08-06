@@ -791,23 +791,23 @@ body {
         padding-left: 1rem;
         padding-right: 1rem;
     }
-    
+
     .card-body {
         padding: 1rem;
     }
-    
+
     .stats-card h3 {
         font-size: 2rem;
     }
-    
+
     .table-responsive {
         border-radius: var(--border-radius-lg);
     }
-    
+
     .filter-bar {
         padding: 1rem;
     }
-    
+
     .chart-container {
         height: 300px;
     }
@@ -817,15 +817,15 @@ body {
     .file-upload-area {
         padding: 2rem 1rem;
     }
-    
+
     .file-upload-icon {
         font-size: 2rem;
     }
-    
+
     .stats-card h3 {
         font-size: 1.75rem;
     }
-    
+
     .btn {
         padding: 0.5rem 1rem;
         font-size: 0.875rem;
@@ -1011,8 +1011,61 @@ body {
 }
 
 .condition-group {
-    transition: all 0.2s ease;
-    border-radius: 6px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.condition-group .btn-outline-danger {
+    border: none;
+    color: #dc3545;
+}
+
+.condition-group .btn-outline-danger:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Risk level action styling */
+.risk-level-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border-left: 4px solid #007bff;
+}
+
+.risk-level-section .form-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.risk-level-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-right: 8px;
+}
+
+.risk-level-badge.critical {
+    background-color: #dc3545;
+    color: white;
+}
+
+.risk-level-badge.high {
+    background-color: #fd7e14;
+    color: white;
+}
+
+.risk-level-badge.medium {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.risk-level-badge.low {
+    background-color: #28a745;
+    color: white;
 }
 
 .condition-group:hover {

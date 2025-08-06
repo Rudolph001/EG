@@ -448,6 +448,28 @@ class RuleEngine:
                 else:
                     record.notes = flag_message
             
+            if actions.get('assign_risk_level'):
+                # Override risk level
+                risk_level = actions.get('assign_risk_level')
+                record.risk_level = risk_level
+                
+                # Update risk score based on risk level
+                risk_level_scores = {
+                    'Critical': 0.9,
+                    'High': 0.7,
+                    'Medium': 0.5,
+                    'Low': 0.2
+                }
+                if risk_level in risk_level_scores:
+                    record.ml_risk_score = risk_level_scores[risk_level]
+                
+                # Add note about rule-based risk assignment
+                risk_note = f'Risk level set to {risk_level} by rule: {rule.name}'
+                if record.notes:
+                    record.notes += f'\n{risk_note}'
+                else:
+                    record.notes = risk_note
+            
             if actions.get('score_modifier'):
                 # Modify risk score
                 modifier = float(actions.get('score_modifier', 0))
@@ -455,6 +477,10 @@ class RuleEngine:
                     record.ml_risk_score = min(max(record.ml_risk_score + modifier, 0), 1)
                 else:
                     record.ml_risk_score = max(modifier, 0)
+                
+                # Update risk level based on new score if not explicitly assigned
+                if not actions.get('assign_risk_level'):
+                    record.risk_level = self._get_risk_level_from_score(record.ml_risk_score)
             
             if actions.get('tag'):
                 # Add tag to record
@@ -469,6 +495,17 @@ class RuleEngine:
                 
         except Exception as e:
             logger.error(f"Error applying rule actions: {str(e)}")
+    
+    def _get_risk_level_from_score(self, risk_score):
+        """Convert numeric risk score to risk level string"""
+        if risk_score >= 0.8:
+            return 'Critical'
+        elif risk_score >= 0.6:
+            return 'High'
+        elif risk_score >= 0.4:
+            return 'Medium'
+        else:
+            return 'Low'
     
     def test_rule(self, rule_data, test_records):
         """Test a rule against sample records"""
