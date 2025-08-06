@@ -627,14 +627,18 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('reportFormat').addEventListener('change', handleFormatChange);
     document.getElementById('reportPeriod').addEventListener('change', handlePeriodChange);
     
-    // Auto-show controls and cards for demo
+    // Auto-show controls and cards for demo with data population
     setTimeout(() => {
         document.getElementById('reportControls').style.display = 'block';
         document.getElementById('summaryCards').style.display = 'block';
         document.getElementById('mainCharts').style.display = 'block';
         document.getElementById('secondaryCharts').style.display = 'block';
+        
+        // Populate all data fields immediately
+        populateAllData();
         showReportSections('executive');
-    }, 1000);
+        initializeCharts();
+    }, 500);
 });
 
 function loadAvailableSessions() {
@@ -698,9 +702,15 @@ function generateReport() {
     document.getElementById('mainCharts').style.display = 'block';
     document.getElementById('secondaryCharts').style.display = 'block';
     
+    // Populate data immediately
+    populateAllData();
+    
     // Show sections based on current format
     const format = document.getElementById('reportFormat').value;
     showReportSections(format);
+    
+    // Initialize charts
+    setTimeout(() => initializeCharts(), 100);
     
     updateSelectionInfo();
 }
@@ -768,38 +778,64 @@ function updateReport() {
     const format = document.getElementById('reportFormat').value;
     showReportSections(format);
     
-    // Update summary cards with animation
-    animateNumbers();
+    // Ensure data is populated
+    populateAllData();
+    
+    // Re-initialize charts for new format
+    setTimeout(() => initializeCharts(), 100);
+}
+
+function populateAllData() {
+    // Populate summary cards with actual data
+    const summaryData = {
+        'totalEmailsProcessed': { value: 9000, growth: '15%' },
+        'securityIncidents': { value: 2260, rate: '25.1%' },
+        'casesResolved': { value: 0, rate: '0.0%' },
+        'avgResponseTime': { value: '2.5h', improvement: '8%' }
+    };
+    
+    // Set main numbers
+    document.getElementById('totalEmailsProcessed').textContent = '9,000';
+    document.getElementById('securityIncidents').textContent = '2,260';
+    document.getElementById('casesResolved').textContent = '0';
+    document.getElementById('avgResponseTime').textContent = '2.5h';
+    
+    // Set growth/rate indicators
+    document.getElementById('emailsGrowth').textContent = '15%';
+    document.getElementById('incidentsRate').textContent = '25.1%';
+    document.getElementById('resolutionRate').textContent = '0.0%';
+    document.getElementById('responseImprovement').textContent = '8%';
 }
 
 function animateNumbers() {
-    const numbers = [
-        { id: 'totalEmailsProcessed', value: 9000 },
-        { id: 'securityIncidents', value: 2260 },
-        { id: 'casesResolved', value: 0 }
-    ];
-    
-    numbers.forEach(item => {
-        const element = document.getElementById(item.id);
-        if (element) {
-            let current = 0;
-            const increment = item.value / 50;
-            const timer = setInterval(() => {
-                current += increment;
-                if (current >= item.value) {
-                    current = item.value;
-                    clearInterval(timer);
-                }
-                element.textContent = Math.floor(current).toLocaleString();
-            }, 20);
-        }
-    });
+    // Just update the display immediately - no animation for faster loading
+    populateAllData();
 }
 
 function initializeCharts() {
-    // Initialize Risk Trend Chart
+    // Destroy existing charts first to prevent duplication
     const riskTrendCtx = document.getElementById('riskTrendChart');
-    if (riskTrendCtx && !riskTrendCtx.chart) {
+    if (riskTrendCtx && riskTrendCtx.chart) {
+        riskTrendCtx.chart.destroy();
+    }
+    
+    const riskDistCtx = document.getElementById('riskDistributionChart');
+    if (riskDistCtx && riskDistCtx.chart) {
+        riskDistCtx.chart.destroy();
+    }
+    
+    const deptVolumeCtx = document.getElementById('departmentVolumeChart');
+    if (deptVolumeCtx && deptVolumeCtx.chart) {
+        deptVolumeCtx.chart.destroy();
+    }
+    
+    const threatDomainsCtx = document.getElementById('threatDomainsChart');
+    if (threatDomainsCtx && threatDomainsCtx.chart) {
+        threatDomainsCtx.chart.destroy();
+    }
+    
+    // Initialize Risk Trend Chart
+    if (riskTrendCtx) {
         riskTrendCtx.chart = new Chart(riskTrendCtx, {
             type: 'line',
             data: {
@@ -808,17 +844,20 @@ function initializeCharts() {
                     label: 'High Risk',
                     data: [350, 280, 450, 320],
                     borderColor: '#e74a3b',
-                    backgroundColor: 'rgba(231, 74, 59, 0.1)'
+                    backgroundColor: 'rgba(231, 74, 59, 0.1)',
+                    tension: 0.1
                 }, {
                     label: 'Medium Risk', 
                     data: [650, 720, 580, 690],
                     borderColor: '#f6c23e',
-                    backgroundColor: 'rgba(246, 194, 62, 0.1)'
+                    backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                    tension: 0.1
                 }, {
                     label: 'Low Risk',
                     data: [1200, 1150, 1300, 1180],
                     borderColor: '#1cc88a', 
-                    backgroundColor: 'rgba(28, 200, 138, 0.1)'
+                    backgroundColor: 'rgba(28, 200, 138, 0.1)',
+                    tension: 0.1
                 }]
             },
             options: {
@@ -828,21 +867,27 @@ function initializeCharts() {
                     legend: {
                         position: 'top'
                     }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
                 }
             }
         });
     }
     
     // Initialize Risk Distribution Chart
-    const riskDistCtx = document.getElementById('riskDistributionChart');
-    if (riskDistCtx && !riskDistCtx.chart) {
+    if (riskDistCtx) {
         riskDistCtx.chart = new Chart(riskDistCtx, {
             type: 'doughnut',
             data: {
                 labels: ['Critical', 'High', 'Medium', 'Low'],
                 datasets: [{
                     data: [124, 2136, 4820, 1920],
-                    backgroundColor: ['#e74a3b', '#fd7e14', '#f6c23e', '#1cc88a']
+                    backgroundColor: ['#e74a3b', '#fd7e14', '#f6c23e', '#1cc88a'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
                 }]
             },
             options: {
@@ -851,6 +896,67 @@ function initializeCharts() {
                 plugins: {
                     legend: {
                         position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Initialize Department Volume Chart
+    if (deptVolumeCtx) {
+        deptVolumeCtx.chart = new Chart(deptVolumeCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Finance', 'HR', 'IT', 'Sales', 'Marketing'],
+                datasets: [{
+                    label: 'Email Volume',
+                    data: [2400, 1800, 3200, 2100, 1500],
+                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    
+    // Initialize Threat Domains Chart
+    if (threatDomainsCtx) {
+        threatDomainsCtx.chart = new Chart(threatDomainsCtx, {
+            type: 'horizontalBar',
+            data: {
+                labels: ['suspicious-domain.com', 'phishing-site.org', 'malware-host.net', 'spam-sender.biz', 'fake-bank.co'],
+                datasets: [{
+                    label: 'Threat Count',
+                    data: [45, 38, 32, 28, 24],
+                    backgroundColor: '#e74a3b',
+                    borderColor: '#c0392b',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true
                     }
                 }
             }
