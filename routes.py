@@ -5,7 +5,7 @@ import csv
 import json
 from datetime import datetime
 from app import app, db
-from models import ProcessingSession, EmailRecord, Rule, WhitelistDomain, AttachmentKeyword, ProcessingError, RiskFactor
+from models import ProcessingSession, EmailRecord, Rule, WhitelistDomain, AttachmentKeyword, ProcessingError, RiskFactor, FlaggedEvent
 from session_manager import SessionManager
 from data_processor import DataProcessor
 from ml_engine import MLEngine
