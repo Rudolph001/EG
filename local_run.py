@@ -71,6 +71,22 @@ def main():
         conn.close()
         print("✓ Database connection test successful")
         print(f"✓ Database file accessible: {db_path}")
+        
+        # Setup and migrate database schema
+        try:
+            from setup_local_database import setup_local_database
+            print("Setting up local database schema...")
+            setup_local_database()
+        except Exception as migrate_error:
+            print(f"Note: Database setup failed: {migrate_error}")
+            # Fallback to basic migration
+            try:
+                from migrate_local_db import add_flagging_columns_to_sqlite
+                print("Trying basic migration...")
+                add_flagging_columns_to_sqlite(str(db_path))
+            except Exception as e2:
+                print(f"Note: Migration fallback failed: {e2}")
+            
     except Exception as e:
         print(f"✗ Database connection failed: {e}")
         print("Creating database file...")

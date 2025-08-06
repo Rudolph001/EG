@@ -15,6 +15,15 @@ def add_flagging_columns_to_sqlite(db_path):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
+        # Check if email_records table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='email_records'")
+        table_exists = cursor.fetchone() is not None
+        
+        if not table_exists:
+            print("✓ email_records table doesn't exist yet - will be created with correct schema")
+            conn.close()
+            return True
+        
         # Check if flagging columns already exist
         cursor.execute("PRAGMA table_info(email_records)")
         columns = [column[1] for column in cursor.fetchall()]

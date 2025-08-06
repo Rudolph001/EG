@@ -81,26 +81,40 @@ with app.app_context():
         db.create_all()
         db.session.commit()
         print("✓ Database tables created successfully")
+        
+        # For SQLite databases, ensure schema is up to date
+        if database_url.startswith('sqlite:'):
+            try:
+                from migrate_local_db import add_flagging_columns_to_sqlite
+                db_path = database_url.replace('sqlite:///', '')
+                if os.path.exists(db_path):
+                    add_flagging_columns_to_sqlite(db_path)
+            except Exception as e:
+                print(f"Note: Could not auto-migrate database: {e}")
+                
     except Exception as e:
         print(f"✗ Failed to create database tables: {e}")
         db.session.rollback()
         
-        # Try to recreate database file
-        print("Attempting to recreate database...")
-        try:
-            db_path = database_url.replace('sqlite:///', '')
-            if os.path.exists(db_path):
-                os.remove(db_path)
-            
-            import sqlite3
-            conn = sqlite3.connect(db_path)
-            conn.close()
-            os.chmod(db_path, 0o664)
-            
-            # Try creating tables again
-            db.create_all()
-            db.session.commit()
-            print("✓ Database recreated and tables created successfully")
-        except Exception as e2:
-            print(f"✗ Failed to recreate database: {e2}")
+        # Try to recreate database file for SQLite
+        if database_url.startswith('sqlite:'):
+            print("Attempting to recreate SQLite database...")
+            try:
+                db_path = database_url.replace('sqlite:///', '')
+                if os.path.exists(db_path):
+                    os.remove(db_path)
+                
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                conn.close()
+                os.chmod(db_path, 0o664)
+                
+                # Try creating tables again
+                db.create_all()
+                db.session.commit()
+                print("✓ Database recreated and tables created successfully")
+            except Exception as e2:
+                print(f"✗ Failed to recreate database: {e2}")
+                raise
+        else:
             raise
