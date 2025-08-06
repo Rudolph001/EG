@@ -670,7 +670,70 @@ def advanced_ml_dashboard(session_id):
 def adaptive_ml_dashboard(session_id):
     """Adaptive ML learning dashboard"""
     session = ProcessingSession.query.get_or_404(session_id)
-    analytics = adaptive_ml_engine.get_learning_analytics(days=30)
+    
+    try:
+        analytics = adaptive_ml_engine.get_learning_analytics(days=30)
+        
+        # Ensure the analytics structure is complete
+        if not analytics:
+            analytics = {}
+        
+        # Provide fallback structure if any section is missing
+        if 'performance_metrics' not in analytics:
+            analytics['performance_metrics'] = {
+                'model_trained': False,
+                'adaptive_weight': 0.1,
+                'learning_confidence': 0.0,
+                'latest_session_feedback': 0,
+                'model_maturity': 'Initial'
+            }
+        
+        # Ensure adaptive_weight exists in performance_metrics
+        if 'adaptive_weight' not in analytics.get('performance_metrics', {}):
+            analytics['performance_metrics']['adaptive_weight'] = adaptive_ml_engine.adaptive_weight
+        
+        # Provide fallback structure for other sections
+        default_analytics = {
+            'model_evolution': {
+                'improvement_over_time': [],
+                'weight_progression': [],
+                'accuracy_trends': []
+            },
+            'learning_trends': {
+                'learning_sessions': 0,
+                'total_decisions_learned': 0,
+                'total_escalations': 0,
+                'total_cleared': 0,
+                'learning_rate': 0.0
+            },
+            'decision_patterns': {
+                'escalation_reasons': {},
+                'pattern_analysis': {},
+                'confidence_distribution': []
+            },
+            'feature_insights': {
+                'top_features': [],
+                'feature_weights': {},
+                'correlation_matrix': []
+            },
+            'recommendations': []
+        }
+        
+        for key, default_value in default_analytics.items():
+            if key not in analytics:
+                analytics[key] = default_value
+        
+    except Exception as e:
+        logger.error(f"Error getting adaptive ML analytics: {str(e)}")
+        # Provide complete fallback analytics
+        analytics = {
+            'model_evolution': {'improvement_over_time': [], 'weight_progression': [], 'accuracy_trends': []},
+            'learning_trends': {'learning_sessions': 0, 'total_decisions_learned': 0, 'total_escalations': 0, 'total_cleared': 0, 'learning_rate': 0.0},
+            'decision_patterns': {'escalation_reasons': {}, 'pattern_analysis': {}, 'confidence_distribution': []},
+            'performance_metrics': {'model_trained': False, 'adaptive_weight': 0.1, 'learning_confidence': 0.0, 'latest_session_feedback': 0, 'model_maturity': 'Initial'},
+            'feature_insights': {'top_features': [], 'feature_weights': {}, 'correlation_matrix': []},
+            'recommendations': []
+        }
     
     return render_template('adaptive_ml_dashboard.html',
                          session=session,
