@@ -32,25 +32,25 @@
                             <div class="row">
                                 <div class="col-md-3">
                                     <div class="text-center">
-                                        <h3 class="text-primary mb-0">{{ analytics.performance_metrics.model_maturity }}</h3>
+                                        <h3 class="text-primary mb-0">{{ analytics.performance_metrics.get('model_maturity', 'Unknown') }}</h3>
                                         <small class="text-muted">Model Maturity</small>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="text-center">
-                                        <h3 class="text-success mb-0">{{ "%.1f"|format(analytics.performance_metrics.adaptive_weight * 100) }}%</h3>
+                                        <h3 class="text-success mb-0">{{ "%.1f"|format(analytics.performance_metrics.get('adaptive_weight', 0) * 100) }}%</h3>
                                         <small class="text-muted">Adaptive Weight</small>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="text-center">
-                                        <h3 class="text-info mb-0">{{ analytics.learning_trends.total_decisions_learned }}</h3>
+                                        <h3 class="text-info mb-0">{{ analytics.learning_trends.get('total_decisions_learned', 0) }}</h3>
                                         <small class="text-muted">Total Decisions Learned</small>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="text-center">
-                                        <h3 class="text-warning mb-0">{{ "%.1f"|format(analytics.learning_trends.avg_escalation_rate * 100) }}%</h3>
+                                        <h3 class="text-warning mb-0">{{ "%.1f"|format(analytics.learning_trends.get('avg_escalation_rate', 0) * 100) }}%</h3>
                                         <small class="text-muted">Avg Escalation Rate</small>
                                     </div>
                                 </div>

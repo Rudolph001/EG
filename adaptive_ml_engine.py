@@ -26,6 +26,7 @@ class AdaptiveMLEngine:
         self.adaptive_classifier = SGDClassifier(
             loss='log_loss', 
             learning_rate='adaptive',
+            eta0=0.01,  # Initial learning rate
             random_state=42,
             warm_start=True
         )
