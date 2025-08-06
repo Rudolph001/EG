@@ -749,9 +749,36 @@ def adaptive_ml_dashboard(session_id):
             'recommendations': []
         }
     
+    # Create safe analytics data for JavaScript serialization
+    safe_analytics = {
+        'model_evolution': {
+            'improvement_over_time': analytics.get('model_evolution', {}).get('improvement_over_time', []),
+            'weight_progression': analytics.get('model_evolution', {}).get('weight_progression', []),
+            'accuracy_trends': analytics.get('model_evolution', {}).get('accuracy_trends', [])
+        },
+        'learning_trends': {
+            'learning_sessions': analytics.get('learning_trends', {}).get('learning_sessions', 0),
+            'total_decisions_learned': analytics.get('learning_trends', {}).get('total_decisions_learned', 0),
+            'total_escalations': analytics.get('learning_trends', {}).get('total_escalations', 0),
+            'total_cleared': analytics.get('learning_trends', {}).get('total_cleared', 0),
+            'learning_rate': analytics.get('learning_trends', {}).get('learning_rate', 0.0)
+        },
+        'decision_patterns': analytics.get('decision_patterns', {}),
+        'performance_metrics': {
+            'model_trained': analytics.get('performance_metrics', {}).get('model_trained', False),
+            'adaptive_weight': analytics.get('performance_metrics', {}).get('adaptive_weight', 0.1),
+            'learning_confidence': analytics.get('performance_metrics', {}).get('learning_confidence', 0.0),
+            'latest_session_feedback': analytics.get('performance_metrics', {}).get('latest_session_feedback', 0),
+            'model_maturity': analytics.get('performance_metrics', {}).get('model_maturity', 'Initial')
+        },
+        'feature_insights': analytics.get('feature_insights', {}),
+        'recommendations': analytics.get('recommendations', [])
+    }
+    
     return render_template('adaptive_ml_dashboard.html',
                          session=session,
-                         analytics=analytics)
+                         analytics=analytics,
+                         analytics_json=safe_analytics)
 
 @app.route('/admin')
 def admin():

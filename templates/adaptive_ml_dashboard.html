@@ -338,6 +338,9 @@
 </div>
 
 <script>
+// Safe analytics data for JavaScript
+const analyticsData = {{ analytics_json | tojson }};
+
 // Chart configurations
 const evolutionCtx = document.getElementById('evolutionChart').getContext('2d');
 const escalationCtx = document.getElementById('escalationChart').getContext('2d');
@@ -346,17 +349,23 @@ const escalationCtx = document.getElementById('escalationChart').getContext('2d'
 const evolutionChart = new Chart(evolutionCtx, {
     type: 'line',
     data: {
-        labels: {{ (analytics.model_evolution | map(attribute='date') | list if analytics and analytics.model_evolution else ['Day 1', 'Day 2', 'Day 3']) | tojson }},
+        labels: analyticsData.model_evolution.improvement_over_time.length > 0 ? 
+                analyticsData.model_evolution.improvement_over_time.map(item => item.date || 'Day') : 
+                ['Day 1', 'Day 2', 'Day 3'],
         datasets: [{
             label: 'Adaptive Weight',
-            data: {{ (analytics.model_evolution | map(attribute='adaptive_weight') | list if analytics and analytics.model_evolution else [0.1, 0.2, 0.3]) | tojson }},
+            data: analyticsData.model_evolution.weight_progression.length > 0 ? 
+                  analyticsData.model_evolution.weight_progression.map(item => item.weight || 0) : 
+                  [0.1, 0.2, 0.3],
             borderColor: 'rgb(54, 162, 235)',
             backgroundColor: 'rgba(54, 162, 235, 0.1)',
             tension: 0.4,
             fill: true
         }, {
             label: 'Escalation Rate',
-            data: {{ (analytics.model_evolution | map(attribute='escalation_rate') | list if analytics and analytics.model_evolution else [0.8, 0.6, 0.4]) | tojson }},
+            data: analyticsData.model_evolution.accuracy_trends.length > 0 ? 
+                  analyticsData.model_evolution.accuracy_trends.map(item => item.accuracy || 0) : 
+                  [0.8, 0.6, 0.4],
             borderColor: 'rgb(255, 99, 132)',
             backgroundColor: 'rgba(255, 99, 132, 0.1)',
             tension: 0.4,
@@ -407,8 +416,8 @@ const escalationChart = new Chart(escalationCtx, {
     data: {
         labels: ['Escalated', 'Cleared'],
         datasets: [{
-            data: [{{ analytics.learning_trends.total_escalations }}, 
-                   {{ analytics.learning_trends.total_decisions_learned - analytics.learning_trends.total_escalations }}],
+            data: [analyticsData.learning_trends.total_escalations, 
+                   analyticsData.learning_trends.total_decisions_learned - analyticsData.learning_trends.total_escalations],
             backgroundColor: ['#dc3545', '#28a745'],
             borderWidth: 2
         }]
