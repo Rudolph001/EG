@@ -1016,7 +1016,7 @@ async function refreshGroupedCases() {
     }
 }
 
-function loadGroupedCases() {
+async function loadGroupedCases() {
     try {
         console.log('Loading grouped cases for session:', window.currentSessionId);
         
@@ -1056,7 +1056,9 @@ function loadGroupedCases() {
         window.groupedCasesData = data.grouped_cases;
         
         // Render grouped cases
+        console.log('About to render', groupedCasesData.length, 'groups');
         renderGroupedCases(groupedCasesData);
+        console.log('Rendering completed');
         
         // DO NOT update summary info from filtered data - preserve original totals
         // updateGroupedSummary(data.total_groups, data.total_records);
@@ -1078,23 +1080,39 @@ function loadGroupedCases() {
 }
 
 function renderGroupedCases(groups) {
+    console.log('renderGroupedCases called with', groups ? groups.length : 0, 'groups');
+    
     const tbody = document.getElementById('groupedCasesBody');
+    if (!tbody) {
+        console.error('groupedCasesBody element not found!');
+        return;
+    }
+    
     tbody.innerHTML = '';
     
     if (!groups || groups.length === 0) {
+        console.log('No groups to render');
         tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No grouped cases found</td></tr>';
         return;
     }
     
-    groups.forEach((group, index) => {
-        // Create main group row
-        const groupRow = createGroupRow(group, index);
-        tbody.appendChild(groupRow);
-        
-        // Create expandable details row (initially hidden)
-        const detailsRow = createGroupDetailsRow(group, index);
-        tbody.appendChild(detailsRow);
-    });
+    console.log('Rendering', groups.length, 'groups');
+    
+    try {
+        groups.forEach((group, index) => {
+            // Create main group row
+            const groupRow = createGroupRow(group, index);
+            tbody.appendChild(groupRow);
+            
+            // Create expandable details row (initially hidden)
+            const detailsRow = createGroupDetailsRow(group, index);
+            tbody.appendChild(detailsRow);
+        });
+        console.log('Successfully rendered all groups');
+    } catch (error) {
+        console.error('Error in renderGroupedCases:', error);
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Error rendering cases: ${error.message}</td></tr>`;
+    }
 }
 
 function createGroupRow(group, index) {
