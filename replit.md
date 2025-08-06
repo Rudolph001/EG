@@ -21,11 +21,15 @@ Preferred communication style: Simple, everyday language.
 - `setup_local_database.py` - Complete local database setup
 - `force_recreate_local_db.py` - Force recreation of local database  
 - `migrate_local_db.py` - Add missing columns to existing local database
+- `sync_local_database_schema.py` - **NEW**: Comprehensive schema sync tool (recommended)
+- `fix_attachment_keywords_local.py` - **NEW**: Quick fix for attachment_keywords table
 
 **Recent Schema Issues Resolved**:
 - Added `account_type` column to both databases (2025-08-06)
 - Added flagging columns (`is_flagged`, `flag_reason`, `flagged_at`, `flagged_by`, `previously_flagged`) to both databases
 - Enhanced timestamp parsing for format: `2025-08-04T23:58:20.543+0200`
+- **CRITICAL FIX (2025-08-06)**: Added missing `added_by` column to `attachment_keywords` table in local SQLite database
+- Created comprehensive schema synchronization scripts: `sync_local_database_schema.py` and `fix_attachment_keywords_local.py`
 
 **Recent Improvements (2025-08-06)**:
 - ✓ Updated Case Manager case view modal to match Flag Event dashboard format exactly
