@@ -8,6 +8,8 @@ Email Guardian is a comprehensive web application designed for analyzing Tessian
 
 Preferred communication style: Simple, everyday language.
 
+**Documentation Preference**: User prefers visual, easy-to-understand guides with practical implementation steps for complex features like Adaptive ML.
+
 ## Database Schema Management Policy
 
 **CRITICAL REQUIREMENT**: Any database schema changes (adding columns, modifying tables, etc.) must be applied to BOTH databases:
@@ -38,6 +40,7 @@ Preferred communication style: Simple, everyday language.
 - ✓ **ENHANCED: Attachment Analysis** - 15+ advanced features for filename patterns, social engineering detection
 - ✓ **NEW: ML Feedback System** - Records all user decisions for continuous model improvement
 - ✓ **NEW: Hybrid Scoring** - Combines base Isolation Forest with adaptive learning (10% → 70% adaptive weight)
+- ✓ **NEW: Comprehensive Documentation** - Created detailed Adaptive_ML_Guide.md with visual workflow and implementation steps
 
 ## System Architecture
 
