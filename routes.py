@@ -35,6 +35,17 @@ domain_manager = DomainManager()
 workflow_manager = WorkflowManager()
 ml_config = MLRiskConfig()
 
+# Add Jinja2 filter for JSON parsing
+@app.template_filter('from_json')
+def from_json_filter(value):
+    """Convert JSON string to Python object"""
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return []
+    return value or []
+
 @app.context_processor
 def inject_session_id():
     """Make session_id available to all templates"""

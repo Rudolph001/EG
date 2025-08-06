@@ -88,6 +88,8 @@ body {
     margin-top: 0.5rem;
     background: white;
     min-width: 280px;
+    z-index: 1030;
+    position: absolute;
 }
 
 .dropdown-header {

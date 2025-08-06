@@ -6,9 +6,9 @@
     border-bottom: 1px solid rgba(0,0,0,0.1);
     padding: 0.5rem 0;
     backdrop-filter: blur(10px);
-    position: sticky;
-    top: 0;
-    z-index: 1020;
+    position: relative;
+    z-index: 1000;
+    margin-top: 0;
 }
 
 .quick-actions .container-fluid {
