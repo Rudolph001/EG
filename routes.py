@@ -5,11 +5,12 @@ import csv
 import json
 from datetime import datetime
 from app import app, db
-from models import ProcessingSession, EmailRecord, Rule, WhitelistDomain, AttachmentKeyword, ProcessingError, RiskFactor, FlaggedEvent
+from models import ProcessingSession, EmailRecord, Rule, WhitelistDomain, AttachmentKeyword, ProcessingError, RiskFactor, FlaggedEvent, AdaptiveLearningMetrics, LearningPattern, MLFeedback, ModelVersion, AttachmentLearning
 from session_manager import SessionManager
 from data_processor import DataProcessor
 from ml_engine import MLEngine
 from advanced_ml_engine import AdvancedMLEngine
+from adaptive_ml_engine import AdaptiveMLEngine
 from performance_config import config
 from ml_config import MLRiskConfig
 from rule_engine import RuleEngine
@@ -28,6 +29,7 @@ session_manager = SessionManager()
 data_processor = DataProcessor()
 ml_engine = MLEngine()
 advanced_ml_engine = AdvancedMLEngine()
+adaptive_ml_engine = AdaptiveMLEngine()
 rule_engine = RuleEngine()
 domain_manager = DomainManager()
 workflow_manager = WorkflowManager()
@@ -631,6 +633,16 @@ def advanced_ml_dashboard(session_id):
     return render_template('advanced_ml_dashboard.html',
                          session=session,
                          insights=insights)
+
+@app.route('/adaptive_ml_dashboard/<session_id>')
+def adaptive_ml_dashboard(session_id):
+    """Adaptive ML learning dashboard"""
+    session = ProcessingSession.query.get_or_404(session_id)
+    analytics = adaptive_ml_engine.get_learning_analytics(days=30)
+    
+    return render_template('adaptive_ml_dashboard.html',
+                         session=session,
+                         analytics=analytics)
 
 @app.route('/admin')
 def admin():
@@ -2010,6 +2022,129 @@ def update_case_status(session_id, record_id):
         return jsonify({'status': 'updated'})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+# Adaptive ML API Routes
+@app.route('/api/adaptive-learning/trigger/<session_id>', methods=['POST'])
+def trigger_adaptive_learning(session_id):
+    """Trigger adaptive learning for a session"""
+    try:
+        success = adaptive_ml_engine.learn_from_user_decisions(session_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Adaptive learning completed successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Insufficient feedback data for learning'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error triggering adaptive learning: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/adaptive-learning/export/<session_id>')
+def export_learning_data(session_id):
+    """Export learning data for analysis"""
+    try:
+        analytics = adaptive_ml_engine.get_learning_analytics(days=90)
+        
+        # Create CSV export
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write headers
+        writer.writerow(['Date', 'Adaptive Weight', 'Feedback Count', 'Escalation Rate'])
+        
+        # Write data
+        for evolution in analytics.get('model_evolution', []):
+            writer.writerow([
+                evolution.get('date', ''),
+                evolution.get('adaptive_weight', 0),
+                evolution.get('feedback_count', 0),
+                evolution.get('escalation_rate', 0)
+            ])
+        
+        # Create download response
+        response_data = BytesIO()
+        response_data.write(output.getvalue().encode('utf-8'))
+        response_data.seek(0)
+        
+        return send_file(
+            response_data,
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'adaptive_learning_data_{session_id}.csv'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error exporting learning data: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/adaptive-learning/reset', methods=['POST'])
+def reset_adaptive_model():
+    """Reset the adaptive model to start fresh"""
+    try:
+        # Reset the adaptive model
+        adaptive_ml_engine.adaptive_weight = 0.1
+        adaptive_ml_engine.is_adaptive_trained = False
+        adaptive_ml_engine.learning_patterns.clear()
+        adaptive_ml_engine.recent_feedback.clear()
+        
+        # Save reset state
+        adaptive_ml_engine._save_models()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Adaptive model reset successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error resetting adaptive model: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/cases/<session_id>/<record_id>/feedback', methods=['POST'])
+def record_case_feedback(session_id, record_id):
+    """Record user feedback for ML learning"""
+    try:
+        data = request.get_json()
+        decision = data.get('decision')  # 'Escalated' or 'Cleared'
+        
+        if decision not in ['Escalated', 'Cleared']:
+            return jsonify({'success': False, 'message': 'Invalid decision'}), 400
+        
+        # Update case status
+        case = EmailRecord.query.filter_by(session_id=session_id, record_id=record_id).first_or_404()
+        case.case_status = decision
+        case.resolved_at = datetime.utcnow()
+        
+        # Record feedback for ML learning
+        feedback = MLFeedback(
+            session_id=session_id,
+            record_id=record_id,
+            user_decision=decision,
+            original_ml_score=case.ml_risk_score,
+            decision_timestamp=datetime.utcnow()
+        )
+        
+        db.session.add(feedback)
+        db.session.commit()
+        
+        # Trigger incremental learning if enough feedback
+        feedback_count = MLFeedback.query.filter_by(session_id=session_id).count()
+        if feedback_count % 10 == 0:  # Learn every 10 decisions
+            adaptive_ml_engine.learn_from_user_decisions(session_id)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Case {decision.lower()} and feedback recorded'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error recording case feedback: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/escalation/<session_id>/<record_id>/generate-email')
 def generate_escalation_email(session_id, record_id):

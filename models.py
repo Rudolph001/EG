@@ -124,15 +124,91 @@ class AttachmentKeyword(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     keyword = db.Column(db.String(255), nullable=False)
-    category = db.Column(db.String(50), nullable=False)  # Business, Personal, Suspicious
-    risk_score = db.Column(db.Integer, default=1)  # 1-10 scale
-    keyword_type = db.Column(db.String(20), default='risk')  # risk, exclusion
+    keyword_type = db.Column(db.String(50), default='risk')  # risk, exclusion
+    category = db.Column(db.String(50))  # Suspicious, Personal, etc.
+    risk_score = db.Column(db.Float, default=0.5)
     applies_to = db.Column(db.String(20), default='both')  # subject, attachment, both
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    added_by = db.Column(db.String(255))
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    notes = db.Column(Text)
     
     def __repr__(self):
         return f'<AttachmentKeyword {self.keyword}>'
+
+class AdaptiveLearningMetrics(db.Model):
+    __tablename__ = 'adaptive_learning_metrics'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(36), db.ForeignKey('processing_sessions.id'), nullable=False)
+    feedback_count = db.Column(db.Integer, default=0)
+    escalated_count = db.Column(db.Integer, default=0)
+    cleared_count = db.Column(db.Integer, default=0)
+    adaptive_weight = db.Column(db.Float, default=0.1)
+    model_performance = db.Column(JSON)
+    learning_patterns = db.Column(Text)  # JSON string of learned patterns
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<AdaptiveLearningMetrics {self.session_id}>'
+
+class LearningPattern(db.Model):
+    __tablename__ = 'learning_patterns'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    pattern_type = db.Column(db.String(50), nullable=False)  # sender, attachment, temporal, etc.
+    pattern_value = db.Column(db.String(500), nullable=False)
+    escalation_frequency = db.Column(db.Float, default=0.0)
+    confidence_score = db.Column(db.Float, default=0.0)
+    sample_count = db.Column(db.Integer, default=0)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    def __repr__(self):
+        return f'<LearningPattern {self.pattern_type}: {self.pattern_value}>'
+
+class MLFeedback(db.Model):
+    __tablename__ = 'ml_feedback'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(36), db.ForeignKey('processing_sessions.id'), nullable=False)
+    record_id = db.Column(db.String(100), nullable=False)
+    user_decision = db.Column(db.String(20), nullable=False)  # Escalated, Cleared
+    original_ml_score = db.Column(db.Float)
+    decision_timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    feedback_features = db.Column(JSON)  # Store feature vector for learning
+    
+    def __repr__(self):
+        return f'<MLFeedback {self.record_id}: {self.user_decision}>'
+
+class ModelVersion(db.Model):
+    __tablename__ = 'model_versions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    version_name = db.Column(db.String(100), nullable=False)
+    model_type = db.Column(db.String(50), nullable=False)  # adaptive, base
+    performance_metrics = db.Column(JSON)
+    training_data_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    def __repr__(self):
+        return f'<ModelVersion {self.version_name}>'
+
+class AttachmentLearning(db.Model):
+    __tablename__ = 'attachment_learning'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    filename_pattern = db.Column(db.String(500), nullable=False)
+    file_extension = db.Column(db.String(20))
+    escalation_count = db.Column(db.Integer, default=0)
+    total_count = db.Column(db.Integer, default=0)
+    risk_score = db.Column(db.Float, default=0.0)
+    learned_features = db.Column(JSON)
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<AttachmentLearning {self.filename_pattern}>'
 
 class RiskFactor(db.Model):
     __tablename__ = 'risk_factors'

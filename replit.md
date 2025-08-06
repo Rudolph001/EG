@@ -32,6 +32,12 @@ Preferred communication style: Simple, everyday language.
 - ✓ Enhanced grouped cases API to include leaver status information
 - ✓ Added comprehensive sender flagging endpoint (`/api/flag-sender/<session_id>`)
 - ✓ Fixed case view modal layout with proper two-column structure and blue section headers
+- ✓ **MAJOR: Implemented Advanced Adaptive ML Engine** - Full learning system that adapts to user decisions
+- ✓ **NEW: Adaptive ML Dashboard** - Comprehensive analytics showing learning progress and model evolution
+- ✓ **NEW: Continuous Learning Loop** - System automatically learns from escalation/clear decisions
+- ✓ **ENHANCED: Attachment Analysis** - 15+ advanced features for filename patterns, social engineering detection
+- ✓ **NEW: ML Feedback System** - Records all user decisions for continuous model improvement
+- ✓ **NEW: Hybrid Scoring** - Combines base Isolation Forest with adaptive learning (10% → 70% adaptive weight)
 
 ## System Architecture
 
@@ -40,7 +46,7 @@ Email Guardian is built on a modular Flask-based architecture, ensuring clear se
 -   **Frontend**: Utilizes Bootstrap 5 for responsive design, Jinja2 for templating, Chart.js for dynamic data visualizations, and DataTables for advanced data display. It features multiple specialized dashboards (main, sender analysis, time analysis, professional network link, reports) and an administrative panel for system configuration and management. UI/UX emphasizes professional design, interactive elements, and real-time feedback.
 -   **Backend**: Developed with the Flask web framework, employing SQLAlchemy ORM for database interactions.
 -   **Database**: Dual database architecture - PostgreSQL for production (Replit) and SQLite for local development. **CRITICAL: All database schema changes must be applied to both PostgreSQL and SQLite databases to maintain compatibility between environments.**
--   **ML Engine**: Integrates scikit-learn for core machine learning functionalities, including Isolation Forest for anomaly detection, clustering, and pattern recognition. It also includes an advanced ML engine for deeper analytics.
+-   **ML Engine**: Advanced three-tier machine learning system: (1) Base Isolation Forest for anomaly detection, (2) Advanced ML for pattern recognition, and (3) **NEW: Adaptive ML Engine** that learns from user escalation decisions using SGDClassifier with incremental learning. Features hybrid scoring that adapts from 10% to 70% user-decision weight as confidence grows.
 -   **Data Processing**: Handles large CSV datasets efficiently using chunked processing with pandas (2500 records per chunk) and case-insensitive column mapping.
 -   **Session Management**: Employs JSON-based data persistence with gzip compression for large session files, allowing for iterative analysis.
 -   **Rule Engine**: A configurable system supporting complex AND/OR logic, regex patterns, and various operators for defining business rules and pre-processing exclusion rules.

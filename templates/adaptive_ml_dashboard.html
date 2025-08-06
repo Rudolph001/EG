@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+
+{% block title %}Adaptive ML Dashboard - {{ session.filename }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1>Adaptive ML Dashboard</h1>
+                    <p class="text-muted">Session: {{ session.filename }} | {{ session.upload_time.strftime('%Y-%m-%d %H:%M') }}</p>
+                </div>
+                <div>
+                    <a href="/sessions/{{ session.id }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left"></i> Back to Session
+                    </a>
+                    <button class="btn btn-primary" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt"></i> Refresh Analytics
+                    </button>
+                </div>
+            </div>
+
+            <!-- Learning Status Overview -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-brain me-2"></i>Learning Status Overview</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h3 class="text-primary mb-0">{{ analytics.performance_metrics.model_maturity }}</h3>
+                                        <small class="text-muted">Model Maturity</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h3 class="text-success mb-0">{{ "%.1f"|format(analytics.performance_metrics.adaptive_weight * 100) }}%</h3>
+                                        <small class="text-muted">Adaptive Weight</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h3 class="text-info mb-0">{{ analytics.learning_trends.total_decisions_learned }}</h3>
+                                        <small class="text-muted">Total Decisions Learned</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h3 class="text-warning mb-0">{{ "%.1f"|format(analytics.learning_trends.avg_escalation_rate * 100) }}%</h3>
+                                        <small class="text-muted">Avg Escalation Rate</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Model Evolution Chart -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Model Evolution Over Time</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="evolutionChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-bullseye me-2"></i>Learning Progress</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Adaptive Learning Progress</label>
+                                <div class="progress mb-2" style="height: 20px;">
+                                    <div class="progress-bar bg-gradient-primary" role="progressbar" 
+                                         style="width: {{ analytics.performance_metrics.adaptive_weight * 100 }}%">
+                                        {{ "%.0f"|format(analytics.performance_metrics.adaptive_weight * 100) }}%
+                                    </div>
+                                </div>
+                                <small class="text-muted">Model learns more from your decisions as this increases</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Learning Confidence</label>
+                                <div class="progress mb-2" style="height: 20px;">
+                                    <div class="progress-bar bg-gradient-success" role="progressbar" 
+                                         style="width: {{ analytics.performance_metrics.learning_confidence * 100 }}%">
+                                        {{ "%.0f"|format(analytics.performance_metrics.learning_confidence * 100) }}%
+                                    </div>
+                                </div>
+                                <small class="text-muted">Based on number of learning sessions</small>
+                            </div>
+
+                            <div class="alert alert-info alert-sm">
+                                <strong>Status:</strong> 
+                                {% if analytics.performance_metrics.model_trained %}
+                                    <span class="text-success">✓ Adaptive model active</span>
+                                {% else %}
+                                    <span class="text-warning">⚠ Collecting training data</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature Insights -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-search me-2"></i>Top Risk Indicators Learned</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush">
+                                {% for indicator in analytics.feature_insights.top_risk_indicators %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ indicator }}
+                                    <span class="badge bg-danger rounded-pill">High Impact</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <hr>
+                            
+                            <h6>Learned Patterns</h6>
+                            <div class="list-group list-group-flush">
+                                {% for pattern in analytics.feature_insights.learned_patterns %}
+                                <div class="list-group-item">
+                                    <i class="fas fa-lightbulb text-warning me-2"></i>{{ pattern }}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Adaptive Features</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">The adaptive ML engine analyzes these enhanced features:</p>
+                            
+                            <div class="row">
+                                <div class="col-12">
+                                    <h6><i class="fas fa-paperclip me-2"></i>Attachment Analysis</h6>
+                                    <ul class="list-unstyled ms-3 mb-3">
+                                        <li>• File extension risk scoring</li>
+                                        <li>• Filename entropy (randomness) detection</li>
+                                        <li>• Social engineering pattern recognition</li>
+                                        <li>• Archive-in-archive detection</li>
+                                        <li>• Password protection indicators</li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="col-12">
+                                    <h6><i class="fas fa-user me-2"></i>Sender Behavior</h6>
+                                    <ul class="list-unstyled ms-3 mb-3">
+                                        <li>• Domain reputation analysis</li>
+                                        <li>• Historical sender patterns</li>
+                                        <li>• Email structure anomalies</li>
+                                        <li>• Account type risk assessment</li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="col-12">
+                                    <h6><i class="fas fa-clock me-2"></i>Temporal Context</h6>
+                                    <ul class="list-unstyled ms-3">
+                                        <li>• After-hours activity detection</li>
+                                        <li>• Weekend communication patterns</li>
+                                        <li>• Business hours context analysis</li>
+                                        <li>• Timing anomaly identification</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Decision Patterns Analysis -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Decision Patterns Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <canvas id="escalationChart" height="250"></canvas>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Learning Summary</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <tbody>
+                                                <tr>
+                                                    <td><strong>Total Learning Sessions:</strong></td>
+                                                    <td>{{ analytics.learning_trends.learning_sessions }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Total Decisions Analyzed:</strong></td>
+                                                    <td>{{ analytics.learning_trends.total_decisions_learned }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Escalations Learned From:</strong></td>
+                                                    <td>{{ analytics.learning_trends.total_escalations }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Current Model Weight:</strong></td>
+                                                    <td>{{ "%.1f"|format(analytics.performance_metrics.adaptive_weight * 100) }}%</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <div class="alert alert-success alert-sm mt-3">
+                                        <strong>Model Status:</strong> 
+                                        {% if analytics.performance_metrics.adaptive_weight > 0.5 %}
+                                            Advanced - High confidence in predictions
+                                        {% elif analytics.performance_metrics.adaptive_weight > 0.2 %}
+                                            Learning - Building pattern recognition
+                                        {% else %}
+                                            Initial - Collecting baseline data
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>AI Recommendations</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% for recommendation in analytics.recommendations %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="d-flex">
+                                        <div class="flex-shrink-0">
+                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            {{ recommendation }}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Learning Actions -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-robot me-2"></i>Learning Actions</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-primary" onclick="triggerLearning()">
+                                    <i class="fas fa-brain me-2"></i>Trigger Learning from This Session
+                                </button>
+                                <button type="button" class="btn btn-outline-info" onclick="exportLearningData()">
+                                    <i class="fas fa-download me-2"></i>Export Learning Data
+                                </button>
+                                <button type="button" class="btn btn-outline-warning" onclick="resetAdaptiveModel()">
+                                    <i class="fas fa-redo me-2"></i>Reset Adaptive Model
+                                </button>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <small class="text-muted">
+                                    <strong>Note:</strong> The adaptive model automatically learns from your escalation/clear decisions. 
+                                    Use "Trigger Learning" to immediately apply recent feedback, or "Reset" to start fresh if needed.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Learning Status Modal -->
+<div class="modal fade" id="learningModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Learning in Progress</h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>The adaptive ML model is learning from your decisions...</p>
+                <div class="progress">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Chart configurations
+const evolutionCtx = document.getElementById('evolutionChart').getContext('2d');
+const escalationCtx = document.getElementById('escalationChart').getContext('2d');
+
+// Model Evolution Chart
+const evolutionChart = new Chart(evolutionCtx, {
+    type: 'line',
+    data: {
+        labels: {{ analytics.model_evolution | map(attribute='date') | list | tojson }},
+        datasets: [{
+            label: 'Adaptive Weight',
+            data: {{ analytics.model_evolution | map(attribute='adaptive_weight') | list | tojson }},
+            borderColor: 'rgb(54, 162, 235)',
+            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+            tension: 0.4,
+            fill: true
+        }, {
+            label: 'Escalation Rate',
+            data: {{ analytics.model_evolution | map(attribute='escalation_rate') | list | tojson }},
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            tension: 0.4,
+            yAxisID: 'y1'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: {
+                    display: true,
+                    text: 'Adaptive Weight'
+                }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: {
+                    display: true,
+                    text: 'Escalation Rate'
+                },
+                grid: {
+                    drawOnChartArea: false,
+                }
+            }
+        },
+        plugins: {
+            title: {
+                display: true,
+                text: 'Learning Progress Over Time'
+            },
+            legend: {
+                display: true
+            }
+        }
+    }
+});
+
+// Escalation Patterns Chart
+const escalationChart = new Chart(escalationCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Escalated', 'Cleared'],
+        datasets: [{
+            data: [{{ analytics.learning_trends.total_escalations }}, 
+                   {{ analytics.learning_trends.total_decisions_learned - analytics.learning_trends.total_escalations }}],
+            backgroundColor: ['#dc3545', '#28a745'],
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            title: {
+                display: true,
+                text: 'Decision Distribution'
+            },
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Dashboard functions
+function refreshDashboard() {
+    location.reload();
+}
+
+function triggerLearning() {
+    const modal = new bootstrap.Modal(document.getElementById('learningModal'));
+    modal.show();
+    
+    fetch(`/api/adaptive-learning/trigger/{{ session.id }}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        modal.hide();
+        if (data.success) {
+            showAlert('success', 'Learning completed successfully!');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert('danger', 'Learning failed: ' + data.message);
+        }
+    })
+    .catch(error => {
+        modal.hide();
+        showAlert('danger', 'Error triggering learning: ' + error.message);
+    });
+}
+
+function exportLearningData() {
+    window.open(`/api/adaptive-learning/export/{{ session.id }}`, '_blank');
+}
+
+function resetAdaptiveModel() {
+    if (confirm('Are you sure you want to reset the adaptive model? This will remove all learned patterns.')) {
+        fetch(`/api/adaptive-learning/reset`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Adaptive model reset successfully!');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert('danger', 'Reset failed: ' + data.message);
+            }
+        })
+        .catch(error => {
+            showAlert('danger', 'Error resetting model: ' + error.message);
+        });
+    }
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.parentNode.removeChild(alertDiv);
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}
