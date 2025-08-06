@@ -815,11 +815,13 @@ function createGroupRow(group, index) {
             <i class="fas fa-chevron-right" id="expand-icon-${index}"></i>
         </td>
         <td>
-            <strong>${truncateText(group.sender || 'Unknown', 30)}</strong>
-            ${group.is_leaver ? '<span class="badge bg-warning text-dark ms-2">Leaver</span>' : ''}
-            <button class="btn btn-sm btn-outline-warning ms-2" onclick="event.stopPropagation(); flagSender('${group.sender}')" title="Flag Sender">
-                <i class="fas fa-flag"></i>
-            </button>
+            <div class="d-flex align-items-center">
+                <strong>${truncateText(group.sender || 'Unknown', 30)}</strong>
+                ${group.is_leaver ? '<span class="badge bg-warning text-dark ms-2">Leaver</span>' : ''}
+                <button class="btn btn-sm btn-outline-warning ms-1" onclick="event.stopPropagation(); flagSender('${group.sender}')" title="Flag Sender">
+                    <i class="fas fa-flag"></i>
+                </button>
+            </div>
         </td>
         <td>
             <div title="${group.subject || ''}">${truncateText(group.subject || 'No Subject', 50)}</div>
