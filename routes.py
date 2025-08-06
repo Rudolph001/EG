@@ -760,13 +760,19 @@ def admin():
         }
     }
 
+    # Get the most recent session ID for dashboard navigation
+    session_id = None
+    if recent_sessions:
+        session_id = recent_sessions[0].id
+    
     return render_template('admin.html',
                          stats=stats,
                          recent_sessions=recent_sessions,
                          sessions=sessions,
                          whitelist_domains=whitelist_domains,
                          attachment_keywords=attachment_keywords,
-                         risk_scoring_info=risk_scoring_info)
+                         risk_scoring_info=risk_scoring_info,
+                         session_id=session_id)
 
 @app.route('/whitelist-domains')
 def whitelist_domains():

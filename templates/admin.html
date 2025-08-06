@@ -189,10 +189,17 @@
                     </p>
                 </div>
                 <div class="mt-auto">
-                    <a href="{{ url_for('adaptive_ml_dashboard') }}" class="btn btn-warning">
+                    {% if session_id %}
+                    <a href="{{ url_for('adaptive_ml_dashboard', session_id=session_id) }}" class="btn btn-warning">
                         <i class="fas fa-chart-bar me-2"></i>
                         View Analytics
                     </a>
+                    {% else %}
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-warning">
+                        <i class="fas fa-upload me-2"></i>
+                        Upload Data First
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
