@@ -641,6 +641,60 @@ function debugToggle() {
     ${groupToggle?.checked !== isGroupingEnabled ? 'MISMATCH DETECTED AND FIXED!' : 'States are synchronized'}`);
 }
 
+// Helper functions for grouped view
+function viewGroupDetails(index) {
+    // Show all recipients for this group in a modal or expanded view
+    console.log('View group details for index:', index);
+    if (groupedCasesData && groupedCasesData[index]) {
+        toggleGroupDetails(index);
+    }
+}
+
+function flagSender(senderEmail) {
+    if (confirm(`Flag all emails from sender: ${senderEmail}?`)) {
+        // Add logic to flag all emails from this sender
+        alert(`Flagged all emails from: ${senderEmail}`);
+        // You can implement actual flagging logic here
+    }
+}
+
+function toggleGroupDetails(index) {
+    const detailsRow = document.getElementById(`group-details-${index}`);
+    const expandIcon = document.getElementById(`expand-icon-${index}`);
+    
+    if (detailsRow.style.display === 'none') {
+        detailsRow.style.display = 'table-row';
+        expandIcon.className = 'fas fa-chevron-down';
+    } else {
+        detailsRow.style.display = 'none';
+        expandIcon.className = 'fas fa-chevron-right';
+    }
+}
+
+function getRiskBadgeClass(riskLevel) {
+    const classes = {
+        'Critical': 'bg-danger',
+        'High': 'bg-warning text-dark',
+        'Medium': 'bg-info',
+        'Low': 'bg-success'
+    };
+    return classes[riskLevel] || 'bg-secondary';
+}
+
+function getStatusBadgeClass(status) {
+    const classes = {
+        'Active': 'bg-primary',
+        'Cleared': 'bg-success',
+        'Escalated': 'bg-danger'
+    };
+    return classes[status] || 'bg-secondary';
+}
+
+function truncateText(text, maxLength) {
+    if (!text) return '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+}
+
 async function loadGroupedCases() {
     try {
         console.log('Loading grouped cases for session:', window.currentSessionId);
@@ -741,6 +795,9 @@ function createGroupRow(group, index) {
         </td>
         <td>
             <strong>${truncateText(group.sender || 'Unknown', 30)}</strong>
+            <button class="btn btn-sm btn-outline-warning ms-2" onclick="event.stopPropagation(); flagSender('${group.sender}')" title="Flag Sender">
+                <i class="fas fa-flag"></i>
+            </button>
         </td>
         <td>
             <div title="${group.subject || ''}">${truncateText(group.subject || 'No Subject', 50)}</div>
@@ -797,15 +854,23 @@ function createGroupDetailsRow(group, index) {
             </td>
             <td>
                 <div class="btn-group" role="group">
-                    <button class="btn btn-sm btn-outline-success" onclick="updateRecipientStatus('${recipient.record_id}', 'Cleared')">
+                    <button class="btn btn-sm btn-outline-success update-case-status-btn" data-record-id="${recipient.record_id}" data-new-status="Cleared" title="Clear Case">
                         <i class="fas fa-check"></i>
                     </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="updateRecipientStatus('${recipient.record_id}', 'Escalated')">
+                    <button class="btn btn-sm btn-outline-danger escalate-case-btn" data-record-id="${recipient.record_id}" title="Escalate">
                         <i class="fas fa-exclamation-triangle"></i>
                     </button>
-                    <button class="btn btn-sm btn-outline-info" onclick="viewRecipientDetails('${recipient.record_id}')">
+                    <button class="btn btn-sm btn-outline-info view-case-btn" data-record-id="${recipient.record_id}" title="View Details">
                         <i class="fas fa-eye"></i>
                     </button>
+                    ${recipient.is_flagged ? 
+                        `<button class="btn btn-sm btn-warning unflag-case-btn" data-record-id="${recipient.record_id}" title="Remove Flag">
+                            <i class="fas fa-flag"></i>
+                        </button>` :
+                        `<button class="btn btn-sm btn-outline-warning flag-case-btn" data-record-id="${recipient.record_id}" title="Flag Event">
+                            <i class="fas fa-flag"></i>
+                        </button>`
+                    }
                 </div>
             </td>
         </tr>
