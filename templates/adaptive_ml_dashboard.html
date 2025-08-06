@@ -82,8 +82,8 @@
                                 <label class="form-label">Adaptive Learning Progress</label>
                                 <div class="progress mb-2" style="height: 20px;">
                                     <div class="progress-bar bg-gradient-primary" role="progressbar" 
-                                         style="width: {{ ((analytics.performance_metrics.adaptive_weight if analytics and analytics.performance_metrics else 0) * 100) }}%">
-                                        {{ "%.0f"|format((analytics.performance_metrics.adaptive_weight if analytics and analytics.performance_metrics else 0) * 100) }}%
+                                         style="width: {{ ((analytics.performance_metrics.adaptive_weight if analytics and analytics.performance_metrics and analytics.performance_metrics.adaptive_weight is defined else 0) * 100) }}%">
+                                        {{ "%.0f"|format((analytics.performance_metrics.adaptive_weight if analytics and analytics.performance_metrics and analytics.performance_metrics.adaptive_weight is defined else 0) * 100) }}%
                                     </div>
                                 </div>
                                 <small class="text-muted">Model learns more from your decisions as this increases</small>
@@ -93,8 +93,8 @@
                                 <label class="form-label">Learning Confidence</label>
                                 <div class="progress mb-2" style="height: 20px;">
                                     <div class="progress-bar bg-gradient-success" role="progressbar" 
-                                         style="width: {{ ((analytics.performance_metrics.learning_confidence if analytics and analytics.performance_metrics else 0) * 100) }}%">
-                                        {{ "%.0f"|format((analytics.performance_metrics.learning_confidence if analytics and analytics.performance_metrics else 0) * 100) }}%
+                                         style="width: {{ ((analytics.performance_metrics.learning_confidence if analytics and analytics.performance_metrics and analytics.performance_metrics.learning_confidence is defined else 0) * 100) }}%">
+                                        {{ "%.0f"|format((analytics.performance_metrics.learning_confidence if analytics and analytics.performance_metrics and analytics.performance_metrics.learning_confidence is defined else 0) * 100) }}%
                                     </div>
                                 </div>
                                 <small class="text-muted">Based on number of learning sessions</small>
@@ -220,19 +220,19 @@
                                             <tbody>
                                                 <tr>
                                                     <td><strong>Total Learning Sessions:</strong></td>
-                                                    <td>{{ analytics.learning_trends.learning_sessions }}</td>
+                                                    <td>{{ analytics.learning_trends.learning_sessions if analytics and analytics.learning_trends and analytics.learning_trends.learning_sessions is defined else 0 }}</td>
                                                 </tr>
                                                 <tr>
                                                     <td><strong>Total Decisions Analyzed:</strong></td>
-                                                    <td>{{ analytics.learning_trends.total_decisions_learned }}</td>
+                                                    <td>{{ analytics.learning_trends.total_decisions_learned if analytics and analytics.learning_trends and analytics.learning_trends.total_decisions_learned is defined else 0 }}</td>
                                                 </tr>
                                                 <tr>
                                                     <td><strong>Escalations Learned From:</strong></td>
-                                                    <td>{{ analytics.learning_trends.total_escalations }}</td>
+                                                    <td>{{ analytics.learning_trends.total_escalations if analytics and analytics.learning_trends and analytics.learning_trends.total_escalations is defined else 0 }}</td>
                                                 </tr>
                                                 <tr>
                                                     <td><strong>Current Model Weight:</strong></td>
-                                                    <td>{{ "%.1f"|format(analytics.performance_metrics.adaptive_weight * 100) }}%</td>
+                                                    <td>{{ "%.1f"|format((analytics.performance_metrics.adaptive_weight if analytics and analytics.performance_metrics and analytics.performance_metrics.adaptive_weight is defined else 0.1) * 100) }}%</td>
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -240,9 +240,10 @@
                                     
                                     <div class="alert alert-success alert-sm mt-3">
                                         <strong>Model Status:</strong> 
-                                        {% if analytics.performance_metrics.adaptive_weight > 0.5 %}
+                                        {% set weight = analytics.performance_metrics.adaptive_weight if analytics and analytics.performance_metrics and analytics.performance_metrics.adaptive_weight is defined else 0.1 %}
+                                        {% if weight > 0.5 %}
                                             Advanced - High confidence in predictions
-                                        {% elif analytics.performance_metrics.adaptive_weight > 0.2 %}
+                                        {% elif weight > 0.2 %}
                                             Learning - Building pattern recognition
                                         {% else %}
                                             Initial - Collecting baseline data

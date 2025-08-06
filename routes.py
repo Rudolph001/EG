@@ -688,9 +688,17 @@ def adaptive_ml_dashboard(session_id):
                 'model_maturity': 'Initial'
             }
         
-        # Ensure adaptive_weight exists in performance_metrics
+        # Ensure all required fields exist in performance_metrics
         if 'adaptive_weight' not in analytics.get('performance_metrics', {}):
             analytics['performance_metrics']['adaptive_weight'] = adaptive_ml_engine.adaptive_weight
+        if 'learning_confidence' not in analytics.get('performance_metrics', {}):
+            analytics['performance_metrics']['learning_confidence'] = 0.0
+        if 'model_trained' not in analytics.get('performance_metrics', {}):
+            analytics['performance_metrics']['model_trained'] = False
+        if 'latest_session_feedback' not in analytics.get('performance_metrics', {}):
+            analytics['performance_metrics']['latest_session_feedback'] = 0
+        if 'model_maturity' not in analytics.get('performance_metrics', {}):
+            analytics['performance_metrics']['model_maturity'] = 'Initial'
         
         # Provide fallback structure for other sections
         default_analytics = {
@@ -719,9 +727,15 @@ def adaptive_ml_dashboard(session_id):
             'recommendations': []
         }
         
+        # Merge default values for missing sections
         for key, default_value in default_analytics.items():
             if key not in analytics:
                 analytics[key] = default_value
+            elif isinstance(default_value, dict):
+                # Merge nested dictionaries to ensure all required fields exist
+                for subkey, subvalue in default_value.items():
+                    if subkey not in analytics[key]:
+                        analytics[key][subkey] = subvalue
         
     except Exception as e:
         logger.error(f"Error getting adaptive ML analytics: {str(e)}")
