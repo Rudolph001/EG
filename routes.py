@@ -468,7 +468,7 @@ def cases(session_id):
             db.or_(EmailRecord.risk_level.is_(None), EmailRecord.risk_level == '')
         )
     else:
-        # Default view - exclude whitelisted, cleared, and escalated records from cases
+        # Default view - exclude whitelisted, cleared, escalated, and flagged records from cases
         query = EmailRecord.query.filter_by(session_id=session_id).filter(
             db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
         ).filter(
@@ -476,6 +476,8 @@ def cases(session_id):
                 EmailRecord.case_status.is_(None),
                 EmailRecord.case_status == 'Active'
             )
+        ).filter(
+            db.or_(EmailRecord.is_flagged.is_(None), EmailRecord.is_flagged == False)
         )
 
     if risk_level:
@@ -575,25 +577,17 @@ def escalations(session_id):
     """Escalation dashboard for critical cases"""
     session = ProcessingSession.query.get_or_404(session_id)
 
-    # Get critical and escalated cases - exclude whitelisted records
-    critical_cases = EmailRecord.query.filter_by(
-        session_id=session_id,
-        risk_level='Critical'
-    ).filter(
-        db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
-    ).filter(
-        db.or_(
-            EmailRecord.case_status.is_(None),
-            EmailRecord.case_status == 'Active'
-        )
-    ).order_by(EmailRecord.ml_risk_score.desc()).all()
-
+    # Get only manually escalated cases - exclude whitelisted records
+    # NOTE: Removed automatic critical case inclusion - user controls escalation
     escalated_cases = EmailRecord.query.filter_by(
         session_id=session_id,
         case_status='Escalated'
     ).filter(
         db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
     ).order_by(EmailRecord.escalated_at.desc()).all()
+    
+    # Empty critical_cases for backward compatibility - all escalation is manual now
+    critical_cases = []
 
     return render_template('escalations.html',
                          session=session,
