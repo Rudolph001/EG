@@ -641,14 +641,7 @@ function debugToggle() {
     ${groupToggle?.checked !== isGroupingEnabled ? 'MISMATCH DETECTED AND FIXED!' : 'States are synchronized'}`);
 }
 
-// Helper functions for grouped view
-function viewGroupDetails(index) {
-    // Show all recipients for this group in a modal or expanded view
-    console.log('View group details for index:', index);
-    if (groupedCasesData && groupedCasesData[index]) {
-        toggleGroupDetails(index);
-    }
-}
+// Helper functions for grouped view - removed duplicate function
 
 async function flagSender(senderEmail) {
     const flagReason = prompt(`Enter reason for flagging all emails from ${senderEmail}:`);
@@ -769,6 +762,7 @@ async function loadGroupedCases() {
         console.log('Received data:', data);
         
         groupedCasesData = data.grouped_cases;
+        window.groupedCasesData = data.grouped_cases;
         
         // Render grouped cases
         renderGroupedCases(groupedCasesData);
@@ -1038,15 +1032,22 @@ function viewRecipientDetails(recordId) {
 }
 
 function viewGroupDetails(index) {
+    console.log('viewGroupDetails called with index:', index);
+    console.log('Available grouped data:', window.groupedCasesData);
+    
     // Get group data
     const group = window.groupedCasesData[index];
     if (!group) {
         console.error('Group data not found for index:', index);
+        alert('Error: Group data not found. Please refresh the page.');
         return;
     }
     
-    // Create all recipients list
+    console.log('Group data found:', group);
+    
+    // Create all recipients list with detailed information
     const allRecipients = group.recipients.map(r => r.recipient).join(', ');
+    const recipientDetails = group.recipients.map(r => `${r.recipient} (${r.recipient_domain || 'Unknown domain'})`).join('<br>');
     
     // Create modal using the same format as Case Details
     const modalHtml = `
@@ -1054,7 +1055,7 @@ function viewGroupDetails(index) {
             <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Case Details - ${group.group_id}</h5>
+                        <h5 class="modal-title">Case Details - Group ${group.group_id || index}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
@@ -1070,7 +1071,8 @@ function viewGroupDetails(index) {
                                 </div>
                                 
                                 <div class="mb-2">
-                                    <strong>Recipients:</strong> ${allRecipients || 'N/A'}
+                                    <strong>Recipients:</strong><br>
+                                    <small>${recipientDetails || allRecipients || 'N/A'}</small>
                                 </div>
                                 
                                 <div class="mb-2">
@@ -1086,15 +1088,15 @@ function viewGroupDetails(index) {
                                 </div>
                                 
                                 <div class="mb-2">
-                                    <strong>Business Unit:</strong> N/A
+                                    <strong>Business Unit:</strong> ${group.recipients[0]?.bunit || 'N/A'}
                                 </div>
                                 
                                 <div class="mb-2">
-                                    <strong>Department:</strong> N/A
+                                    <strong>Department:</strong> ${group.recipients[0]?.department || 'N/A'}
                                 </div>
                                 
                                 <div class="mb-4">
-                                    <strong>Account Type:</strong> N/A
+                                    <strong>Account Type:</strong> ${group.recipients[0]?.account_type || 'N/A'}
                                 </div>
                                 
                                 ${group.attachments ? `
@@ -1108,12 +1110,12 @@ function viewGroupDetails(index) {
                                 
                                 <div class="mb-3">
                                     <h6 class="text-dark fw-bold">ML Explanation</h6>
-                                    <div>Medium risk</div>
+                                    <div>${group.recipients[0]?.ml_explanation || 'Medium risk'}</div>
                                 </div>
                                 
                                 <div class="mb-3">
                                     <h6 class="text-dark fw-bold">Justification</h6>
-                                    <div>home</div>
+                                    <div>${group.recipients[0]?.justification || 'home'}</div>
                                 </div>
                             </div>
                             
@@ -1125,7 +1127,7 @@ function viewGroupDetails(index) {
                                 
                                 <div class="mb-2">
                                     <strong>Risk Level:</strong> 
-                                    <span class="badge ${getRiskBadgeClass(group.risk_level)}">${group.risk_level || 'Medium'}</span>
+                                    <span class="badge bg-warning text-dark">${group.risk_level || 'Medium'}</span>
                                 </div>
                                 
                                 <div class="mb-2">
@@ -1134,7 +1136,7 @@ function viewGroupDetails(index) {
                                 
                                 <div class="mb-4">
                                     <strong>Case Status:</strong> 
-                                    <span class="badge ${getStatusBadgeClass(group.group_status)}">${group.group_status || 'Active'}</span>
+                                    <span class="badge bg-info text-white">${group.group_status || 'Active'}</span>
                                 </div>
                                 
                                 <div class="mb-3">
@@ -1213,12 +1215,42 @@ function viewGroupDetails(index) {
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Recipients Summary Section -->
+                        <hr>
+                        <div class="mt-3">
+                            <h6 class="text-dark fw-bold">All Recipients (${group.record_count || group.recipients.length})</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Recipient</th>
+                                            <th>Domain</th>
+                                            <th>Risk Level</th>
+                                            <th>ML Score</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${group.recipients.map(recipient => `
+                                            <tr>
+                                                <td>${recipient.recipient || 'Unknown'}</td>
+                                                <td>${recipient.recipient_domain || 'Unknown'}</td>
+                                                <td><span class="badge ${recipient.risk_level === 'High' ? 'bg-danger' : recipient.risk_level === 'Medium' ? 'bg-warning text-dark' : 'bg-success'}">${recipient.risk_level || 'Low'}</span></td>
+                                                <td>${(recipient.ml_score || 0).toFixed(3)}</td>
+                                                <td><span class="badge ${recipient.case_status === 'Active' ? 'bg-info' : recipient.case_status === 'Cleared' ? 'bg-success' : 'bg-danger'}">${recipient.case_status || 'Active'}</span></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="button" class="btn btn-success" onclick="clearGroup('${group.group_id}')">Clear Case</button>
-                        <button type="button" class="btn btn-danger" onclick="escalateGroup('${group.group_id}')">Escalate</button>
-                        <button type="button" class="btn btn-primary" onclick="generateEmail('${group.group_id}')">Generate Email</button>
+                        <button type="button" class="btn btn-success" onclick="clearGroup('${group.group_id || index}')">Clear Case</button>
+                        <button type="button" class="btn btn-danger" onclick="escalateGroup('${group.group_id || index}')">Escalate</button>
+                        <button type="button" class="btn btn-primary" onclick="generateEmail('${group.group_id || index}')">Generate Email</button>
                     </div>
                 </div>
             </div>
