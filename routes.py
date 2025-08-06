@@ -5,7 +5,7 @@ import csv
 import json
 from datetime import datetime
 from app import app, db
-from models import ProcessingSession, EmailRecord, Rule, WhitelistDomain, AttachmentKeyword, ProcessingError, RiskFactor, FlaggedEvent, AdaptiveLearningMetrics, LearningPattern, MLFeedback, ModelVersion, AttachmentLearning
+from models import ProcessingSession, EmailRecord, Rule, WhitelistDomain, AttachmentKeyword, ProcessingError, RiskFactor, FlaggedEvent, AdaptiveLearningMetrics, LearningPattern, MLFeedback, ModelVersion, AttachmentLearning, WhitelistSender
 from session_manager import SessionManager
 from data_processor import DataProcessor
 from ml_engine import MLEngine
@@ -4498,6 +4498,203 @@ def flag_event(session_id, record_id):
         logger.error(f"Error flagging event: {str(e)}")
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+# Whitelist Sender API Endpoints
+@app.route('/api/whitelist-sender/<session_id>/<record_id>', methods=['POST'])
+def whitelist_sender(session_id, record_id):
+    """Add a sender to whitelist and remove from case management"""
+    try:
+        data = request.get_json() or {}
+        added_by = data.get('added_by', 'System User')
+        notes = data.get('notes', '')
+        
+        # Get the email record
+        record = EmailRecord.query.filter_by(session_id=session_id, record_id=record_id).first_or_404()
+        
+        if not record.sender:
+            return jsonify({'error': 'No sender email found for this record'}), 400
+        
+        # Check if sender is already whitelisted
+        existing_whitelist = WhitelistSender.query.filter_by(email_address=record.sender).first()
+        
+        if existing_whitelist:
+            if not existing_whitelist.is_active:
+                # Reactivate existing whitelist entry
+                existing_whitelist.is_active = True
+                existing_whitelist.added_at = datetime.utcnow()
+                existing_whitelist.added_by = added_by
+                if notes:
+                    existing_whitelist.notes = notes
+            else:
+                return jsonify({'success': False, 'message': f'Sender {record.sender} is already whitelisted'}), 400
+        else:
+            # Create new whitelist entry
+            whitelist_entry = WhitelistSender(
+                email_address=record.sender,
+                added_by=added_by,
+                notes=notes or f'Added from case {record_id} in session {session_id}'
+            )
+            db.session.add(whitelist_entry)
+        
+        # Mark the current record as whitelisted
+        record.whitelisted = True
+        record.case_status = 'Cleared'  # Move to cleared status
+        record.resolved_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Log the action
+        AuditLogger.log_case_action(
+            action='WHITELIST_SENDER',
+            session_id=session_id,
+            case_id=record_id,
+            details=f"Sender {record.sender} added to whitelist"
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully whitelisted sender: {record.sender}',
+            'sender_email': record.sender
+        })
+        
+    except Exception as e:
+        logger.error(f"Error whitelisting sender: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/whitelist-senders', methods=['GET'])
+def get_whitelist_senders():
+    """Get all whitelisted senders"""
+    try:
+        senders = WhitelistSender.query.filter_by(is_active=True).order_by(WhitelistSender.added_at.desc()).all()
+        
+        senders_data = []
+        for sender in senders:
+            senders_data.append({
+                'id': sender.id,
+                'email_address': sender.email_address,
+                'added_by': sender.added_by,
+                'added_at': sender.added_at.strftime('%Y-%m-%d %H:%M:%S') if sender.added_at else '',
+                'notes': sender.notes,
+                'times_excluded': sender.times_excluded,
+                'last_excluded': sender.last_excluded.strftime('%Y-%m-%d %H:%M:%S') if sender.last_excluded else ''
+            })
+        
+        return jsonify({'senders': senders_data, 'total': len(senders_data)})
+        
+    except Exception as e:
+        logger.error(f"Error getting whitelist senders: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/whitelist-senders', methods=['POST'])
+def add_whitelist_sender():
+    """Add a new whitelisted sender manually"""
+    try:
+        data = request.get_json()
+        email_address = data.get('email_address', '').strip().lower()
+        added_by = data.get('added_by', 'Admin User')
+        notes = data.get('notes', '')
+        
+        if not email_address:
+            return jsonify({'error': 'Email address is required'}), 400
+        
+        # Validate email format (basic validation)
+        if '@' not in email_address or '.' not in email_address.split('@')[1]:
+            return jsonify({'error': 'Invalid email address format'}), 400
+        
+        # Check if already exists
+        existing = WhitelistSender.query.filter_by(email_address=email_address).first()
+        if existing and existing.is_active:
+            return jsonify({'error': 'Email address is already whitelisted'}), 400
+        
+        if existing:
+            # Reactivate existing entry
+            existing.is_active = True
+            existing.added_at = datetime.utcnow()
+            existing.added_by = added_by
+            existing.notes = notes
+        else:
+            # Create new entry
+            whitelist_entry = WhitelistSender(
+                email_address=email_address,
+                added_by=added_by,
+                notes=notes
+            )
+            db.session.add(whitelist_entry)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully added {email_address} to whitelist',
+            'email_address': email_address
+        })
+        
+    except Exception as e:
+        logger.error(f"Error adding whitelist sender: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/whitelist-senders/<int:sender_id>', methods=['PUT'])
+def update_whitelist_sender(sender_id):
+    """Update a whitelisted sender"""
+    try:
+        sender = WhitelistSender.query.get_or_404(sender_id)
+        data = request.get_json()
+        
+        # Update allowed fields
+        if 'email_address' in data:
+            new_email = data['email_address'].strip().lower()
+            if new_email != sender.email_address:
+                # Check if new email already exists
+                existing = WhitelistSender.query.filter_by(email_address=new_email, is_active=True).first()
+                if existing and existing.id != sender_id:
+                    return jsonify({'error': 'Email address is already whitelisted'}), 400
+                sender.email_address = new_email
+        
+        if 'notes' in data:
+            sender.notes = data['notes']
+        
+        if 'is_active' in data:
+            sender.is_active = data['is_active']
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully updated whitelist entry for {sender.email_address}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating whitelist sender: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/whitelist-senders/<int:sender_id>', methods=['DELETE'])
+def delete_whitelist_sender(sender_id):
+    """Remove a sender from whitelist"""
+    try:
+        sender = WhitelistSender.query.get_or_404(sender_id)
+        email_address = sender.email_address
+        
+        # Soft delete by setting is_active to False
+        sender.is_active = False
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully removed {email_address} from whitelist'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error deleting whitelist sender: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/whitelist-senders')
+def whitelist_senders_dashboard():
+    """Dashboard for managing whitelisted senders"""
+    return render_template('whitelist_senders.html')
 
 @app.route('/api/unflag-event/<session_id>/<record_id>', methods=['POST'])
 def unflag_event(session_id, record_id):

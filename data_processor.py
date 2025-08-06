@@ -7,7 +7,7 @@ import os
 import time
 from datetime import datetime
 from sqlalchemy import text
-from models import ProcessingSession, EmailRecord, ProcessingError, Rule, WhitelistDomain, AttachmentKeyword
+from models import ProcessingSession, EmailRecord, ProcessingError, Rule, WhitelistDomain, AttachmentKeyword, WhitelistSender
 from app import db
 from performance_config import config
 from workflow_manager import WorkflowManager
@@ -707,15 +707,90 @@ class DataProcessor:
             raise
     
     def _apply_whitelist_filtering(self, session_id):
-        """Stage 3: Apply whitelist filtering"""
+        """Stage 3: Apply whitelist filtering (domains and senders)"""
         try:
             from domain_manager import DomainManager
+            from datetime import datetime
+            
             domain_manager = DomainManager()
-            whitelisted_count = domain_manager.apply_whitelist_filtering(session_id)
-            logger.info(f"Domain whitelist applied: {whitelisted_count} records whitelisted")
+            
+            # Apply domain whitelist first
+            domain_whitelisted_count = domain_manager.apply_whitelist_filtering(session_id)
+            logger.info(f"Domain whitelist applied: {domain_whitelisted_count} records whitelisted")
+            
+            # Apply sender whitelist filtering
+            sender_whitelisted_count = self._apply_sender_whitelist_filtering(session_id)
+            logger.info(f"Sender whitelist applied: {sender_whitelisted_count} records whitelisted")
+            
+            total_whitelisted = domain_whitelisted_count + sender_whitelisted_count
+            logger.info(f"Total whitelist filtering completed: {total_whitelisted} records whitelisted")
+            
             self._mark_workflow_step_completed(session_id, 'whitelist_applied')
+            
         except Exception as e:
             logger.error(f"Error in whitelist filtering stage: {str(e)}")
+            raise
+            
+    def _apply_sender_whitelist_filtering(self, session_id):
+        """Apply sender email whitelist filtering"""
+        try:
+            # Get all active whitelisted senders
+            whitelisted_senders = db.session.query(WhitelistSender).filter_by(is_active=True).all()
+            
+            if not whitelisted_senders:
+                logger.info("No active whitelisted senders found")
+                return 0
+            
+            # Create a set of whitelisted email addresses for quick lookup (case-insensitive)
+            whitelisted_emails = {sender.email_address.lower() for sender in whitelisted_senders}
+            logger.info(f"Found {len(whitelisted_emails)} active whitelisted senders")
+            
+            # Get all records for this session that are not already whitelisted or excluded
+            records = db.session.query(EmailRecord).filter_by(
+                session_id=session_id,
+                whitelisted=False
+            ).filter(EmailRecord.excluded_by_rule.is_(None)).all()
+            
+            if not records:
+                logger.info("No eligible records found for sender whitelist filtering")
+                return 0
+            
+            whitelisted_count = 0
+            
+            # Process records in batches for better performance
+            batch_size = 1000
+            for i in range(0, len(records), batch_size):
+                batch_records = records[i:i + batch_size]
+                
+                for record in batch_records:
+                    if record.sender and record.sender.lower() in whitelisted_emails:
+                        # Mark record as whitelisted
+                        record.whitelisted = True
+                        record.case_status = 'Cleared'  # Auto-clear whitelisted records
+                        record.resolved_at = datetime.utcnow()
+                        
+                        # Update sender whitelist statistics
+                        sender_entry = next(
+                            (s for s in whitelisted_senders if s.email_address.lower() == record.sender.lower()),
+                            None
+                        )
+                        if sender_entry:
+                            sender_entry.times_excluded += 1
+                            sender_entry.last_excluded = datetime.utcnow()
+                        
+                        whitelisted_count += 1
+                        logger.debug(f"Whitelisted record {record.record_id} from sender {record.sender}")
+                
+                # Commit batch
+                db.session.commit()
+                logger.info(f"Processed sender whitelist batch {i//batch_size + 1}: {min(i + batch_size, len(records))}/{len(records)} records")
+            
+            logger.info(f"Sender whitelist filtering completed: {whitelisted_count} records whitelisted")
+            return whitelisted_count
+            
+        except Exception as e:
+            logger.error(f"Error in sender whitelist filtering: {str(e)}")
+            db.session.rollback()
             raise
     
     def _apply_security_rules(self, session_id):

@@ -265,3 +265,20 @@ class FlaggedEvent(db.Model):
     
     def __repr__(self):
         return f'<FlaggedEvent {self.sender_email}>'
+
+class WhitelistSender(db.Model):
+    __tablename__ = 'whitelist_senders'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    email_address = db.Column(db.String(255), nullable=False, unique=True, index=True)
+    added_by = db.Column(db.String(255), default='System User')
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)
+    notes = db.Column(Text)
+    
+    # Track usage statistics
+    times_excluded = db.Column(db.Integer, default=0)
+    last_excluded = db.Column(db.DateTime)
+    
+    def __repr__(self):
+        return f'<WhitelistSender {self.email_address}>'

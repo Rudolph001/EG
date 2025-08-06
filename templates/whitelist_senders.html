@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Whitelisted Senders{% endblock %}
+
+{% block extra_head %}
+<style>
+    .sender-card {
+        border-left: 4px solid #007bff;
+        margin-bottom: 15px;
+    }
+    
+    .sender-email {
+        font-family: 'Courier New', monospace;
+        background-color: #f8f9fa;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .stats-badge {
+        font-size: 0.8rem;
+    }
+    
+    .edit-form {
+        border: 2px solid #17a2b8;
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-3">
+                <i class="fas fa-shield-alt text-primary"></i>
+                Manage Whitelisted Senders
+            </h1>
+        </div>
+    </div>
+    
+    <!-- Add New Sender Form -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-plus"></i>
+                        Add New Whitelisted Sender
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="addSenderForm">
+                        <div class="mb-3">
+                            <label for="emailAddress" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="emailAddress" required 
+                                   placeholder="Enter email address to whitelist">
+                        </div>
+                        <div class="mb-3">
+                            <label for="addedBy" class="form-label">Added By</label>
+                            <input type="text" class="form-control" id="addedBy" 
+                                   placeholder="Your name (optional)" value="Admin User">
+                        </div>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="notes" rows="3" 
+                                      placeholder="Optional notes about why this sender is whitelisted"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Add to Whitelist
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar"></i>
+                        Whitelist Statistics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h3 class="text-primary mb-1" id="totalSenders">0</h3>
+                            <p class="mb-0 text-muted">Active Whitelisted Senders</p>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="text-success mb-1" id="totalExclusions">0</h3>
+                            <p class="mb-0 text-muted">Total Exclusions</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Whitelisted Senders List -->
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i>
+                    Whitelisted Senders
+                </h5>
+                <button class="btn btn-outline-secondary btn-sm" onclick="refreshSendersList()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="sendersListContainer">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading whitelisted senders...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Sender Modal -->
+<div class="modal fade" id="editSenderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Whitelisted Sender</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editSenderForm">
+                    <input type="hidden" id="editSenderId">
+                    <div class="mb-3">
+                        <label for="editEmailAddress" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="editEmailAddress" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="editNotes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveEditedSender()">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentSenders = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadSendersList();
+    
+    // Add sender form submission
+    document.getElementById('addSenderForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        addNewSender();
+    });
+});
+
+async function loadSendersList() {
+    try {
+        const response = await fetch('/api/whitelist-senders');
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Failed to load senders: ' + data.error);
+            return;
+        }
+        
+        currentSenders = data.senders;
+        renderSendersList(data.senders);
+        updateStatistics(data.senders);
+        
+    } catch (error) {
+        console.error('Error loading senders:', error);
+        showError('Failed to load whitelisted senders');
+    }
+}
+
+function renderSendersList(senders) {
+    const container = document.getElementById('sendersListContainer');
+    
+    if (senders.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-shield-alt fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Whitelisted Senders</h5>
+                <p class="text-muted">Add email addresses to exclude them from future analysis</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    senders.forEach(sender => {
+        html += `
+            <div class="sender-card card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div class="sender-email">${sender.email_address}</div>
+                            <small class="text-muted">
+                                <i class="fas fa-user"></i> Added by: ${sender.added_by || 'Unknown'}
+                                <br>
+                                <i class="fas fa-clock"></i> ${sender.added_at}
+                            </small>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex flex-column">
+                                <span class="badge bg-primary stats-badge mb-1">
+                                    <i class="fas fa-times-circle"></i> ${sender.times_excluded} exclusions
+                                </span>
+                                ${sender.last_excluded ? `<small class="text-muted">Last: ${sender.last_excluded}</small>` : ''}
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-primary" onclick="editSender(${sender.id})" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="removeSender(${sender.id}, '${sender.email_address}')" title="Remove">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    ${sender.notes ? `
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <small class="text-muted">
+                                    <i class="fas fa-sticky-note"></i> ${sender.notes}
+                                </small>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function updateStatistics(senders) {
+    const totalSenders = senders.length;
+    const totalExclusions = senders.reduce((sum, sender) => sum + (sender.times_excluded || 0), 0);
+    
+    document.getElementById('totalSenders').textContent = totalSenders;
+    document.getElementById('totalExclusions').textContent = totalExclusions;
+}
+
+async function addNewSender() {
+    const emailAddress = document.getElementById('emailAddress').value.trim();
+    const addedBy = document.getElementById('addedBy').value.trim();
+    const notes = document.getElementById('notes').value.trim();
+    
+    if (!emailAddress) {
+        showError('Email address is required');
+        return;
+    }
+    
+    try {
+        showLoading('Adding sender to whitelist...');
+        
+        const response = await fetch('/api/whitelist-senders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email_address: emailAddress,
+                added_by: addedBy,
+                notes: notes
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Failed to add sender: ' + data.error);
+            return;
+        }
+        
+        showSuccess(data.message);
+        
+        // Clear form
+        document.getElementById('addSenderForm').reset();
+        document.getElementById('addedBy').value = 'Admin User';
+        
+        // Reload list
+        loadSendersList();
+        
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error adding sender:', error);
+        showError('Failed to add sender');
+        hideLoading();
+    }
+}
+
+function editSender(senderId) {
+    const sender = currentSenders.find(s => s.id === senderId);
+    if (!sender) {
+        showError('Sender not found');
+        return;
+    }
+    
+    document.getElementById('editSenderId').value = senderId;
+    document.getElementById('editEmailAddress').value = sender.email_address;
+    document.getElementById('editNotes').value = sender.notes || '';
+    
+    new bootstrap.Modal(document.getElementById('editSenderModal')).show();
+}
+
+async function saveEditedSender() {
+    const senderId = document.getElementById('editSenderId').value;
+    const emailAddress = document.getElementById('editEmailAddress').value.trim();
+    const notes = document.getElementById('editNotes').value.trim();
+    
+    if (!emailAddress) {
+        showError('Email address is required');
+        return;
+    }
+    
+    try {
+        showLoading('Updating sender...');
+        
+        const response = await fetch(`/api/whitelist-senders/${senderId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email_address: emailAddress,
+                notes: notes
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Failed to update sender: ' + data.error);
+            return;
+        }
+        
+        showSuccess(data.message);
+        
+        // Close modal
+        bootstrap.Modal.getInstance(document.getElementById('editSenderModal')).hide();
+        
+        // Reload list
+        loadSendersList();
+        
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error updating sender:', error);
+        showError('Failed to update sender');
+        hideLoading();
+    }
+}
+
+async function removeSender(senderId, emailAddress) {
+    if (!confirm(`Are you sure you want to remove ${emailAddress} from the whitelist?`)) {
+        return;
+    }
+    
+    try {
+        showLoading('Removing sender from whitelist...');
+        
+        const response = await fetch(`/api/whitelist-senders/${senderId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Failed to remove sender: ' + data.error);
+            return;
+        }
+        
+        showSuccess(data.message);
+        
+        // Reload list
+        loadSendersList();
+        
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error removing sender:', error);
+        showError('Failed to remove sender');
+        hideLoading();
+    }
+}
+
+function refreshSendersList() {
+    loadSendersList();
+}
+
+// Utility functions
+function showSuccess(message) {
+    // Create and show success toast/alert
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alert.innerHTML = `
+        <i class="fas fa-check-circle"></i> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+function showError(message) {
+    // Create and show error toast/alert
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+    alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alert.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+    
+    // Auto-hide after 8 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 8000);
+}
+
+function showLoading(message) {
+    // Simple loading implementation - you can enhance this
+    console.log('Loading:', message);
+}
+
+function hideLoading() {
+    // Hide loading - you can enhance this
+    console.log('Loading complete');
+}
+</script>
+{% endblock %}

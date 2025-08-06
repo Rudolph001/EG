@@ -319,6 +319,9 @@
                 <a href="{{ url_for('processing_status_page', session_id=session.id) }}" class="btn btn-sm btn-outline-info" title="View detailed processing status and progress">
                     <i class="fas fa-chart-line"></i> View Processing Status
                 </a>
+                <a href="{{ url_for('whitelist_senders_dashboard') }}" class="btn btn-sm btn-outline-secondary" title="Manage whitelisted senders">
+                    <i class="fas fa-shield-alt"></i> Manage Whitelisted Senders
+                </a>
             </div>
         </div>
     </div>
@@ -432,6 +435,10 @@
                                 <button class="btn btn-sm btn-outline-danger escalate-case-btn" 
                                         data-record-id="{{ case.record_id }}" title="Escalate">
                                     <i class="fas fa-exclamation-triangle"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-info whitelist-sender-btn" 
+                                        data-record-id="{{ case.record_id }}" data-sender="{{ case.sender }}" title="Whitelist Sender">
+                                    <i class="fas fa-shield-alt"></i>
                                 </button>
                             </div>
                         </td>
@@ -681,6 +688,230 @@ async function flagSender(senderEmail) {
     }
 }
 
+// Whitelist sender from grouped view
+async function whitelistSenderFromGroup(senderEmail, groupId) {
+    if (!senderEmail || senderEmail === 'undefined' || senderEmail === 'null') {
+        showError('Invalid sender email address');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to whitelist all future emails from ${senderEmail}?\n\nThis will:\n- Add the sender to the permanent whitelist\n- Move this case to Cleared status\n- Remove it from the grouped view\n- Exclude future emails from this sender during imports`)) {
+        return;
+    }
+    
+    try {
+        showLoading('Adding sender to whitelist...');
+        
+        // Get the first record from this group to whitelist
+        const groupData = window.groupedCasesData.find(g => g.group_id === groupId);
+        if (!groupData || !groupData.recipients || groupData.recipients.length === 0) {
+            showError('Group data not found');
+            hideLoading();
+            return;
+        }
+        
+        const firstRecordId = groupData.recipients[0].record_id;
+        
+        const response = await fetch(`/api/whitelist-sender/${window.currentSessionId}/${firstRecordId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                added_by: 'Case Manager User',
+                notes: `Whitelisted from grouped cases view for sender ${senderEmail}`
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Failed to whitelist sender: ' + data.error);
+            hideLoading();
+            return;
+        }
+        
+        showSuccess(data.message);
+        
+        // Remove the group from the current view
+        removeGroupFromView(groupId);
+        
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error whitelisting sender:', error);
+        showError('Failed to whitelist sender');
+        hideLoading();
+    }
+}
+
+// Clear group action with record removal
+async function clearGroup(groupId) {
+    if (!confirm('Are you sure you want to clear this grouped case?')) {
+        return;
+    }
+    
+    try {
+        showLoading('Clearing grouped case...');
+        
+        // Get the group data to find all record IDs
+        const groupData = window.groupedCasesData.find(g => g.group_id === groupId);
+        if (!groupData || !groupData.recipients) {
+            showError('Group data not found');
+            hideLoading();
+            return;
+        }
+        
+        // Clear all records in the group
+        const recordIds = groupData.recipients.map(r => r.record_id);
+        
+        for (const recordId of recordIds) {
+            const response = await fetch(`/api/update-case-status/${window.currentSessionId}/${recordId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    new_status: 'Cleared'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to clear record ${recordId}`);
+            }
+        }
+        
+        showSuccess(`Successfully cleared ${recordIds.length} records`);
+        
+        // Remove the group from the view
+        removeGroupFromView(groupId);
+        
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error clearing group:', error);
+        showError('Failed to clear group');
+        hideLoading();
+    }
+}
+
+// Escalate group action with record removal
+async function escalateGroup(groupId) {
+    if (!confirm('Are you sure you want to escalate this grouped case?')) {
+        return;
+    }
+    
+    try {
+        showLoading('Escalating grouped case...');
+        
+        // Get the group data to find all record IDs
+        const groupData = window.groupedCasesData.find(g => g.group_id === groupId);
+        if (!groupData || !groupData.recipients) {
+            showError('Group data not found');
+            hideLoading();
+            return;
+        }
+        
+        // Escalate all records in the group
+        const recordIds = groupData.recipients.map(r => r.record_id);
+        
+        for (const recordId of recordIds) {
+            const response = await fetch(`/api/update-case-status/${window.currentSessionId}/${recordId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    new_status: 'Escalated'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to escalate record ${recordId}`);
+            }
+        }
+        
+        showSuccess(`Successfully escalated ${recordIds.length} records`);
+        
+        // Remove the group from the view
+        removeGroupFromView(groupId);
+        
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error escalating group:', error);
+        showError('Failed to escalate group');
+        hideLoading();
+    }
+}
+
+// Whitelist sender from individual case
+async function whitelistSenderFromCase(recordId, senderEmail) {
+    if (!senderEmail || senderEmail === 'undefined' || senderEmail === 'null') {
+        showError('Invalid sender email address');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to whitelist all future emails from ${senderEmail}?\n\nThis will:\n- Add the sender to the permanent whitelist\n- Move this case to Cleared status\n- Exclude future emails from this sender during imports`)) {
+        return;
+    }
+    
+    try {
+        showLoading('Adding sender to whitelist...');
+        
+        const response = await fetch(`/api/whitelist-sender/${window.currentSessionId}/${recordId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                added_by: 'Case Manager User',
+                notes: `Whitelisted from individual case view for sender ${senderEmail}`
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Failed to whitelist sender: ' + data.error);
+            hideLoading();
+            return;
+        }
+        
+        showSuccess(data.message);
+        
+        // Reload the page to show updated case status
+        setTimeout(() => {
+            location.reload();
+        }, 2000);
+        
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error whitelisting sender:', error);
+        showError('Failed to whitelist sender');
+        hideLoading();
+    }
+}
+
+// Helper function to remove a group from the current view
+function removeGroupFromView(groupId) {
+    // Find and remove the group from the data array
+    if (window.groupedCasesData) {
+        window.groupedCasesData = window.groupedCasesData.filter(g => g.group_id !== groupId);
+    }
+    
+    // Re-render the table
+    renderGroupedCases(window.groupedCasesData);
+    
+    // Update the summary counts (decrease by 1 for the removed group)
+    const totalElement = document.getElementById('totalGroups');
+    if (totalElement) {
+        const currentTotal = parseInt(totalElement.textContent) || 0;
+        totalElement.textContent = Math.max(0, currentTotal - 1);
+    }
+}
+
 function toggleGroupDetails(index) {
     const detailsRow = document.getElementById(`group-details-${index}`);
     const expandIcon = document.getElementById(`expand-icon-${index}`);
@@ -870,6 +1101,9 @@ function createGroupRow(group, index) {
                 </button>
                 <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); escalateGroup('${group.group_id}')" title="Escalate">
                     <i class="fas fa-exclamation-triangle"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-info" onclick="event.stopPropagation(); whitelistSenderFromGroup('${group.sender}', '${group.group_id}')" title="Whitelist Sender">
+                    <i class="fas fa-shield-alt"></i>
                 </button>
             </div>
         </td>
@@ -1687,6 +1921,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const btn = e.target.closest('.unflag-case-btn');
             const recordId = btn.getAttribute('data-record-id');
             unflagEvent(currentSessionId, recordId);
+        }
+        
+        if (e.target.closest('.whitelist-sender-btn')) {
+            const btn = e.target.closest('.whitelist-sender-btn');
+            const recordId = btn.getAttribute('data-record-id');
+            const senderEmail = btn.getAttribute('data-sender');
+            whitelistSenderFromCase(recordId, senderEmail);
         }
     });
 });

@@ -1,0 +1,81 @@
+In the Grouped Email Cases view, when I click on any of the action icons (e.g. Flag, Escalate, Resolve, etc.), currently nothing happens. Here's what I need:
+
+Expected Behavior of Action Icons:
+
+When I click on an action icon (e.g., Flag), the selected grouped email case should be:
+
+Moved to the corresponding dashboard (e.g., the Flagged Emails dashboard).
+
+Removed from the Grouped Email Cases view, as it has now been processed.
+
+Whitelist Sender Functionality:
+
+I would like to add a whitelist action icon.
+
+When clicked:
+
+The sender's email address should be added to a global whitelist list.
+
+The email case should also be removed from the Grouped Email Cases view.
+
+Additionally, this whitelist should be:
+
+Integrated into the data import workflow, so that any future imports automatically exclude emails from whitelisted senders during processing.
+
+Let me know if you need this broken down into implementation tasks or user stories.
+
+
+
+
+
+
+
+
+You said:
+i still need to see in admin dashboar the senders email i have witelisted and need to edit or removed them from the whitelist add new view of this under  Whitelist Domains to whitelist sender email accounts
+
+
+ChatGPT said:
+Here’s an updated and clearer version of your full request, optimized for Replit and ready for implementation or planning:
+
+Feature Request for Replit – Action Icons, Whitelisting, and Admin View Enhancements
+
+1. Grouped Email Cases – Action Icons Functionality
+When I click on an action icon (e.g. Flag, Escalate, Resolve) in the Grouped Email Cases view:
+
+The selected grouped email case must be moved to the corresponding dashboard (e.g. Flagged Emails).
+
+It should no longer appear in Grouped Email Cases, since it's been actioned.
+
+Each action should only affect that case, not all grouped items unless selected.
+
+2. Whitelist Sender Email Functionality
+I want to add a new Whitelist Sender action icon in the Grouped Email Cases view.
+
+When clicked:
+
+The sender’s email address should be added to a Whitelist.
+
+That case should be removed from Grouped Email Cases (like other actions).
+
+This whitelist must be persisted (e.g. in a JSON file).
+
+3. Import Workflow Integration
+During new data imports, the system must:
+
+Automatically exclude emails from whitelisted sender addresses.
+
+The rest of the import process (rule engine, ML, etc.) should continue as usual for non-whitelisted emails.
+
+4. Admin Dashboard – Manage Whitelisted Senders
+In the Admin Dashboard, I need a new view/section called Whitelist Senders (or Whitelist Domains if both domains and full emails are supported).
+
+This view should allow me to:
+
+View all whitelisted sender email addresses
+
+Add new whitelisted email addresses manually
+
+Edit existing ones
+
+Remove senders from the whitelist
