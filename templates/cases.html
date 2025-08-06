@@ -190,6 +190,9 @@
                     </div>
                     <small class="text-muted">Groups same email to multiple recipients</small>
                     <div id="groupingStatus" class="small text-info mt-1" style="display:none;"></div>
+                    <button type="button" class="btn btn-sm btn-outline-info mt-1" onclick="debugToggle()">
+                        <i class="fas fa-bug"></i> Debug
+                    </button>
                 </div>
             </div>
         </div>
@@ -447,7 +450,12 @@
             </table>
             
             <!-- Grouped Cases Table -->
-            <table class="table table-hover" id="groupedCasesTable" style="display: none;">
+            <div id="groupedCasesContainer" style="display: none;">
+                <div class="alert alert-info">
+                    <i class="fas fa-layer-group"></i> <strong>Grouped View Active:</strong> 
+                    Showing email groups. Click rows to expand individual recipients.
+                </div>
+                <table class="table table-hover" id="groupedCasesTable">
                 <thead>
                     <tr>
                         <th width="30">
@@ -466,7 +474,8 @@
                 <tbody id="groupedCasesBody">
                     <!-- Grouped cases will be populated by JavaScript -->
                 </tbody>
-            </table>
+                </table>
+            </div>
         </div>
         
         <!-- Pagination -->
@@ -544,10 +553,14 @@ async function toggleGrouping(event) {
     
     const groupToggle = document.getElementById('groupEmails');
     const individualTable = document.getElementById('casesTable');
-    const groupedTable = document.getElementById('groupedCasesTable');
+    const groupedContainer = document.getElementById('groupedCasesContainer');
     const statusDiv = document.getElementById('groupingStatus');
     
     console.log('Toggle grouping called, checked:', groupToggle.checked);
+    console.log('Individual table element:', individualTable);
+    console.log('Grouped container element:', groupedContainer);
+    console.log('Status div element:', statusDiv);
+    
     isGroupingEnabled = groupToggle.checked;
     
     if (isGroupingEnabled) {
@@ -556,7 +569,7 @@ async function toggleGrouping(event) {
         
         // Show grouped view
         individualTable.style.display = 'none';
-        groupedTable.style.display = 'table';
+        groupedContainer.style.display = 'block';
         
         // Always reload grouped data to get latest
         try {
@@ -568,7 +581,7 @@ async function toggleGrouping(event) {
             // Revert to individual view on error
             groupToggle.checked = false;
             individualTable.style.display = 'table';
-            groupedTable.style.display = 'none';
+            groupedContainer.style.display = 'none';
             isGroupingEnabled = false;
             statusDiv.style.display = 'none';
         }
@@ -583,7 +596,7 @@ async function toggleGrouping(event) {
         statusDiv.style.display = 'none';
         // Show individual view
         individualTable.style.display = 'table';
-        groupedTable.style.display = 'none';
+        groupedContainer.style.display = 'none';
         
         // Reset UI indicators
         const cardTitle = document.querySelector('.card-title');
@@ -594,6 +607,27 @@ async function toggleGrouping(event) {
     
     // Return false to prevent any default behavior
     return false;
+}
+
+// Debug function to test the toggle
+function debugToggle() {
+    const groupToggle = document.getElementById('groupEmails');
+    const individualTable = document.getElementById('casesTable');
+    const groupedContainer = document.getElementById('groupedCasesContainer');
+    const statusDiv = document.getElementById('groupingStatus');
+    
+    console.log('=== DEBUG INFO ===');
+    console.log('Group toggle checked:', groupToggle?.checked);
+    console.log('Individual table display:', individualTable?.style.display);
+    console.log('Grouped container display:', groupedContainer?.style.display);
+    console.log('Current grouping enabled:', isGroupingEnabled);
+    console.log('Session ID:', window.currentSessionId);
+    
+    alert(`Debug Info:
+    - Toggle checked: ${groupToggle?.checked}
+    - Individual table display: ${individualTable?.style.display}
+    - Grouped container display: ${groupedContainer?.style.display}
+    - Grouping enabled: ${isGroupingEnabled}`);
 }
 
 async function loadGroupedCases() {
