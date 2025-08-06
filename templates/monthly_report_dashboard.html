@@ -117,32 +117,36 @@
     }
     
     /* Fix column layout for summary cards */
-    @media (min-width: 768px) {
-        .col-xl-3.col-md-6 {
-            flex: 0 0 25%;
-            max-width: 25%;
+    .summary-cards-row {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        margin: 0 -8px;
+    }
+    
+    .summary-card-col {
+        flex: 0 0 25% !important;
+        max-width: 25% !important;
+        padding: 0 8px !important;
+        margin-bottom: 16px !important;
+    }
+    
+    @media (max-width: 992px) {
+        .summary-card-col {
+            flex: 0 0 50% !important;
+            max-width: 50% !important;
         }
     }
     
-    @media (max-width: 767px) {
-        .col-xl-3.col-md-6 {
-            flex: 0 0 50%;
-            max-width: 50%;
+    @media (max-width: 576px) {
+        .summary-card-col {
+            flex: 0 0 100% !important;
+            max-width: 100% !important;
         }
     }
     
-    .row {
-        display: flex;
-        flex-wrap: wrap;
-        margin-right: -15px;
-        margin-left: -15px;
-    }
-    
-    .col-xl-3, .col-md-6 {
-        position: relative;
-        width: 100%;
-        padding-right: 15px;
-        padding-left: 15px;
+    .card-compact {
+        height: 100%;
+        min-height: 120px;
     }
 </style>
 {% endblock %}
@@ -278,11 +282,11 @@
     </div>
 
     <!-- Compact Executive Summary Cards -->
-    <div class="row mb-3" id="summaryCards" style="display: none;">
-        <div class="col-xl-3 col-lg-3 col-md-6 col-sm-6 mb-2">
-            <div class="card border-left-primary shadow-sm h-100">
+    <div class="summary-cards-row mb-3" id="summaryCards" style="display: none;">
+        <div class="summary-card-col">
+            <div class="card border-left-primary shadow-sm card-compact">
                 <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center h-100">
                         <div class="flex-grow-1">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                                 Total Emails
@@ -300,10 +304,10 @@
             </div>
         </div>
 
-        <div class="col-xl-3 col-lg-3 col-md-6 col-sm-6 mb-2">
-            <div class="card border-left-danger shadow-sm h-100">
+        <div class="summary-card-col">
+            <div class="card border-left-danger shadow-sm card-compact">
                 <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center h-100">
                         <div class="flex-grow-1">
                             <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
                                 Security Incidents
@@ -321,10 +325,10 @@
             </div>
         </div>
 
-        <div class="col-xl-3 col-lg-3 col-md-6 col-sm-6 mb-2">
-            <div class="card border-left-success shadow-sm h-100">
+        <div class="summary-card-col">
+            <div class="card border-left-success shadow-sm card-compact">
                 <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center h-100">
                         <div class="flex-grow-1">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                                 Cases Resolved
@@ -342,10 +346,10 @@
             </div>
         </div>
 
-        <div class="col-xl-3 col-lg-3 col-md-6 col-sm-6 mb-2">
-            <div class="card border-left-warning shadow-sm h-100">
+        <div class="summary-card-col">
+            <div class="card border-left-warning shadow-sm card-compact">
                 <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center h-100">
                         <div class="flex-grow-1">
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
                                 Avg Response Time
@@ -613,5 +617,257 @@
 
 {% block extra_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{{ url_for('static', filename='js/monthly_report.js') }}"></script>
+<script>
+// Monthly Report Dashboard JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Load sample sessions
+    loadAvailableSessions();
+    
+    // Initialize event listeners
+    document.getElementById('reportFormat').addEventListener('change', handleFormatChange);
+    document.getElementById('reportPeriod').addEventListener('change', handlePeriodChange);
+    
+    // Auto-show controls and cards for demo
+    setTimeout(() => {
+        document.getElementById('reportControls').style.display = 'block';
+        document.getElementById('summaryCards').style.display = 'block';
+        document.getElementById('mainCharts').style.display = 'block';
+        document.getElementById('secondaryCharts').style.display = 'block';
+        showReportSections('executive');
+    }, 1000);
+});
+
+function loadAvailableSessions() {
+    const availableDiv = document.getElementById('availableSessions');
+    if (!availableDiv) return;
+    
+    // Sample sessions for demo
+    const sampleSessions = [
+        { id: 'session1', name: 'Q4_2024_Email_Export.csv', date: '2024-12-15', records: 12500 },
+        { id: 'session2', name: 'Nov_2024_Security_Scan.csv', date: '2024-11-20', records: 8900 },
+        { id: 'session3', name: 'Oct_2024_Monthly_Data.csv', date: '2024-10-31', records: 9200 }
+    ];
+    
+    availableDiv.innerHTML = sampleSessions.map(session => 
+        `<div class="session-item" onclick="selectSession('${session.id}', this)">
+            <strong>${session.name}</strong><br>
+            <small class="text-muted">${session.date} • ${session.records.toLocaleString()} records</small>
+        </div>`
+    ).join('');
+}
+
+function selectSession(sessionId, element) {
+    if (element.classList.contains('selected')) {
+        element.classList.remove('selected');
+    } else {
+        element.classList.add('selected');
+    }
+    updateSelectionInfo();
+}
+
+function updateSelectionInfo() {
+    const selectedCount = document.querySelectorAll('.session-item.selected').length;
+    const infoElement = document.getElementById('selectionInfo');
+    if (infoElement) {
+        infoElement.textContent = selectedCount > 0 ? 
+            `${selectedCount} session${selectedCount > 1 ? 's' : ''} selected` : 
+            'No sessions selected';
+    }
+}
+
+function generateReport() {
+    const selectedSessions = document.querySelectorAll('.session-item.selected');
+    if (selectedSessions.length === 0) {
+        alert('Please select at least one session to generate a report.');
+        return;
+    }
+    
+    // Move selected sessions to the selected panel
+    const selectedDiv = document.getElementById('selectedSessions');
+    selectedDiv.innerHTML = '';
+    
+    selectedSessions.forEach(session => {
+        const clonedSession = session.cloneNode(true);
+        clonedSession.onclick = () => removeFromSelected(clonedSession);
+        selectedDiv.appendChild(clonedSession);
+    });
+    
+    // Show report controls and summary
+    document.getElementById('reportControls').style.display = 'block';
+    document.getElementById('summaryCards').style.display = 'block';
+    document.getElementById('mainCharts').style.display = 'block';
+    document.getElementById('secondaryCharts').style.display = 'block';
+    
+    // Show sections based on current format
+    const format = document.getElementById('reportFormat').value;
+    showReportSections(format);
+    
+    updateSelectionInfo();
+}
+
+function removeFromSelected(element) {
+    element.remove();
+    updateSelectionInfo();
+}
+
+function clearSelection() {
+    document.querySelectorAll('.session-item.selected').forEach(item => {
+        item.classList.remove('selected');
+    });
+    document.getElementById('selectedSessions').innerHTML = '';
+    updateSelectionInfo();
+}
+
+function handleFormatChange() {
+    const format = document.getElementById('reportFormat').value;
+    showReportSections(format);
+}
+
+function showReportSections(format) {
+    // Hide all optional sections first
+    const sections = ['detailedAnalytics', 'topRisksSection', 'recommendationsSection'];
+    sections.forEach(sectionId => {
+        const section = document.getElementById(sectionId);
+        if (section) section.style.display = 'none';
+    });
+    
+    // Show sections based on format
+    switch(format) {
+        case 'executive':
+            // Executive shows only summary cards and main charts
+            break;
+        case 'detailed':
+            // Detailed shows all sections
+            document.getElementById('detailedAnalytics').style.display = 'block';
+            document.getElementById('topRisksSection').style.display = 'block';
+            break;
+        case 'technical':
+            // Technical shows everything including recommendations
+            document.getElementById('detailedAnalytics').style.display = 'block';
+            document.getElementById('topRisksSection').style.display = 'block';
+            document.getElementById('recommendationsSection').style.display = 'block';
+            break;
+    }
+    
+    // Initialize charts for visible sections
+    initializeCharts();
+}
+
+function handlePeriodChange() {
+    const period = document.getElementById('reportPeriod').value;
+    const customRange = document.getElementById('customDateRange');
+    
+    if (period === 'custom') {
+        customRange.style.display = 'block';
+    } else {
+        customRange.style.display = 'none';
+    }
+}
+
+function updateReport() {
+    const format = document.getElementById('reportFormat').value;
+    showReportSections(format);
+    
+    // Update summary cards with animation
+    animateNumbers();
+}
+
+function animateNumbers() {
+    const numbers = [
+        { id: 'totalEmailsProcessed', value: 9000 },
+        { id: 'securityIncidents', value: 2260 },
+        { id: 'casesResolved', value: 0 }
+    ];
+    
+    numbers.forEach(item => {
+        const element = document.getElementById(item.id);
+        if (element) {
+            let current = 0;
+            const increment = item.value / 50;
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= item.value) {
+                    current = item.value;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(current).toLocaleString();
+            }, 20);
+        }
+    });
+}
+
+function initializeCharts() {
+    // Initialize Risk Trend Chart
+    const riskTrendCtx = document.getElementById('riskTrendChart');
+    if (riskTrendCtx && !riskTrendCtx.chart) {
+        riskTrendCtx.chart = new Chart(riskTrendCtx, {
+            type: 'line',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                datasets: [{
+                    label: 'High Risk',
+                    data: [350, 280, 450, 320],
+                    borderColor: '#e74a3b',
+                    backgroundColor: 'rgba(231, 74, 59, 0.1)'
+                }, {
+                    label: 'Medium Risk', 
+                    data: [650, 720, 580, 690],
+                    borderColor: '#f6c23e',
+                    backgroundColor: 'rgba(246, 194, 62, 0.1)'
+                }, {
+                    label: 'Low Risk',
+                    data: [1200, 1150, 1300, 1180],
+                    borderColor: '#1cc88a', 
+                    backgroundColor: 'rgba(28, 200, 138, 0.1)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Initialize Risk Distribution Chart
+    const riskDistCtx = document.getElementById('riskDistributionChart');
+    if (riskDistCtx && !riskDistCtx.chart) {
+        riskDistCtx.chart = new Chart(riskDistCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Critical', 'High', 'Medium', 'Low'],
+                datasets: [{
+                    data: [124, 2136, 4820, 1920],
+                    backgroundColor: ['#e74a3b', '#fd7e14', '#f6c23e', '#1cc88a']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+}
+
+function refreshDashboard() {
+    location.reload();
+}
+
+function exportMonthlyReport() {
+    alert('PDF export functionality would be implemented here');
+}
+
+function exportExcelReport() {
+    alert('Excel export functionality would be implemented here');
+}
+</script>
 {% endblock %}
