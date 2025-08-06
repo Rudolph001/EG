@@ -557,8 +557,11 @@ class DataProcessor:
             if isinstance(date_value, str) or isinstance(date_str, str):
                 # Try common formats (prioritize most likely)
                 formats = [
-                    '%Y-%m-%dT%H:%M:%S',  # ISO 8601 format: 2025-07-21T14:44:19
-                    '%Y-%m-%dT%H:%M:%S%z',  # ISO 8601 with timezone: 2025-07-21T14:44:19+0200
+                    '%Y-%m-%dT%H:%M:%S.%f%z',  # ISO 8601 with milliseconds and timezone: 2025-08-04T23:58:20.543+0200
+                    '%Y-%m-%dT%H:%M:%S.%f',    # ISO 8601 with milliseconds: 2025-08-04T23:58:20.543
+                    '%Y-%m-%dT%H:%M:%S%z',     # ISO 8601 with timezone: 2025-07-21T14:44:19+0200
+                    '%Y-%m-%dT%H:%M:%S',       # ISO 8601 format: 2025-07-21T14:44:19
+                    '%Y-%m-%d %H:%M:%S.%f',    # Standard with milliseconds: 2025-08-04 23:58:20.543
                     '%Y-%m-%d %H:%M:%S',
                     '%m/%d/%Y %H:%M:%S', 
                     '%Y-%m-%d',
@@ -592,36 +595,39 @@ class DataProcessor:
             return None
             
         try:
-            # Fix malformed seconds field (e.g., "12:12:700" -> "12:12:07")
-            # Pattern to match timestamps with 3-digit seconds
             import re
             
-            # Pattern: HH:MM:SSS where SSS is 3 digits (invalid seconds)
-            pattern = r'(\d{1,2}):(\d{1,2}):(\d{3})'
+            # Fix malformed seconds field (e.g., "12:12:700" -> "12:12:07.000")
+            # Pattern: HH:MM:SSS where SSS is 3 digits but might be invalid seconds
+            pattern = r'(\d{1,2}):(\d{1,2}):(\d{3})(\+\d{4})?'
             match = re.search(pattern, timestamp_str)
             
             if match:
-                hour, minute, invalid_seconds = match.groups()
-                # Convert 3-digit seconds to valid 2-digit seconds
-                # Take first 2 digits, or convert to valid range if > 59
+                hour, minute, invalid_seconds, timezone = match.groups()
+                # Check if this is actually milliseconds that got misplaced
                 if len(invalid_seconds) == 3:
-                    # Take first 2 digits
-                    seconds = invalid_seconds[:2]
-                    # If seconds > 59, use modulo to get valid seconds
-                    seconds_int = int(seconds)
+                    seconds_int = int(invalid_seconds)
                     if seconds_int > 59:
-                        seconds = str(seconds_int % 60).zfill(2)
-                    
-                    # Replace the invalid time with corrected time
-                    corrected_time = f"{hour}:{minute}:{seconds}"
-                    timestamp_str = timestamp_str.replace(match.group(0), corrected_time)
-                    logger.debug(f"Fixed malformed timestamp: {match.group(0)} -> {corrected_time}")
+                        # This is likely malformed - treat first 2 digits as seconds, last as milliseconds
+                        seconds = invalid_seconds[:2]
+                        milliseconds = invalid_seconds[2:] + "00"  # Pad to 3 digits
+                        
+                        # Validate seconds
+                        if int(seconds) > 59:
+                            seconds = str(int(seconds) % 60).zfill(2)
+                        
+                        corrected_time = f"{hour}:{minute}:{seconds}.{milliseconds}"
+                        if timezone:
+                            corrected_time += timezone
+                            
+                        timestamp_str = timestamp_str.replace(match.group(0), corrected_time)
+                        logger.debug(f"Fixed malformed timestamp: {match.group(0)} -> {corrected_time}")
             
-            # Remove or fix timezone info that might be malformed
-            # Handle formats like "+0200" at the end
+            # Handle cases where timezone format might need adjustment
+            # Python's %z expects format like +0200, ensure it's properly formatted
             if re.search(r'\+\d{4}$', timestamp_str):
-                # For now, remove timezone to focus on core timestamp parsing
-                timestamp_str = re.sub(r'\+\d{4}$', '', timestamp_str)
+                # Keep timezone as-is since our parser now supports it
+                pass
             
             return timestamp_str.strip()
             
