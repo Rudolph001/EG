@@ -8,13 +8,30 @@ Email Guardian is a comprehensive web application designed for analyzing Tessian
 
 Preferred communication style: Simple, everyday language.
 
+## Database Schema Management Policy
+
+**CRITICAL REQUIREMENT**: Any database schema changes (adding columns, modifying tables, etc.) must be applied to BOTH databases:
+
+1. **PostgreSQL (Production/Replit)**: Use `execute_sql_tool` to modify the production database
+2. **SQLite (Local Development)**: Update local database using Python scripts or SQL commands
+
+**Schema Synchronization Tools**:
+- `setup_local_database.py` - Complete local database setup
+- `force_recreate_local_db.py` - Force recreation of local database  
+- `migrate_local_db.py` - Add missing columns to existing local database
+
+**Recent Schema Issues Resolved**:
+- Added `account_type` column to both databases (2025-08-06)
+- Added flagging columns (`is_flagged`, `flag_reason`, `flagged_at`, `flagged_by`, `previously_flagged`) to both databases
+- Enhanced timestamp parsing for format: `2025-08-04T23:58:20.543+0200`
+
 ## System Architecture
 
 Email Guardian is built on a modular Flask-based architecture, ensuring clear separation of concerns and maintainability.
 
 -   **Frontend**: Utilizes Bootstrap 5 for responsive design, Jinja2 for templating, Chart.js for dynamic data visualizations, and DataTables for advanced data display. It features multiple specialized dashboards (main, sender analysis, time analysis, professional network link, reports) and an administrative panel for system configuration and management. UI/UX emphasizes professional design, interactive elements, and real-time feedback.
 -   **Backend**: Developed with the Flask web framework, employing SQLAlchemy ORM for database interactions.
--   **Database**: Primarily uses SQLite for development and local deployments, with the architecture designed to support seamless migration to PostgreSQL for production environments.
+-   **Database**: Dual database architecture - PostgreSQL for production (Replit) and SQLite for local development. **CRITICAL: All database schema changes must be applied to both PostgreSQL and SQLite databases to maintain compatibility between environments.**
 -   **ML Engine**: Integrates scikit-learn for core machine learning functionalities, including Isolation Forest for anomaly detection, clustering, and pattern recognition. It also includes an advanced ML engine for deeper analytics.
 -   **Data Processing**: Handles large CSV datasets efficiently using chunked processing with pandas (2500 records per chunk) and case-insensitive column mapping.
 -   **Session Management**: Employs JSON-based data persistence with gzip compression for large session files, allowing for iterative analysis.
