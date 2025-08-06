@@ -190,9 +190,7 @@
                     </div>
                     <small class="text-muted">Groups same email to multiple recipients</small>
                     <div id="groupingStatus" class="small text-info mt-1" style="display:none;"></div>
-                    <button type="button" class="btn btn-sm btn-outline-info mt-1" onclick="debugToggle()">
-                        <i class="fas fa-bug"></i> Debug
-                    </button>
+
                 </div>
             </div>
         </div>
@@ -556,14 +554,8 @@ async function toggleGrouping(event) {
     const groupedContainer = document.getElementById('groupedCasesContainer');
     const statusDiv = document.getElementById('groupingStatus');
     
-    console.log('Toggle grouping called, checked:', groupToggle.checked);
-    console.log('Individual table element:', individualTable);
-    console.log('Grouped container element:', groupedContainer);
-    console.log('Status div element:', statusDiv);
-    
     // Force synchronization between checkbox and internal state
     isGroupingEnabled = groupToggle.checked;
-    console.log('Setting grouping enabled to:', isGroupingEnabled);
     
     if (isGroupingEnabled) {
         statusDiv.style.display = 'block';
@@ -581,7 +573,7 @@ async function toggleGrouping(event) {
             console.error('Error loading grouped cases:', error);
             statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error loading groups';
             // Revert to individual view on error
-            console.log('Error occurred, reverting to individual view');
+
             groupToggle.checked = false;
             individualTable.style.display = 'table';
             groupedContainer.style.display = 'none';
@@ -596,7 +588,7 @@ async function toggleGrouping(event) {
         }
         
     } else {
-        console.log('Switching to individual view');
+
         statusDiv.style.display = 'none';
         // Show individual view
         individualTable.style.display = 'table';
