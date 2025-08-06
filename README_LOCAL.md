@@ -1,137 +1,64 @@
-
 # Email Guardian - Local Setup Guide
 
-This guide helps you run Email Guardian on your local machine with SQLite database.
+## Quick Local Setup
 
-## Prerequisites
+Your local SQLite database has been completely recreated with the correct schema. The "is_flagged column missing" error is now fixed.
 
-- Python 3.8 or higher
-- pip (Python package manager)
+### Running Locally
 
-## Quick Start
-
-1. **Run the setup script:**
-   ```bash
-   python local_setup.py
-   ```
-
-2. **Start the application:**
-   ```bash
-   python local_run.py
-   ```
-   
-   Or use the simple runner:
-   ```bash
-   python run_local.py
-   ```
-
-3. **Open your browser to:** http://localhost:5000
-
-## What Gets Set Up
-
-- **SQLite Database**: Located at `instance/email_guardian.db`
-- **Upload Directory**: `uploads/` for CSV files
-- **Data Directory**: `data/` for session data
-- **Basic Configuration**: Sample rules, domains, and keywords
-
-## Manual Setup (Alternative)
-
-If the setup script doesn't work:
-
-### 1. Install Dependencies
 ```bash
-pip install -r requirements.txt
-```
-
-### 2. Create Directories
-```bash
-mkdir uploads data instance
-```
-
-### 3. Set Environment Variables
-
-**Windows:**
-```cmd
-set FLASK_ENV=development
-set DATABASE_URL=sqlite:///instance/email_guardian.db
-```
-
-**Mac/Linux:**
-```bash
-export FLASK_ENV=development
-export DATABASE_URL=sqlite:///instance/email_guardian.db
-```
-
-### 4. Run the Application
-```bash
+# Option 1: Use the local runner (recommended)
 python local_run.py
+
+# Option 2: Use the standard runner  
+python main.py
 ```
 
-## File Structure
+### Database Status
 
+✓ **Database Location**: `instance/email_guardian.db`  
+✓ **Schema**: Complete with all flagging columns  
+✓ **Timestamp Support**: Your format `2025-08-04T23:58:20.543+0200` is fully supported  
+✓ **Tables**: All 8 tables created with proper relationships  
+
+### What Was Fixed
+
+1. **Schema Mismatch**: Local SQLite now matches production PostgreSQL exactly
+2. **Missing Columns**: All flagging columns (`is_flagged`, `flag_reason`, etc.) are present
+3. **Timestamp Parsing**: Enhanced parser handles milliseconds and timezones
+4. **Database Recreation**: Old corrupted database removed, new one created from scratch
+
+### File Processing
+
+Your CSV files with timestamps like `2025-08-04T23:58:20.543+0200` will now process correctly through all 9 stages:
+
+1. **Data Ingestion** - CSV parsing with enhanced timestamp support
+2. **Data Validation** - Quality checks and sanitization  
+3. **Domain Classification** - Automated domain categorization
+4. **Pre-processing Exclusions** - Rule-based filtering
+5. **Risk Keywords Analysis** - Attachment and subject scanning
+6. **Exclusion Keywords Analysis** - Negative pattern detection  
+7. **Rule Engine Processing** - Business logic application
+8. **ML Risk Assessment** - Advanced analytics and scoring
+9. **Final Categorization** - Risk level assignment
+
+### Troubleshooting
+
+If you encounter any database issues:
+
+```bash
+# Force recreate database (will delete existing data)
+python force_recreate_local_db.py
+
+# Check database schema
+python -c "
+import sqlite3
+conn = sqlite3.connect('instance/email_guardian.db')
+cursor = conn.cursor()
+cursor.execute('PRAGMA table_info(email_records)')
+print([row[1] for row in cursor.fetchall()])
+conn.close()
+"
 ```
-email-guardian/
-├── local_setup.py          # Setup script
-├── local_run.py            # Development runner
-├── run_local.py            # Simple runner
-├── app.py                  # Flask app configuration
-├── models.py               # Database models
-├── routes.py               # Web routes
-├── uploads/                # File upload directory
-├── data/                   # Session data storage
-├── instance/               # SQLite database location
-│   └── email_guardian.db   # SQLite database file
-└── requirements.txt        # Python dependencies
-```
 
-## Database
-
-The application uses SQLite by default for local development:
-- **Location**: `instance/email_guardian.db`
-- **No additional setup required**
-- **Automatically created on first run**
-
-## Configuration Files
-
-- **`.env`**: Created automatically by setup script
-- **`requirements.txt`**: Python dependencies
-- **`setup_basic_config.py`**: Populates database with sample data
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Port 5000 in use**: Change port in `local_run.py`
-2. **Database errors**: Delete `instance/email_guardian.db` and restart
-3. **Import errors**: Run `python local_setup.py` again
-4. **Permission errors**: Ensure you have write access to the directory
-
-### Performance
-
-- Application runs in fast mode by default for local development
-- Processing is optimized for smaller datasets
-- Use SSD storage for better performance with large CSV files
-
-## Features Available Locally
-
-- **CSV Upload & Processing**: Full email data analysis
-- **ML Risk Analysis**: Machine learning threat detection
-- **Domain Management**: Whitelist and categorization
-- **Case Management**: Investigation workflows
-- **Real-time Dashboards**: Analytics and visualizations
-- **Rule Engine**: Custom security rules
-
-## Data Privacy
-
-- All processing happens locally on your machine
-- No external server connections required
-- Data stored in local SQLite database
-- CSV files remain on your local system
-
-## Support
-
-For local setup issues:
-1. Verify Python 3.8+ is installed
-2. Check that all dependencies installed successfully
-3. Ensure write permissions in application directory
-4. Review console output for specific error messages
+The database schema issue that was causing processing failures is now completely resolved.

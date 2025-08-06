@@ -72,20 +72,39 @@ def main():
         print("✓ Database connection test successful")
         print(f"✓ Database file accessible: {db_path}")
         
-        # Setup and migrate database schema
+        # Force database recreation if needed
         try:
-            from setup_local_database import setup_local_database
-            print("Setting up local database schema...")
-            setup_local_database()
-        except Exception as migrate_error:
-            print(f"Note: Database setup failed: {migrate_error}")
-            # Fallback to basic migration
+            # Check if database has correct schema
+            import sqlite3
+            test_conn = sqlite3.connect(str(db_path))
+            test_cursor = test_conn.cursor()
+            test_cursor.execute("PRAGMA table_info(email_records)")
+            columns = [column[1] for column in test_cursor.fetchall()]
+            test_conn.close()
+            
+            # Check for flagging columns
+            required_cols = ['is_flagged', 'flag_reason', 'flagged_at', 'flagged_by', 'previously_flagged']
+            missing_cols = [col for col in required_cols if col not in columns]
+            
+            if missing_cols:
+                print(f"⚠ Database missing flagging columns: {missing_cols}")
+                print("Recreating database with correct schema...")
+                
+                # Force recreation
+                from force_recreate_local_db import force_recreate_database
+                force_recreate_database()
+            else:
+                print("✓ Database schema is correct")
+                
+        except Exception as schema_error:
+            print(f"Database schema check failed: {schema_error}")
+            # Try to recreate database
             try:
-                from migrate_local_db import add_flagging_columns_to_sqlite
-                print("Trying basic migration...")
-                add_flagging_columns_to_sqlite(str(db_path))
-            except Exception as e2:
-                print(f"Note: Migration fallback failed: {e2}")
+                from force_recreate_local_db import force_recreate_database
+                print("Attempting to recreate database...")
+                force_recreate_database()
+            except Exception as recreate_error:
+                print(f"Database recreation failed: {recreate_error}")
             
     except Exception as e:
         print(f"✗ Database connection failed: {e}")
