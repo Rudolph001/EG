@@ -61,6 +61,13 @@
                                 <i class="fas fa-exclamation-triangle"></i> Escalations
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('cases', session_id=session_id) }}">
+                                <i class="fas fa-briefcase"></i> Case Manager
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('escalations', session_id=session_id) }}">
+                                <i class="fas fa-chart-line"></i> Escalation Dashboard
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('sender_analysis', session_id=session_id) }}">
                                 <i class="fas fa-user-friends"></i> Sender Analysis
                             </a></li>
