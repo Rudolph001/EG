@@ -77,6 +77,13 @@
                             <li><a class="dropdown-item" href="{{ url_for('network_dashboard', session_id=session_id) }}">
                                 <i class="fas fa-project-diagram me-2"></i> Network Analysis
                             </a></li>
+                            {% elif recent_sessions %}
+                            <li class="dropdown-header"><i class="fas fa-history me-2"></i>Recent Sessions</li>
+                            {% for recent_session in recent_sessions %}
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard', session_id=recent_session.id) }}">
+                                <i class="fas fa-database me-2"></i> {{ recent_session.filename[:30] }}...
+                            </a></li>
+                            {% endfor %}
                             {% else %}
                             <li><a class="dropdown-item disabled" href="#" onclick="return false;">
                                 <i class="fas fa-info-circle me-2"></i> Upload data to access analysis tools
@@ -107,6 +114,13 @@
                             <li><a class="dropdown-item" href="{{ url_for('whitelist_analysis', session_id=session_id) }}">
                                 <i class="fas fa-list-check me-2"></i> Whitelist Analysis
                             </a></li>
+                            {% elif recent_sessions %}
+                            <li class="dropdown-header"><i class="fas fa-history me-2"></i>Recent Sessions</li>
+                            {% for recent_session in recent_sessions %}
+                            <li><a class="dropdown-item" href="{{ url_for('advanced_ml_dashboard', session_id=recent_session.id) }}">
+                                <i class="fas fa-brain me-2"></i> {{ recent_session.filename[:25] }}... ML
+                            </a></li>
+                            {% endfor %}
                             {% else %}
                             <li><a class="dropdown-item disabled" href="#" onclick="return false;">
                                 <i class="fas fa-info-circle me-2"></i> Upload data to access intelligence tools
@@ -134,6 +148,14 @@
                             <li><a class="dropdown-item" href="{{ url_for('reports_dashboard', session_id=session_id) }}">
                                 <i class="fas fa-chart-bar me-2"></i> Reports Dashboard
                             </a></li>
+                            {% elif recent_sessions %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li class="dropdown-header"><i class="fas fa-history me-2"></i>Recent Reports</li>
+                            {% for recent_session in recent_sessions %}
+                            <li><a class="dropdown-item" href="{{ url_for('reports_dashboard', session_id=recent_session.id) }}">
+                                <i class="fas fa-file-alt me-2"></i> {{ recent_session.filename[:25] }}... Report
+                            </a></li>
+                            {% endfor %}
                             {% endif %}
                         </ul>
                     </li>

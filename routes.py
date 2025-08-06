@@ -35,6 +35,26 @@ domain_manager = DomainManager()
 workflow_manager = WorkflowManager()
 ml_config = MLRiskConfig()
 
+@app.context_processor
+def inject_session_id():
+    """Make session_id available to all templates"""
+    # Try to get session_id from URL path
+    session_id = None
+    if request.endpoint and hasattr(request, 'view_args') and request.view_args:
+        session_id = request.view_args.get('session_id')
+    
+    # Also check if we're on index page with recent sessions
+    recent_sessions = []
+    if request.endpoint == 'index':
+        try:
+            recent_sessions = ProcessingSession.query.order_by(ProcessingSession.upload_time.desc()).limit(5).all()
+            if recent_sessions:
+                session_id = recent_sessions[0].id  # Use most recent session for navigation
+        except:
+            pass
+    
+    return dict(session_id=session_id, recent_sessions=recent_sessions)
+
 @app.route('/')
 def index():
     """Main index page with upload functionality"""
