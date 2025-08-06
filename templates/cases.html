@@ -757,8 +757,13 @@ async function loadGroupedCases() {
         // Update summary info
         updateGroupedSummary(data.total_groups, data.total_records);
         
-        // Update executive summary
-        updateExecutiveSummaryWithGroupedData();
+        // Store original summary data on first load only (don't update when filtering)
+        if (!window.originalSummaryData) {
+            storeOriginalSummaryData();
+        } else {
+            // If we already have original data, just restore the display (filtering scenario)
+            updateExecutiveSummaryDisplay();
+        }
         
     } catch (error) {
         console.error('Error loading grouped cases:', error);
@@ -1308,15 +1313,95 @@ document.addEventListener('DOMContentLoaded', function() {
         activeCard.classList.add('active');
     }
     
-    // Load grouped view automatically
+    // Load grouped view automatically and store original summary data
     loadGroupedCases().then(() => {
-        updateExecutiveSummaryWithGroupedData();
+        // Store original summary data on first load (don't update when filtering)
+        if (!window.originalSummaryData) {
+            storeOriginalSummaryData();
+        } else {
+            // If we already have original data, just restore the display (e.g., after filtering)
+            updateExecutiveSummaryDisplay();
+        }
     }).catch(error => {
         console.error('Error loading grouped cases on page load:', error);
     });
 });
 
-// Function to update executive summary with grouped data
+// Function to store original summary data (called only once on page load)
+function storeOriginalSummaryData() {
+    if (!window.groupedCasesData) {
+        console.log('No grouped data available for storing original summary');
+        return;
+    }
+    
+    const groups = window.groupedCasesData;
+    
+    // Calculate statistics from all data (unfiltered)
+    const totalGroups = groups.length;
+    const totalRecipients = groups.reduce((sum, group) => sum + (group.record_count || group.recipients.length), 0);
+    
+    // Count by risk level
+    const riskCounts = {
+        Critical: groups.filter(g => g.risk_level === 'Critical').length,
+        High: groups.filter(g => g.risk_level === 'High').length,
+        Medium: groups.filter(g => g.risk_level === 'Medium').length,
+        Low: groups.filter(g => g.risk_level === 'Low').length
+    };
+    
+    // Count by status
+    const statusCounts = {
+        Active: groups.filter(g => g.group_status === 'Active').length,
+        Cleared: groups.filter(g => g.group_status === 'Cleared').length,
+        Escalated: groups.filter(g => g.group_status === 'Escalated').length,
+        Flagged: groups.filter(g => g.is_flagged).length
+    };
+    
+    // Store original data globally
+    window.originalSummaryData = {
+        totalGroups,
+        totalRecipients,
+        riskCounts,
+        statusCounts
+    };
+    
+    // Update the DOM with original data
+    updateExecutiveSummaryDisplay();
+    
+    console.log('Original summary data stored:', window.originalSummaryData);
+}
+
+// Function to update executive summary display with stored original data
+function updateExecutiveSummaryDisplay() {
+    if (!window.originalSummaryData) {
+        console.log('No original summary data available');
+        return;
+    }
+    
+    const data = window.originalSummaryData;
+    
+    // Update the DOM elements with original values
+    const updates = [
+        { id: 'totalGroups', value: data.totalGroups },
+        { id: 'criticalGroups', value: data.riskCounts.Critical },
+        { id: 'highGroups', value: data.riskCounts.High },
+        { id: 'mediumGroups', value: data.riskCounts.Medium },
+        { id: 'lowGroups', value: data.riskCounts.Low },
+        { id: 'totalRecords', value: data.totalRecipients },
+        { id: 'activeGroups', value: data.statusCounts.Active },
+        { id: 'clearedGroups', value: data.statusCounts.Cleared },
+        { id: 'escalatedGroups', value: data.statusCounts.Escalated },
+        { id: 'flaggedGroups', value: data.statusCounts.Flagged }
+    ];
+    
+    updates.forEach(update => {
+        const element = document.getElementById(update.id);
+        if (element) {
+            element.textContent = update.value;
+        }
+    });
+}
+
+// Function to update executive summary with grouped data (DEPRECATED - keeping for compatibility)
 function updateExecutiveSummaryWithGroupedData() {
     if (!window.groupedCasesData) {
         console.log('No grouped data available for summary update');
