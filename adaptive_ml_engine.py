@@ -47,6 +47,72 @@ class AdaptiveMLEngine:
         
         logger.info("AdaptiveMLEngine initialized")
 
+    def get_fast_learning_analytics(self):
+        """Fast version of learning analytics for dashboard performance"""
+        try:
+            from sqlalchemy import text
+            
+            # Get basic learning counts quickly
+            feedback_count = db.session.execute(text('SELECT COUNT(*) FROM ml_feedback')).scalar() or 0
+            escalated_count = db.session.execute(text("SELECT COUNT(*) FROM ml_feedback WHERE user_decision = 'Escalated'")).scalar() or 0
+            cleared_count = db.session.execute(text("SELECT COUNT(*) FROM ml_feedback WHERE user_decision = 'Cleared'")).scalar() or 0
+            
+            # Calculate adaptive weight based on feedback
+            adaptive_weight = min(0.1 + (feedback_count * 0.006), 0.7)  # 10% to 70%
+            
+            # Simple performance metrics
+            learning_confidence = min(feedback_count * 2, 100) / 100
+            model_maturity = 'Initial' if feedback_count < 20 else 'Learning' if feedback_count < 100 else 'Trained'
+            
+            return {
+                'model_evolution': {
+                    'improvement_over_time': [],
+                    'weight_progression': [{'date': datetime.now().isoformat(), 'weight': adaptive_weight}],
+                    'accuracy_trends': []
+                },
+                'learning_trends': {
+                    'learning_sessions': 1 if feedback_count > 0 else 0,
+                    'total_decisions_learned': feedback_count,
+                    'total_escalations': escalated_count,
+                    'total_cleared': cleared_count,
+                    'learning_rate': escalated_count / feedback_count if feedback_count > 0 else 0.0
+                },
+                'decision_patterns': {
+                    'escalation_reasons': {},
+                    'pattern_analysis': {},
+                    'confidence_distribution': []
+                },
+                'performance_metrics': {
+                    'model_trained': feedback_count > 10,
+                    'adaptive_weight': adaptive_weight,
+                    'learning_confidence': learning_confidence,
+                    'latest_session_feedback': feedback_count,
+                    'model_maturity': model_maturity
+                },
+                'feature_insights': {
+                    'top_features': [],
+                    'feature_weights': {},
+                    'correlation_matrix': []
+                },
+                'recommendations': [
+                    'Continue making escalation/clear decisions to improve model accuracy',
+                    f'Current adaptive weight: {adaptive_weight:.1%} (grows with more decisions)',
+                    f'Model maturity: {model_maturity} with {feedback_count} decisions recorded'
+                ]
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in fast learning analytics: {str(e)}")
+            # Return minimal fallback
+            return {
+                'model_evolution': {'improvement_over_time': [], 'weight_progression': [], 'accuracy_trends': []},
+                'learning_trends': {'learning_sessions': 0, 'total_decisions_learned': 0, 'total_escalations': 0, 'total_cleared': 0, 'learning_rate': 0.0},
+                'decision_patterns': {'escalation_reasons': {}, 'pattern_analysis': {}, 'confidence_distribution': []},
+                'performance_metrics': {'model_trained': False, 'adaptive_weight': 0.1, 'learning_confidence': 0.0, 'latest_session_feedback': 0, 'model_maturity': 'Initial'},
+                'feature_insights': {'top_features': [], 'feature_weights': {}, 'correlation_matrix': []},
+                'recommendations': ['Error loading analytics - using fallback data']
+            }
+
     def analyze_session_with_learning(self, session_id):
         """Perform ML analysis with adaptive learning capabilities"""
         try:

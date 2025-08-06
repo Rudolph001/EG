@@ -712,7 +712,8 @@ def adaptive_ml_dashboard(session_id):
     session = ProcessingSession.query.get_or_404(session_id)
     
     try:
-        analytics = adaptive_ml_engine.get_learning_analytics(days=30)
+        # Use fast analytics for better performance
+        analytics = adaptive_ml_engine.get_fast_learning_analytics()
         
         # Ensure the analytics structure is complete
         if not analytics:
