@@ -235,6 +235,13 @@
                     </div>
                     <div class="mb-3 mt-3">
                         <label class="form-label">Conditions</label>
+                        <div class="mb-2">
+                            <select class="form-select" id="globalLogic">
+                                <option value="AND">AND</option>
+                                <option value="OR">OR</option>
+                                <option value="NOT">NOT</option>
+                            </select>
+                        </div>
                         <div id="conditionsContainer">
                             <div class="condition-group border p-3 mb-2">
                                 <div class="row">
@@ -331,6 +338,13 @@
                     </div>
                     <div class="mb-3 mt-3">
                         <label class="form-label">Conditions</label>
+                         <div class="mb-2">
+                            <select class="form-select" id="editGlobalLogic">
+                                <option value="AND">AND</option>
+                                <option value="OR">OR</option>
+                                <option value="NOT">NOT</option>
+                            </select>
+                        </div>
                         <div id="editConditionsContainer">
                             <!-- Conditions will be populated dynamically -->
                         </div>
@@ -465,6 +479,7 @@ function saveRule() {
     const description = document.getElementById('ruleDescription').value;
     const ruleType = document.getElementById('ruleType').value;
     const priority = document.getElementById('rulePriority').value;
+    const globalLogic = document.getElementById('globalLogic').value;
 
     if (!name.trim()) {
         alert('Please enter a rule name');
@@ -509,6 +524,7 @@ function saveRule() {
         rule_type: ruleType,
         priority: parseInt(priority),
         conditions: conditions,
+        global_logic: globalLogic,
         actions: actions
     };
 
@@ -546,6 +562,7 @@ function editRule(ruleId) {
         document.getElementById('editRuleDescription').value = rule.description || '';
         document.getElementById('editRuleType').value = rule.rule_type;
         document.getElementById('editRulePriority').value = rule.priority;
+        document.getElementById('editGlobalLogic').value = rule.global_logic || 'AND'; // Default to AND if not set
 
         // Populate conditions
         const container = document.getElementById('editConditionsContainer');
@@ -582,6 +599,7 @@ function updateRule() {
     const description = document.getElementById('editRuleDescription').value;
     const ruleType = document.getElementById('editRuleType').value;
     const priority = document.getElementById('editRulePriority').value;
+    const globalLogic = document.getElementById('editGlobalLogic').value;
 
     if (!name.trim()) {
         alert('Please enter a rule name');
@@ -626,6 +644,7 @@ function updateRule() {
         rule_type: ruleType,
         priority: parseInt(priority),
         conditions: conditions,
+        global_logic: globalLogic,
         actions: actions
     };
 
@@ -701,6 +720,25 @@ function importRules() {
 
 function exportRules() {
     alert('Export functionality coming soon!');
+}
+
+// Add event listener for global logic changes
+document.addEventListener('DOMContentLoaded', function() {
+    const globalLogic = document.getElementById('globalLogic');
+    if (globalLogic) {
+        globalLogic.addEventListener('change', updateLogicConnectors);
+    }
+    const editGlobalLogic = document.getElementById('editGlobalLogic');
+    if (editGlobalLogic) {
+        editGlobalLogic.addEventListener('change', updateLogicConnectors);
+    }
+});
+
+function updateLogicConnectors() {
+    // This function can be expanded to dynamically show/hide AND/OR/NOT connectors
+    // between conditions if a more visual representation is desired.
+    // For now, it just demonstrates that the change event is captured.
+    console.log('Global logic changed');
 }
 </script>
 

@@ -940,6 +940,112 @@ body {
     font-weight: 600;
 }
 
+/* Complex Condition Builder Styles */
+.condition-group-wrapper {
+    background-color: rgba(13, 110, 253, 0.05);
+    border-radius: 8px;
+    position: relative;
+}
+
+.condition-group-wrapper::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(to bottom, #0d6efd, #198754);
+    border-radius: 2px;
+}
+
+.conditions-in-group {
+    margin-left: 1rem;
+    border-left: 2px dashed #dee2e6;
+    padding-left: 1rem;
+}
+
+.logic-connector {
+    position: relative;
+    margin: 0.5rem 0;
+}
+
+.logic-connector::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 1px;
+    background-color: #dee2e6;
+    z-index: 1;
+}
+
+.logic-operator {
+    position: relative;
+    z-index: 2;
+    background: white;
+    border: 1px solid #dee2e6;
+    color: #495057;
+    font-size: 0.75rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 12px;
+}
+
+.condition-header {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.condition-controls .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.form-label-sm {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.25rem;
+}
+
+.condition-group {
+    transition: all 0.2s ease;
+    border-radius: 6px;
+}
+
+.condition-group:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-color: #0d6efd !important;
+}
+
+.alert-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+#logicPreview pre {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 1rem;
+    font-size: 0.875rem;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Negate checkbox styling */
+.condition-negate {
+    accent-color: #dc3545;
+}
+
+.condition-negate:checked + label {
+    color: #dc3545;
+    font-weight: 600;
+}
+
 /* Dashboard Grid */
 .dashboard-grid {
     display: grid;

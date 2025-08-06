@@ -242,13 +242,14 @@ class RuleEngine:
             return all(results)
     
     def _evaluate_single_condition(self, record, condition):
-        """Evaluate a single condition against a record with regex support"""
+        """Evaluate a single condition against a record with regex and negate support"""
         try:
             field = condition.get('field')
             operator = condition.get('operator')
             value = condition.get('value')
+            negate = condition.get('negate', False)
             
-            logger.debug(f"Evaluating condition: field={field}, operator={operator}, value={value}")
+            logger.debug(f"Evaluating condition: field={field}, operator={operator}, value={value}, negate={negate}")
             
             if not field or not operator:
                 logger.debug(f"Missing field or operator: field={field}, operator={operator}")
@@ -256,11 +257,17 @@ class RuleEngine:
             
             # Get field value from record
             record_value = self._get_field_value(record, field)
-            logger.info(f"RULE DEBUG - Field '{field}': Record='{record_value}' vs Condition='{value}' (operator={operator})")
+            logger.info(f"RULE DEBUG - Field '{field}': Record='{record_value}' vs Condition='{value}' (operator={operator}, negate={negate})")
             
             # Apply operator with enhanced regex support
             result = self._apply_operator_with_regex(record_value, operator, value)
-            logger.info(f"RULE DEBUG - Condition result: '{record_value}' {operator} '{value}' = {result}")
+            
+            # Apply negation if specified
+            if negate:
+                result = not result
+                logger.info(f"RULE DEBUG - Applied negation: {not result} -> {result}")
+            
+            logger.info(f"RULE DEBUG - Final condition result: '{record_value}' {operator} '{value}' = {result}")
             return result
             
         except Exception as e:
