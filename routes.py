@@ -112,6 +112,12 @@ def upload_file():
         flash(f'Upload failed: {str(e)}', 'error')
         return redirect(url_for('index'))
 
+@app.route('/processing-status/<session_id>')
+def processing_status_page(session_id):
+    """Processing status page for monitoring session progress"""
+    session = ProcessingSession.query.get_or_404(session_id)
+    return render_template('processing_status.html', session=session)
+
 @app.route('/api/processing-status/<session_id>')
 def processing_status(session_id):
     """Get processing status for session"""

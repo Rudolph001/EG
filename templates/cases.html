@@ -316,6 +316,9 @@
                 <button class="btn btn-sm btn-outline-primary" onclick="reprocessWithNewRules()" title="Re-process data with current rules, whitelist, and keywords">
                     <i class="fas fa-sync-alt"></i> Re-process with New Rules
                 </button>
+                <a href="{{ url_for('processing_status_page', session_id=session.id) }}" class="btn btn-sm btn-outline-info" title="View detailed processing status and progress">
+                    <i class="fas fa-chart-line"></i> View Processing Status
+                </a>
             </div>
         </div>
     </div>
@@ -1554,28 +1557,14 @@ async function reprocessWithNewRules() {
         if (data.error) {
             showError('Re-processing failed: ' + data.error);
         } else {
-            showSuccess('Re-processing started! Your data will be completely rebuilt with current rules. This page will refresh automatically when complete.');
+            showSuccess('Re-processing started! Your data will be completely rebuilt with current rules.');
             
-            // Poll for completion every 10 seconds (re-processing takes longer)
-            const pollInterval = setInterval(async () => {
-                try {
-                    const statusResponse = await fetch(`/api/processing-status/${window.currentSessionId}`);
-                    const statusData = await statusResponse.json();
-                    
-                    if (statusData.status === 'completed') {
-                        clearInterval(pollInterval);
-                        showSuccess('Re-processing completed! Refreshing page...');
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 2000);
-                    } else if (statusData.status === 'error') {
-                        clearInterval(pollInterval);
-                        showError('Re-processing failed: ' + statusData.error_message);
-                    }
-                } catch (error) {
-                    console.error('Error checking re-processing status:', error);
+            // Show option to view detailed progress
+            setTimeout(() => {
+                if (confirm('Would you like to view detailed processing status and progress?')) {
+                    window.location.href = `/processing-status/${window.currentSessionId}`;
                 }
-            }, 10000);
+            }, 1000);
         }
         
         hideLoading();

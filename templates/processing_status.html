@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Processing Status - Session {{ session.id[:8] }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .progress-container {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .status-badge {
+        font-size: 1.2rem;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    
+    .status-processing {
+        background: #007bff;
+        color: white;
+    }
+    
+    .status-completed {
+        background: #28a745;
+        color: white;
+    }
+    
+    .status-error {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .progress-bar {
+        height: 30px;
+        border-radius: 15px;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    
+    .stage-info {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stage-completed {
+        border-left: 4px solid #28a745;
+    }
+    
+    .stage-current {
+        border-left: 4px solid #007bff;
+        background: #f0f8ff;
+    }
+    
+    .stage-pending {
+        border-left: 4px solid #6c757d;
+        opacity: 0.7;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-chart-line text-primary"></i>
+                    Processing Status - Session {{ session.id[:8] }}
+                </h2>
+                <div>
+                    <span class="status-badge" id="statusBadge">{{ session.status | title }}</span>
+                    <a href="{{ url_for('cases', session_id=session.id) }}" class="btn btn-outline-primary ms-3">
+                        <i class="fas fa-arrow-left"></i> Back to Cases
+                    </a>
+                </div>
+            </div>
+
+            <!-- Overall Progress -->
+            <div class="progress-container">
+                <h4><i class="fas fa-tasks"></i> Overall Progress</h4>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h5>Records Progress</h5>
+                        <div class="progress mb-2">
+                            <div class="progress-bar bg-primary" role="progressbar" 
+                                 style="width: 0%" id="recordsProgress">
+                                <span id="recordsProgressText">0%</span>
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            <span id="processedRecords">0</span> of <span id="totalRecords">0</span> records processed
+                        </small>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Chunk Progress</h5>
+                        <div class="progress mb-2">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: 0%" id="chunkProgress">
+                                <span id="chunkProgressText">0%</span>
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            <span id="currentChunk">0</span> of <span id="totalChunks">0</span> chunks processed
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Processing Stages -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-list-ol"></i> Processing Stages</h5>
+                </div>
+                <div class="card-body">
+                    <div id="stagesContainer">
+                        <!-- Stages will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="row mt-4" id="statisticsRow" style="display: none;">
+                <div class="col-md-3">
+                    <div class="card text-center border-info">
+                        <div class="card-body">
+                            <h4 class="text-info" id="excludedCount">0</h4>
+                            <p class="text-muted mb-0">Excluded Records</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center border-secondary">
+                        <div class="card-body">
+                            <h4 class="text-secondary" id="whitelistedCount">0</h4>
+                            <p class="text-muted mb-0">Whitelisted Records</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center border-warning">
+                        <div class="card-body">
+                            <h4 class="text-warning" id="rulesMatchedCount">0</h4>
+                            <p class="text-muted mb-0">Rule Matches</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center border-danger">
+                        <div class="card-body">
+                            <h4 class="text-danger" id="criticalCount">0</h4>
+                            <p class="text-muted mb-0">Critical Cases</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorContainer" style="display: none;" class="alert alert-danger mt-4">
+                <h5><i class="fas fa-exclamation-triangle"></i> Error</h5>
+                <p id="errorMessage"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const sessionId = '{{ session.id }}';
+let pollInterval;
+
+// Processing stages configuration
+const PROCESSING_STAGES = [
+    { id: 1, name: 'Data Loading', description: 'Reading and validating CSV file' },
+    { id: 2, name: 'Exclusion Rules', description: 'Applying exclusion rules to filter out unwanted records' },
+    { id: 3, name: 'Whitelist Analysis', description: 'Checking against whitelisted domains' },
+    { id: 4, name: 'Security Rules', description: 'Applying security rules and risk assessment' },
+    { id: 5, name: 'Risk Keywords', description: 'Analyzing content for risk keywords' },
+    { id: 6, name: 'Domain Classification', description: 'Classifying email domains and trust scores' },
+    { id: 7, name: 'ML Analysis', description: 'Machine learning risk assessment and anomaly detection' },
+    { id: 8, name: 'Advanced Analytics', description: 'Advanced pattern analysis and BAU detection' },
+    { id: 9, name: 'Final Processing', description: 'Finalizing records and cleanup' }
+];
+
+function updateStatus() {
+    fetch(`/api/processing-status/${sessionId}`)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Status update:', data);
+            
+            // Update status badge
+            const statusBadge = document.getElementById('statusBadge');
+            statusBadge.textContent = data.status.toUpperCase();
+            statusBadge.className = `status-badge status-${data.status}`;
+            
+            // Update progress bars
+            const recordsPercent = data.progress_percent || 0;
+            const chunkPercent = data.chunk_progress_percent || 0;
+            
+            document.getElementById('recordsProgress').style.width = `${recordsPercent}%`;
+            document.getElementById('recordsProgressText').textContent = `${recordsPercent}%`;
+            document.getElementById('processedRecords').textContent = data.processed_records || 0;
+            document.getElementById('totalRecords').textContent = data.total_records || 0;
+            
+            document.getElementById('chunkProgress').style.width = `${chunkPercent}%`;
+            document.getElementById('chunkProgressText').textContent = `${chunkPercent}%`;
+            document.getElementById('currentChunk').textContent = data.current_chunk || 0;
+            document.getElementById('totalChunks').textContent = data.total_chunks || 0;
+            
+            // Update stages based on progress
+            updateStages(data);
+            
+            // Update statistics if available
+            if (data.workflow_stats) {
+                document.getElementById('statisticsRow').style.display = 'block';
+                document.getElementById('excludedCount').textContent = data.workflow_stats.excluded_count || 0;
+                document.getElementById('whitelistedCount').textContent = data.workflow_stats.whitelisted_count || 0;
+                document.getElementById('rulesMatchedCount').textContent = data.workflow_stats.rules_matched_count || 0;
+                document.getElementById('criticalCount').textContent = data.workflow_stats.critical_cases_count || 0;
+            }
+            
+            // Handle errors
+            if (data.status === 'error' && data.error_message) {
+                document.getElementById('errorContainer').style.display = 'block';
+                document.getElementById('errorMessage').textContent = data.error_message;
+            }
+            
+            // Stop polling if completed or error
+            if (data.status === 'completed' || data.status === 'error') {
+                clearInterval(pollInterval);
+                if (data.status === 'completed') {
+                    setTimeout(() => {
+                        if (confirm('Processing completed! Would you like to go back to the Case Manager?')) {
+                            window.location.href = `{{ url_for('cases', session_id=session.id) }}`;
+                        }
+                    }, 2000);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching status:', error);
+        });
+}
+
+function updateStages(data) {
+    const container = document.getElementById('stagesContainer');
+    const progress = data.progress_percent || 0;
+    
+    // Estimate current stage based on progress
+    const currentStageIndex = Math.floor((progress / 100) * PROCESSING_STAGES.length);
+    
+    container.innerHTML = '';
+    
+    PROCESSING_STAGES.forEach((stage, index) => {
+        const stageDiv = document.createElement('div');
+        
+        let stageClass = 'stage-info stage-pending';
+        let icon = 'fas fa-clock text-muted';
+        
+        if (index < currentStageIndex) {
+            stageClass = 'stage-info stage-completed';
+            icon = 'fas fa-check-circle text-success';
+        } else if (index === currentStageIndex && data.status === 'processing') {
+            stageClass = 'stage-info stage-current';
+            icon = 'fas fa-cog fa-spin text-primary';
+        }
+        
+        stageDiv.className = stageClass;
+        stageDiv.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="${icon} me-3"></i>
+                <div>
+                    <h6 class="mb-1">Stage ${stage.id}: ${stage.name}</h6>
+                    <small class="text-muted">${stage.description}</small>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(stageDiv);
+    });
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    updateStatus();
+    pollInterval = setInterval(updateStatus, 3000); // Poll every 3 seconds
+});
+</script>
+{% endblock %}
