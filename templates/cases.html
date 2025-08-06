@@ -747,7 +747,9 @@ async function whitelistSenderFromGroup(senderEmail, groupId) {
 
 // Clear group action with record removal
 async function clearGroup(groupId) {
-    console.log('clearGroup called with groupId:', groupId);
+    console.log('clearGroup function executed with groupId:', groupId);
+    console.log('Current session ID:', window.currentSessionId);
+    console.log('Available grouped cases data:', window.groupedCasesData ? window.groupedCasesData.length : 'undefined');
     
     if (!confirm('Are you sure you want to clear this grouped case?')) {
         console.log('User cancelled clear action');
@@ -757,6 +759,7 @@ async function clearGroup(groupId) {
     console.log('User confirmed clear action, proceeding...');
     
     try {
+        console.log('Starting clear process...');
         showLoading('Clearing grouped case...');
         
         // Get the group data to find all record IDs
