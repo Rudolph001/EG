@@ -747,9 +747,14 @@ async function whitelistSenderFromGroup(senderEmail, groupId) {
 
 // Clear group action with record removal
 async function clearGroup(groupId) {
+    console.log('clearGroup called with groupId:', groupId);
+    
     if (!confirm('Are you sure you want to clear this grouped case?')) {
+        console.log('User cancelled clear action');
         return;
     }
+    
+    console.log('User confirmed clear action, proceeding...');
     
     try {
         showLoading('Clearing grouped case...');
@@ -797,9 +802,14 @@ async function clearGroup(groupId) {
 
 // Escalate group action with record removal
 async function escalateGroup(groupId) {
+    console.log('escalateGroup called with groupId:', groupId);
+    
     if (!confirm('Are you sure you want to escalate this grouped case?')) {
+        console.log('User cancelled escalate action');
         return;
     }
+    
+    console.log('User confirmed escalate action, proceeding...');
     
     try {
         showLoading('Escalating grouped case...');
@@ -847,12 +857,18 @@ async function escalateGroup(groupId) {
 
 // Flag group action with record removal
 async function flagGroup(groupId, senderEmail) {
+    console.log('flagGroup called with groupId:', groupId, 'senderEmail:', senderEmail);
+    
     const flagReason = prompt(`Enter reason for flagging all emails in this group from ${senderEmail}:`);
     if (!flagReason) {
+        console.log('User cancelled flag action - no reason provided');
         return;
     }
     
+    console.log('Flag reason provided:', flagReason);
+    
     const flaggedBy = prompt('Flagged by (optional):') || 'Case Manager User';
+    console.log('Flagged by:', flaggedBy);
     
     try {
         showLoading('Flagging grouped case...');
@@ -1178,13 +1194,13 @@ function createGroupRow(group, index) {
                 <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewGroupDetails(${index})" title="View">
                     <i class="fas fa-eye"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-warning" onclick="event.stopPropagation(); flagGroup('${group.group_id}', '${group.sender}')" title="Flag">
+                <button class="btn btn-sm btn-outline-warning" onclick="event.stopPropagation(); console.log('Flag button clicked for group:', '${group.group_id}'); flagGroup('${group.group_id}', '${group.sender}')" title="Flag">
                     <i class="fas fa-flag"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); clearGroup('${group.group_id}')" title="Clear">
+                <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); console.log('Clear button clicked for group:', '${group.group_id}'); clearGroup('${group.group_id}')" title="Clear">
                     <i class="fas fa-check"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); escalateGroup('${group.group_id}')" title="Escalate">
+                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); console.log('Escalate button clicked for group:', '${group.group_id}'); escalateGroup('${group.group_id}')" title="Escalate">
                     <i class="fas fa-exclamation-triangle"></i>
                 </button>
                 <button class="btn btn-sm btn-outline-info" onclick="event.stopPropagation(); whitelistSenderFromGroup('${group.sender}', '${group.group_id}')" title="Whitelist Sender">
