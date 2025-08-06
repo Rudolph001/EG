@@ -718,19 +718,39 @@ function editRule(ruleId) {
         document.getElementById('editRuleDescription').value = rule.description || '';
         document.getElementById('editRuleType').value = rule.rule_type;
         document.getElementById('editRulePriority').value = rule.priority;
-        document.getElementById('editGlobalLogic').value = rule.global_logic || 'AND'; // Default to AND if not set
+        // Note: global_logic has been replaced with individual logic operators between conditions
 
         // Populate conditions
         const container = document.getElementById('editConditionsContainer');
         container.innerHTML = '';
 
         if (rule.conditions && rule.conditions.length > 0) {
-            rule.conditions.forEach(condition => {
+            rule.conditions.forEach((condition, index) => {
                 addEditCondition();
                 const lastGroup = container.lastElementChild;
                 lastGroup.querySelector('.condition-field').value = condition.field;
                 lastGroup.querySelector('.condition-operator').value = condition.operator;
-                lastGroup.querySelector('.condition-value').value = condition.value || '';
+                
+                // Handle value based on field type
+                if (condition.field === 'risk_level') {
+                    lastGroup.querySelector('.condition-value').classList.add('d-none');
+                    lastGroup.querySelector('.condition-risk-level').classList.remove('d-none');
+                    lastGroup.querySelector('.condition-risk-level').value = condition.value || '';
+                } else {
+                    lastGroup.querySelector('.condition-value').value = condition.value || '';
+                }
+                
+                // Trigger field change to show/hide appropriate value inputs
+                toggleValueField(lastGroup.querySelector('.condition-field'));
+                
+                // Add logic operator if this is not the first condition and condition has logic
+                if (index > 0 && condition.logic) {
+                    // Find the logic operator before this condition
+                    const logicOperators = container.querySelectorAll('.logic-operator');
+                    if (logicOperators[index - 1]) {
+                        logicOperators[index - 1].value = condition.logic;
+                    }
+                }
             });
         } else {
             addEditCondition();
@@ -757,28 +777,44 @@ function updateRule() {
     const description = document.getElementById('editRuleDescription').value;
     const ruleType = document.getElementById('editRuleType').value;
     const priority = document.getElementById('editRulePriority').value;
-    const globalLogic = document.getElementById('editGlobalLogic').value;
+    // Note: globalLogic removed - now using individual logic operators between conditions
 
     if (!name.trim()) {
         alert('Please enter a rule name');
         return;
     }
 
-    // Collect conditions
+    // Collect conditions with logic operators
     const conditions = [];
-    const conditionGroups = document.querySelectorAll('#editConditionsContainer .condition-group');
+    const container = document.getElementById('editConditionsContainer');
+    const conditionGroups = container.querySelectorAll('.condition-group');
+    const logicOperators = container.querySelectorAll('.logic-operator');
 
-    conditionGroups.forEach(group => {
+    conditionGroups.forEach((group, index) => {
         const field = group.querySelector('.condition-field').value;
         const operator = group.querySelector('.condition-operator').value;
-        const value = group.querySelector('.condition-value').value;
+        let value;
+        
+        // Get value based on field type
+        if (field === 'risk_level') {
+            value = group.querySelector('.condition-risk-level').value;
+        } else {
+            value = group.querySelector('.condition-value').value;
+        }
 
         if (field && operator && (value || ['is_empty', 'is_not_empty'].includes(operator))) {
-            conditions.push({
+            const condition = {
                 field: field,
                 operator: operator,
                 value: value
-            });
+            };
+            
+            // Add logic operator for conditions after the first one
+            if (index > 0 && logicOperators[index - 1]) {
+                condition.logic = logicOperators[index - 1].value;
+            }
+            
+            conditions.push(condition);
         }
     });
 
@@ -812,7 +848,7 @@ function updateRule() {
         rule_type: ruleType,
         priority: parseInt(priority),
         conditions: conditions,
-        global_logic: globalLogic,
+
         actions: actions
     };
 
@@ -896,10 +932,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (globalLogic) {
         globalLogic.addEventListener('change', updateLogicConnectors);
     }
-    const editGlobalLogic = document.getElementById('editGlobalLogic');
-    if (editGlobalLogic) {
-        editGlobalLogic.addEventListener('change', updateLogicConnectors);
-    }
+    // Note: editGlobalLogic removed - now using individual logic operators between conditions
 });
 
 function updateLogicConnectors() {
