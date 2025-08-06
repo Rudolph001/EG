@@ -1,0 +1,272 @@
+/* Enhanced Professional Navigation Styles */
+
+/* Quick Actions Bar - For frequently used functions */
+.quick-actions {
+    background: rgba(255,255,255,0.95);
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    padding: 0.5rem 0;
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+
+.quick-actions .container-fluid {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.quick-action-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.8rem;
+    margin: 0 0.2rem;
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.quick-action-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.quick-action-btn i {
+    margin-right: 0.4rem;
+    font-size: 0.9rem;
+}
+
+/* Breadcrumb enhancement */
+.breadcrumb {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 8px;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    content: "›";
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+.breadcrumb-item.active {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* Navigation badges and indicators */
+.nav-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: #e74c3c;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+/* Navigation tooltips */
+.nav-tooltip {
+    position: relative;
+}
+
+.nav-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.nav-tooltip:hover::after {
+    opacity: 1;
+    bottom: calc(100% + 5px);
+}
+
+/* Sidebar navigation for complex workflows */
+.sidebar-nav {
+    background: white;
+    border-right: 1px solid var(--border-color);
+    height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding: 1rem 0;
+    position: sticky;
+    top: 120px;
+}
+
+.sidebar-nav-item {
+    display: block;
+    padding: 0.75rem 1.5rem;
+    color: var(--dark-color);
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.sidebar-nav-item:hover {
+    background: rgba(52, 152, 219, 0.05);
+    border-left-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: translateX(3px);
+}
+
+.sidebar-nav-item.active {
+    background: rgba(52, 152, 219, 0.1);
+    border-left-color: var(--primary-color);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.sidebar-nav-group {
+    margin-bottom: 1.5rem;
+}
+
+.sidebar-nav-header {
+    padding: 0.5rem 1.5rem;
+    font-weight: 600;
+    color: var(--muted-color);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 0.5rem;
+}
+
+/* Context-sensitive navigation */
+.context-nav {
+    background: var(--primary-color);
+    color: white;
+    padding: 0.5rem 0;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+}
+
+.context-nav .container-fluid {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.context-info {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.context-info i {
+    margin-right: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.context-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.context-btn {
+    padding: 0.3rem 0.8rem;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.context-btn:hover {
+    background: rgba(255,255,255,0.3);
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Responsive enhancements */
+@media (max-width: 767.98px) {
+    .quick-actions {
+        padding: 0.3rem 0;
+    }
+    
+    .quick-action-btn {
+        padding: 0.3rem 0.6rem;
+        margin: 0 0.1rem;
+        font-size: 0.8rem;
+    }
+    
+    .sidebar-nav {
+        position: fixed;
+        left: -100%;
+        width: 280px;
+        height: 100vh;
+        top: 0;
+        z-index: 1030;
+        background: white;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        transition: left 0.3s ease;
+    }
+    
+    .sidebar-nav.show {
+        left: 0;
+    }
+    
+    .context-nav .container-fluid {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .context-actions {
+        margin-top: 0.5rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}
+
+/* Animation enhancements */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dropdown-menu.show {
+    animation: slideIn 0.3s ease;
+}
+
+/* Focus states for accessibility */
+.navbar-nav .nav-link:focus,
+.dropdown-item:focus,
+.quick-action-btn:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
