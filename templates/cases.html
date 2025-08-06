@@ -237,25 +237,25 @@
     </div>
     <div class="row mt-3">
         <div class="col-md-3">
-            <div class="metric-card" style="background: linear-gradient(135deg, #17a2b8, #20c997); color: white;">
+            <div class="metric-card" style="background: linear-gradient(135deg, #17a2b8, #20c997); color: white;" onclick="filterBySummary('Active')" data-filter="Active">
                 <h3 id="activeGroups">0</h3>
                 <p>Active<br>Groups</p>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="metric-card" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;">
+            <div class="metric-card" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;" onclick="filterBySummary('Cleared')" data-filter="Cleared">
                 <h3 id="clearedGroups">0</h3>
                 <p>Cleared<br>Groups</p>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="metric-card" style="background: linear-gradient(135deg, #dc3545, #e85563); color: white;">
+            <div class="metric-card" style="background: linear-gradient(135deg, #dc3545, #e85563); color: white;" onclick="filterBySummary('Escalated')" data-filter="Escalated">
                 <h3 id="escalatedGroups">0</h3>
                 <p>Escalated<br>Groups</p>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="metric-card" style="background: linear-gradient(135deg, #ffc107, #ffcd39); color: black;">
+            <div class="metric-card" style="background: linear-gradient(135deg, #ffc107, #ffcd39); color: black;" onclick="filterBySummary('Flagged')" data-filter="Flagged">
                 <h3 id="flaggedGroups">0</h3>
                 <p>Flagged<br>Groups</p>
             </div>
@@ -1268,12 +1268,23 @@ function viewGroupDetails(index) {
 // Executive Summary filtering functionality
 function filterBySummary(filterType) {
     const riskSelect = document.getElementById('risk_level');
+    const statusSelect = document.getElementById('case_status');
+    
+    // Clear all filters first
+    riskSelect.value = '';
+    statusSelect.value = '';
     
     // Handle different filter types
     if (filterType === 'all') {
-        riskSelect.value = '';
+        // All filters already cleared above
     } else if (['Critical', 'High', 'Medium', 'Low'].includes(filterType)) {
         riskSelect.value = filterType;
+    } else if (['Active', 'Cleared', 'Escalated'].includes(filterType)) {
+        statusSelect.value = filterType;
+    } else if (filterType === 'Flagged') {
+        // For flagged records, we need to navigate to the Flag Event dashboard
+        window.location.href = `/flag-events/${window.currentSessionId}`;
+        return;
     } else if (filterType === 'whitelisted') {
         // For whitelisted records, we need a special view
         window.location.href = `/cases/${window.currentSessionId}?show_whitelisted=true`;
@@ -1304,9 +1315,17 @@ function filterBySummary(filterType) {
 
 // Initialize grouped view on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Set active state on page load based on current filter
+    // Set active state on page load based on current filters
     const currentRiskLevel = document.getElementById('risk_level').value;
-    const activeFilter = currentRiskLevel || 'all';
+    const currentStatus = document.getElementById('case_status').value;
+    
+    // Determine which filter is active
+    let activeFilter = 'all'; // default
+    if (currentRiskLevel) {
+        activeFilter = currentRiskLevel;
+    } else if (currentStatus) {
+        activeFilter = currentStatus;
+    }
     
     const activeCard = document.querySelector(`[data-filter="${activeFilter}"]`);
     if (activeCard) {
