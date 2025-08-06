@@ -157,6 +157,67 @@
     </div>
 </div>
 
+<!-- Dashboard Navigation Cards -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card h-100 border-primary">
+            <div class="card-body text-center d-flex flex-column">
+                <div class="flex-grow-1">
+                    <i class="fas fa-file-alt text-primary mb-3" style="font-size: 3rem;"></i>
+                    <h5 class="card-title text-primary">Monthly Report Dashboard</h5>
+                    <p class="card-text text-muted small">
+                        View comprehensive monthly security reports with audit trails and analytics
+                    </p>
+                </div>
+                <div class="mt-auto">
+                    <a href="{{ url_for('monthly_report_dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Visit Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card h-100 border-warning">
+            <div class="card-body text-center d-flex flex-column">
+                <div class="flex-grow-1">
+                    <i class="fas fa-brain text-warning mb-3" style="font-size: 3rem;"></i>
+                    <h5 class="card-title text-warning">Adaptive ML Analytics</h5>
+                    <p class="card-text text-muted small">
+                        Monitor machine learning performance and continuous learning progress
+                    </p>
+                </div>
+                <div class="mt-auto">
+                    <a href="{{ url_for('adaptive_ml_dashboard') }}" class="btn btn-warning">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        View Analytics
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card h-100 border-info">
+            <div class="card-body text-center d-flex flex-column">
+                <div class="flex-grow-1">
+                    <i class="fas fa-history text-info mb-3" style="font-size: 3rem;"></i>
+                    <h5 class="card-title text-info">Audit Dashboard</h5>
+                    <p class="card-text text-muted small">
+                        Track all system changes, user actions, and security events with detailed audit trails
+                    </p>
+                </div>
+                <div class="mt-auto">
+                    <a href="{{ url_for('admin_audit_dashboard') }}" class="btn btn-info">
+                        <i class="fas fa-search me-2"></i>
+                        View Audit Trail
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Whitelist Management -->
 <div class="row mb-4">
     <div class="col-md-6">

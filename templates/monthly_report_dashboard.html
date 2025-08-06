@@ -428,6 +428,135 @@
         </div>
     </div>
 
+    <!-- System Audit Section -->
+    <div class="row mb-4" id="auditSection" style="display: none;">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>System Security Audit</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Audit Summary Cards -->
+                        <div class="col-md-3">
+                            <div class="card text-center bg-primary text-white">
+                                <div class="card-body">
+                                    <h4 id="totalAuditActions">1,245</h4>
+                                    <small>Total Actions Logged</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center bg-warning text-white">
+                                <div class="card-body">
+                                    <h4 id="securityEvents">23</h4>
+                                    <small>Security Events</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center bg-success text-white">
+                                <div class="card-body">
+                                    <h4 id="configChanges">8</h4>
+                                    <small>Config Changes</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center bg-danger text-white">
+                                <div class="card-body">
+                                    <h4 id="criticalAlerts">2</h4>
+                                    <small>Critical Alerts</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Audit Timeline -->
+                    <div class="row mt-4">
+                        <div class="col-md-8">
+                            <h6>Audit Activity Timeline</h6>
+                            <canvas id="auditTimelineChart" height="200"></canvas>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Recent Critical Events</h6>
+                            <div class="list-group">
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">Config Change</h6>
+                                        <small>2 hours ago</small>
+                                    </div>
+                                    <p class="mb-1">ML threshold updated</p>
+                                    <small>User: admin</small>
+                                </div>
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">Data Export</h6>
+                                        <small>5 hours ago</small>
+                                    </div>
+                                    <p class="mb-1">Case data exported (CSV)</p>
+                                    <small>User: analyst</small>
+                                </div>
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">Large Upload</h6>
+                                        <small>1 day ago</small>
+                                    </div>
+                                    <p class="mb-1">15,000 records processed</p>
+                                    <small>File: Q4_emails.csv</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Data Analysis Section -->
+    <div class="row mb-4" id="enhancedDataSection" style="display: none;">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Time-based Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="timeAnalysisChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-network-wired me-2"></i>Communication Patterns</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="communicationChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Sender Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="senderAnalysisChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-paper-plane me-2"></i>Content Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="contentAnalysisChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Detailed Analytics Section -->
     <div class="row mb-4" id="detailedAnalytics" style="display: none;">
         <!-- ML Performance Metrics -->
@@ -735,7 +864,7 @@ function handleFormatChange() {
 
 function showReportSections(format) {
     // Hide all optional sections first
-    const sections = ['detailedAnalytics', 'topRisksSection', 'recommendationsSection'];
+    const sections = ['detailedAnalytics', 'topRisksSection', 'recommendationsSection', 'auditSection', 'enhancedDataSection'];
     sections.forEach(sectionId => {
         const section = document.getElementById(sectionId);
         if (section) section.style.display = 'none';
@@ -747,15 +876,18 @@ function showReportSections(format) {
             // Executive shows only summary cards and main charts
             break;
         case 'detailed':
-            // Detailed shows all sections
+            // Detailed shows enhanced data and analytics
             document.getElementById('detailedAnalytics').style.display = 'block';
             document.getElementById('topRisksSection').style.display = 'block';
+            document.getElementById('enhancedDataSection').style.display = 'block';
             break;
         case 'technical':
-            // Technical shows everything including recommendations
+            // Technical shows everything including audit and recommendations
             document.getElementById('detailedAnalytics').style.display = 'block';
             document.getElementById('topRisksSection').style.display = 'block';
             document.getElementById('recommendationsSection').style.display = 'block';
+            document.getElementById('auditSection').style.display = 'block';
+            document.getElementById('enhancedDataSection').style.display = 'block';
             break;
     }
     
@@ -832,6 +964,32 @@ function initializeCharts() {
     const threatDomainsCtx = document.getElementById('threatDomainsChart');
     if (threatDomainsCtx && threatDomainsCtx.chart) {
         threatDomainsCtx.chart.destroy();
+    }
+    
+    // Destroy enhanced charts
+    const auditTimelineCtx = document.getElementById('auditTimelineChart');
+    if (auditTimelineCtx && auditTimelineCtx.chart) {
+        auditTimelineCtx.chart.destroy();
+    }
+    
+    const timeAnalysisCtx = document.getElementById('timeAnalysisChart');
+    if (timeAnalysisCtx && timeAnalysisCtx.chart) {
+        timeAnalysisCtx.chart.destroy();
+    }
+    
+    const communicationCtx = document.getElementById('communicationChart');
+    if (communicationCtx && communicationCtx.chart) {
+        communicationCtx.chart.destroy();
+    }
+    
+    const senderAnalysisCtx = document.getElementById('senderAnalysisChart');
+    if (senderAnalysisCtx && senderAnalysisCtx.chart) {
+        senderAnalysisCtx.chart.destroy();
+    }
+    
+    const contentAnalysisCtx = document.getElementById('contentAnalysisChart');
+    if (contentAnalysisCtx && contentAnalysisCtx.chart) {
+        contentAnalysisCtx.chart.destroy();
     }
     
     // Initialize Risk Trend Chart
@@ -957,6 +1115,148 @@ function initializeCharts() {
                 scales: {
                     x: {
                         beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    
+    // Initialize Enhanced Charts
+    initializeEnhancedCharts();
+}
+
+function initializeEnhancedCharts() {
+    // Initialize Audit Timeline Chart
+    const auditTimelineCtx = document.getElementById('auditTimelineChart');
+    if (auditTimelineCtx) {
+        auditTimelineCtx.chart = new Chart(auditTimelineCtx, {
+            type: 'line',
+            data: {
+                labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
+                datasets: [{
+                    label: 'System Activity',
+                    data: [12, 8, 25, 45, 38, 15],
+                    borderColor: '#17a2b8',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Security Events',
+                    data: [2, 1, 5, 8, 6, 3],
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Initialize Time Analysis Chart
+    const timeAnalysisCtx = document.getElementById('timeAnalysisChart');
+    if (timeAnalysisCtx) {
+        timeAnalysisCtx.chart = new Chart(timeAnalysisCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Email Volume',
+                    data: [1200, 1500, 1800, 1600, 1400, 400, 300],
+                    backgroundColor: '#4e73df'
+                }, {
+                    label: 'Risk Incidents',
+                    data: [120, 180, 220, 190, 150, 45, 35],
+                    backgroundColor: '#e74a3b'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Initialize Communication Chart
+    const communicationCtx = document.getElementById('communicationChart');
+    if (communicationCtx) {
+        communicationCtx.chart = new Chart(communicationCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Internal', 'External', 'Personal', 'Automated', 'Suspicious'],
+                datasets: [{
+                    label: 'Communication Patterns',
+                    data: [85, 45, 25, 65, 15],
+                    borderColor: '#1cc88a',
+                    backgroundColor: 'rgba(28, 200, 138, 0.2)',
+                    pointBackgroundColor: '#1cc88a'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Initialize Sender Analysis Chart
+    const senderAnalysisCtx = document.getElementById('senderAnalysisChart');
+    if (senderAnalysisCtx) {
+        senderAnalysisCtx.chart = new Chart(senderAnalysisCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Corporate', 'External', 'Personal', 'Unknown'],
+                datasets: [{
+                    data: [65, 20, 10, 5],
+                    backgroundColor: ['#4e73df', '#f6c23e', '#1cc88a', '#e74a3b']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Initialize Content Analysis Chart
+    const contentAnalysisCtx = document.getElementById('contentAnalysisChart');
+    if (contentAnalysisCtx) {
+        contentAnalysisCtx.chart = new Chart(contentAnalysisCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Business', 'Personal', 'Marketing', 'Security Risk'],
+                datasets: [{
+                    data: [45, 25, 20, 10],
+                    backgroundColor: ['#36b9cc', '#1cc88a', '#f6c23e', '#e74a3b']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
                     }
                 }
             }

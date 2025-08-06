@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}System Audit Dashboard - Email Guardian{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1>System Audit Dashboard</h1>
+                    <p class="text-muted">Comprehensive audit trail of all system changes and user actions</p>
+                </div>
+                <div>
+                    <a href="/admin" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left"></i> Back to Admin
+                    </a>
+                    <button class="btn btn-primary" onclick="refreshAuditData()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Audit Summary Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <h3 class="text-primary">{{ audit_summary.total_actions }}</h3>
+                            <small class="text-muted">Total Actions (30 days)</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h3 class="text-warning">{{ audit_summary.actions_by_severity.WARNING }}</h3>
+                            <small class="text-muted">Warning Events</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-danger">
+                        <div class="card-body text-center">
+                            <h3 class="text-danger">{{ audit_summary.actions_by_severity.CRITICAL }}</h3>
+                            <small class="text-muted">Critical Events</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <h3 class="text-success">{{ audit_summary.sessions_affected }}</h3>
+                            <small class="text-muted">Sessions Affected</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Type Distribution -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Action Types Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="actionTypesChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Recent Critical Events</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group">
+                                {% for event in audit_summary.recent_critical %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ event.action }}</h6>
+                                        <small>{{ event.timestamp }}</small>
+                                    </div>
+                                    <p class="mb-1">{{ event.details }}</p>
+                                </div>
+                                {% else %}
+                                <div class="list-group-item text-muted">
+                                    No critical events in the last 30 days
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Logs Table -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Recent Audit Logs</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="auditLogsTable">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Timestamp</th>
+                                            <th>Action</th>
+                                            <th>Resource</th>
+                                            <th>User</th>
+                                            <th>IP Address</th>
+                                            <th>Severity</th>
+                                            <th>Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for log in audit_logs[:100] %}
+                                        <tr>
+                                            <td>
+                                                <small>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary">{{ log.action_type }}</span>
+                                            </td>
+                                            <td>
+                                                {{ log.resource_type }}
+                                                {% if log.resource_id %}
+                                                    <br><small class="text-muted">ID: {{ log.resource_id }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ log.user_id or 'System' }}</td>
+                                            <td>
+                                                <small>{{ log.ip_address or 'N/A' }}</small>
+                                            </td>
+                                            <td>
+                                                {% if log.severity == 'CRITICAL' %}
+                                                    <span class="badge bg-danger">{{ log.severity }}</span>
+                                                {% elif log.severity == 'WARNING' %}
+                                                    <span class="badge bg-warning">{{ log.severity }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-info">{{ log.severity }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if log.details %}
+                                                    <button class="btn btn-sm btn-outline-secondary" 
+                                                            onclick="showDetails('{{ log.details | replace("'", "\\'") }}')">
+                                                        View Details
+                                                    </button>
+                                                {% else %}
+                                                    <small class="text-muted">No details</small>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted">
+                                                No audit logs found
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Audit Log Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="detailsContent" class="bg-light p-3 rounded"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize action types chart
+    const ctx = document.getElementById('actionTypesChart').getContext('2d');
+    
+    const actionTypes = {{ audit_summary.actions_by_type | tojson }};
+    const labels = Object.keys(actionTypes);
+    const data = Object.values(actionTypes);
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: [
+                    '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', 
+                    '#858796', '#5a5c69', '#fd7e14', '#20c997', '#6f42c1'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+});
+
+function refreshAuditData() {
+    window.location.reload();
+}
+
+function showDetails(details) {
+    try {
+        const parsed = JSON.parse(details);
+        document.getElementById('detailsContent').textContent = JSON.stringify(parsed, null, 2);
+    } catch (e) {
+        document.getElementById('detailsContent').textContent = details;
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    modal.show();
+}
+</script>
+{% endblock %}
