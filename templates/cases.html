@@ -313,6 +313,9 @@
                 <a href="{{ url_for('flagged_events_dashboard', session_id=session.id) }}" class="btn btn-sm btn-outline-warning">
                     <i class="fas fa-flag"></i> Flagged Events
                 </a>
+                <button class="btn btn-sm btn-outline-primary" onclick="reprocessWithNewRules()" title="Re-process data with current rules, whitelist, and keywords">
+                    <i class="fas fa-sync-alt"></i> Re-process with New Rules
+                </button>
             </div>
         </div>
     </div>
@@ -1526,6 +1529,59 @@ async function reanalyzeSession() {
     } catch (error) {
         console.error('Error starting re-analysis:', error);
         showError('Failed to start re-analysis');
+        hideLoading();
+    }
+}
+
+// Re-process session with new rules function
+async function reprocessWithNewRules() {
+    if (!confirm('This will completely re-process your data with current rules, whitelist, and keywords. All existing processed data will be cleared and rebuilt. This may take several minutes. Continue?')) {
+        return;
+    }
+    
+    try {
+        showLoading('Starting re-processing with new rules...');
+        
+        const response = await fetch(`/api/reprocess-session/${window.currentSessionId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+        
+        if (data.error) {
+            showError('Re-processing failed: ' + data.error);
+        } else {
+            showSuccess('Re-processing started! Your data will be completely rebuilt with current rules. This page will refresh automatically when complete.');
+            
+            // Poll for completion every 10 seconds (re-processing takes longer)
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusResponse = await fetch(`/api/processing-status/${window.currentSessionId}`);
+                    const statusData = await statusResponse.json();
+                    
+                    if (statusData.status === 'completed') {
+                        clearInterval(pollInterval);
+                        showSuccess('Re-processing completed! Refreshing page...');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    } else if (statusData.status === 'error') {
+                        clearInterval(pollInterval);
+                        showError('Re-processing failed: ' + statusData.error_message);
+                    }
+                } catch (error) {
+                    console.error('Error checking re-processing status:', error);
+                }
+            }, 10000);
+        }
+        
+        hideLoading();
+    } catch (error) {
+        console.error('Error starting re-processing:', error);
+        showError('Failed to start re-processing');
         hideLoading();
     }
 }
