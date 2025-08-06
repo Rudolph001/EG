@@ -660,6 +660,52 @@ def advanced_ml_dashboard(session_id):
                          session=session,
                          insights=insights)
 
+@app.route('/api/simple-learning-progress')
+def api_simple_learning_progress():
+    """Simple API for learning progress tracking"""
+    try:
+        # Get learning feedback data
+        total_decisions = db.session.execute(text('SELECT COUNT(*) as count FROM ml_feedback')).scalar()
+        escalated_count = db.session.execute(text("SELECT COUNT(*) as count FROM ml_feedback WHERE user_decision = 'Escalated'")).scalar()
+        cleared_count = db.session.execute(text("SELECT COUNT(*) as count FROM ml_feedback WHERE user_decision = 'Cleared'")).scalar()
+        
+        # Get latest decision timestamp
+        latest_decision = db.session.execute(text('SELECT MAX(decision_timestamp) FROM ml_feedback')).scalar()
+        latest_str = latest_decision.strftime('%Y-%m-%d %H:%M') if latest_decision else 'Never'
+        
+        # Calculate adaptive weight (grows from 10% to 70% based on decisions)
+        adaptive_weight_percent = min(10 + (total_decisions * 0.6), 70)
+        
+        return jsonify({
+            'total_decisions': total_decisions or 0,
+            'escalated_count': escalated_count or 0,
+            'cleared_count': cleared_count or 0,
+            'flagged_count': 0,  # We can add this later
+            'last_decision': latest_str,
+            'adaptive_weight': f"{adaptive_weight_percent:.1f}%",
+            'learning_confidence': f"{min(total_decisions * 2, 100):.0f}%",
+            'is_learning': total_decisions > 0
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting simple learning progress: {str(e)}")
+        return jsonify({
+            'total_decisions': 0,
+            'escalated_count': 0,
+            'cleared_count': 0,
+            'flagged_count': 0,
+            'last_decision': 'Error',
+            'adaptive_weight': '10%',
+            'learning_confidence': '0%',
+            'is_learning': False,
+            'error': str(e)
+        })
+
+@app.route('/learning-progress')
+def learning_progress_simple():
+    """Simple learning progress page"""
+    return render_template('learning_progress_simple.html')
+
 @app.route('/adaptive_ml_dashboard/<session_id>')
 def adaptive_ml_dashboard(session_id):
     """Adaptive ML learning dashboard"""
@@ -721,11 +767,14 @@ def adaptive_ml_dashboard(session_id):
             'recommendations': []
         }
         
-        # Merge default values for missing sections
+        # Merge default values for missing sections - ensure analytics is a dict
+        if not isinstance(analytics, dict):
+            analytics = {}
+            
         for key, default_value in default_analytics.items():
             if key not in analytics:
                 analytics[key] = default_value
-            elif isinstance(default_value, dict):
+            elif isinstance(default_value, dict) and isinstance(analytics.get(key), dict):
                 # Merge nested dictionaries to ensure all required fields exist
                 for subkey, subvalue in default_value.items():
                     if subkey not in analytics[key]:

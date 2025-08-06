@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Adaptive ML Learning Progress - Simple View</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">🧠 Adaptive ML Learning Progress</h2>
+            
+            <!-- Learning Status Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h4 id="totalDecisions">Loading...</h4>
+                            <small>Total User Decisions</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body text-center">
+                            <h4 id="escalatedCount">Loading...</h4>
+                            <small>Escalated Cases</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h4 id="clearedCount">Loading...</h4>
+                            <small>Cleared Cases</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h4 id="learningRate">Loading...</h4>
+                            <small>Learning Rate</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Learning Status -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Current Learning Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Model Status:</strong> <span id="modelStatus" class="badge bg-primary">Learning</span></p>
+                            <p><strong>Last Decision:</strong> <span id="lastDecision">Never</span></p>
+                            <p><strong>Adaptive Weight:</strong> <span id="adaptiveWeight">10%</span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Learning Confidence:</strong> <span id="learningConfidence">Building...</span></p>
+                            <p><strong>Pattern Recognition:</strong> <span id="patternRecognition">Active</span></p>
+                            <p><strong>Model Evolution:</strong> <span id="modelEvolution">Continuous</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="progress mt-3">
+                        <div id="progressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <small class="text-muted mt-1 d-block">Learning Progress: <span id="progressText">0% complete</span></small>
+                </div>
+            </div>
+
+            <!-- How Learning Works -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>How to See Learning in Action</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6>🎯 Your Actions Train the AI:</h6>
+                        <ul class="mb-0">
+                            <li><strong>Clear ✓</strong> a case → AI learns this pattern is safe</li>
+                            <li><strong>Escalate ⚠️</strong> a case → AI learns this pattern is risky</li>
+                            <li><strong>Flag 🏴</strong> a case → AI learns this sender/pattern needs attention</li>
+                        </ul>
+                    </div>
+                    <div class="alert alert-success">
+                        <h6>📈 Signs Learning is Working:</h6>
+                        <ul class="mb-0">
+                            <li>Total decisions counter increases after each action</li>
+                            <li>Adaptive weight grows from 10% toward 70% as confidence builds</li>
+                            <li>Future similar cases get scored differently</li>
+                            <li>Risk scores adapt based on your past decisions</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Refresh Button -->
+            <div class="text-center">
+                <button class="btn btn-primary" onclick="refreshData()">🔄 Refresh Learning Status</button>
+                <a href="/adaptive_ml_dashboard/bf539237-987e-422a-9950-71a9ec0e5d34" class="btn btn-outline-primary ms-2">📊 Full Analytics Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load learning progress data
+async function loadLearningProgress() {
+    try {
+        const response = await fetch('/api/simple-learning-progress');
+        const data = await response.json();
+        
+        // Update counters
+        document.getElementById('totalDecisions').textContent = data.total_decisions || 0;
+        document.getElementById('escalatedCount').textContent = data.escalated_count || 0;
+        document.getElementById('clearedCount').textContent = data.cleared_count || 0;
+        
+        // Calculate learning rate
+        const learningRate = data.total_decisions > 0 ? 
+            ((data.escalated_count || 0) / data.total_decisions * 100).toFixed(1) + '%' : '0%';
+        document.getElementById('learningRate').textContent = learningRate;
+        
+        // Update status info
+        document.getElementById('modelStatus').textContent = data.total_decisions > 50 ? 'Trained' : 'Learning';
+        document.getElementById('lastDecision').textContent = data.last_decision || 'Never';
+        document.getElementById('adaptiveWeight').textContent = data.adaptive_weight || '10%';
+        document.getElementById('learningConfidence').textContent = data.learning_confidence || 'Building...';
+        
+        // Update progress bar
+        const progressPercent = Math.min((data.total_decisions || 0) / 100 * 100, 100);
+        document.getElementById('progressBar').style.width = progressPercent + '%';
+        document.getElementById('progressBar').setAttribute('aria-valuenow', progressPercent);
+        document.getElementById('progressText').textContent = progressPercent.toFixed(0) + '% complete';
+        
+    } catch (error) {
+        console.error('Error loading learning progress:', error);
+        document.getElementById('totalDecisions').textContent = 'Error';
+        document.getElementById('escalatedCount').textContent = 'Error';
+        document.getElementById('clearedCount').textContent = 'Error';
+        document.getElementById('learningRate').textContent = 'Error';
+    }
+}
+
+function refreshData() {
+    loadLearningProgress();
+}
+
+// Load data on page load
+loadLearningProgress();
+
+// Auto-refresh every 30 seconds
+setInterval(loadLearningProgress, 30000);
+</script>
+</body>
+</html>
