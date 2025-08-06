@@ -561,7 +561,9 @@ async function toggleGrouping(event) {
     console.log('Grouped container element:', groupedContainer);
     console.log('Status div element:', statusDiv);
     
+    // Force synchronization between checkbox and internal state
     isGroupingEnabled = groupToggle.checked;
+    console.log('Setting grouping enabled to:', isGroupingEnabled);
     
     if (isGroupingEnabled) {
         statusDiv.style.display = 'block';
@@ -579,6 +581,7 @@ async function toggleGrouping(event) {
             console.error('Error loading grouped cases:', error);
             statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error loading groups';
             // Revert to individual view on error
+            console.log('Error occurred, reverting to individual view');
             groupToggle.checked = false;
             individualTable.style.display = 'table';
             groupedContainer.style.display = 'none';
@@ -593,6 +596,7 @@ async function toggleGrouping(event) {
         }
         
     } else {
+        console.log('Switching to individual view');
         statusDiv.style.display = 'none';
         // Show individual view
         individualTable.style.display = 'table';
@@ -623,11 +627,26 @@ function debugToggle() {
     console.log('Current grouping enabled:', isGroupingEnabled);
     console.log('Session ID:', window.currentSessionId);
     
+    // Fix the mismatch if detected
+    if (groupToggle?.checked !== isGroupingEnabled) {
+        console.log('Detected mismatch! Fixing...');
+        isGroupingEnabled = groupToggle.checked;
+        if (isGroupingEnabled) {
+            individualTable.style.display = 'none';
+            groupedContainer.style.display = 'block';
+        } else {
+            individualTable.style.display = 'table';
+            groupedContainer.style.display = 'none';
+        }
+    }
+    
     alert(`Debug Info:
     - Toggle checked: ${groupToggle?.checked}
     - Individual table display: ${individualTable?.style.display}
     - Grouped container display: ${groupedContainer?.style.display}
-    - Grouping enabled: ${isGroupingEnabled}`);
+    - Grouping enabled: ${isGroupingEnabled}
+    
+    ${groupToggle?.checked !== isGroupingEnabled ? 'MISMATCH DETECTED AND FIXED!' : 'States are synchronized'}`);
 }
 
 async function loadGroupedCases() {
