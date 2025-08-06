@@ -174,23 +174,18 @@
         </div>
     </form>
     
-    <!-- View Mode Toggle (outside form to prevent auto-submit) -->
+    <!-- View Mode Indicator -->
     <div class="row mt-3">
-        <div class="col-md-3">
-            <div class="card">
+        <div class="col-md-4">
+            <div class="card bg-light">
                 <div class="card-body py-2">
                     <div class="d-flex align-items-center">
-                        <label class="form-label me-3 mb-0">View Mode:</label>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="groupEmails" onclick="toggleGrouping(event)">
-                            <label class="form-check-label" for="groupEmails">
-                                <small><i class="fas fa-layer-group"></i> Group Duplicates</small>
-                            </label>
+                        <i class="fas fa-layer-group text-primary me-2"></i>
+                        <div>
+                            <strong>Grouped View Active</strong>
+                            <br><small class="text-muted">Groups same email to multiple recipients</small>
                         </div>
                     </div>
-                    <small class="text-muted">Groups same email to multiple recipients</small>
-                    <div id="groupingStatus" class="small text-info mt-1" style="display:none;"></div>
-
                 </div>
             </div>
         </div>
@@ -205,73 +200,65 @@
     <div class="row">
         <div class="col-md-2">
             <div class="metric-card metric-total" onclick="filterBySummary('all')" data-filter="all">
-                <h3 id="totalRecords">{{ total_all_records or 0 }}</h3>
-                <p>Total<br>Records</p>
+                <h3 id="totalGroups">0</h3>
+                <p>Email<br>Groups</p>
             </div>
         </div>
         <div class="col-md-2">
             <div class="metric-card metric-critical" onclick="filterBySummary('Critical')" data-filter="Critical">
-                <h3 id="criticalCount">{{ total_critical or 0 }}</h3>
-                <p>Critical<br>Risk</p>
+                <h3 id="criticalGroups">0</h3>
+                <p>Critical<br>Risk Groups</p>
             </div>
         </div>
         <div class="col-md-2">
             <div class="metric-card metric-high" onclick="filterBySummary('High')" data-filter="High">
-                <h3 id="highCount">{{ total_high or 0 }}</h3>
-                <p>High<br>Risk</p>
+                <h3 id="highGroups">0</h3>
+                <p>High<br>Risk Groups</p>
             </div>
         </div>
         <div class="col-md-2">
             <div class="metric-card metric-medium" onclick="filterBySummary('Medium')" data-filter="Medium">
-                <h3 id="mediumCount">{{ total_medium or 0 }}</h3>
-                <p>Medium<br>Risk</p>
+                <h3 id="mediumGroups">0</h3>
+                <p>Medium<br>Risk Groups</p>
             </div>
         </div>
         <div class="col-md-2">
             <div class="metric-card metric-low" onclick="filterBySummary('Low')" data-filter="Low">
-                <h3 id="lowCount">{{ total_low or 0 }}</h3>
-                <p>Low<br>Risk</p>
+                <h3 id="lowGroups">0</h3>
+                <p>Low<br>Risk Groups</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card" style="background: linear-gradient(135deg, #6f42c1, #8661c5); color: white;">
+                <h3 id="totalRecords">{{ total_all_records or 0 }}</h3>
+                <p>Total<br>Recipients</p>
             </div>
         </div>
     </div>
     <div class="row mt-3">
         <div class="col-md-3">
-            <div class="metric-card" style="background: linear-gradient(135deg, #17a2b8, #20c997); color: white;" onclick="filterBySummary('whitelisted')" data-filter="whitelisted">
-                <h3 id="whitelistedCount">{{ total_whitelisted or 0 }}</h3>
-                <p>Whitelisted<br>Records</p>
+            <div class="metric-card" style="background: linear-gradient(135deg, #17a2b8, #20c997); color: white;">
+                <h3 id="activeGroups">0</h3>
+                <p>Active<br>Groups</p>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="metric-card" style="background: linear-gradient(135deg, #6c757d, #adb5bd); color: white;" onclick="filterBySummary('excluded')" data-filter="excluded">
-                <h3 id="excludedCount">{{ total_excluded or 0 }}</h3>
-                <p>Excluded<br>by Rules</p>
+            <div class="metric-card" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;">
+                <h3 id="clearedGroups">0</h3>
+                <p>Cleared<br>Groups</p>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="metric-card" style="background: linear-gradient(135deg, #e9ecef, #f8f9fa); color: black; border: 2px solid #dee2e6;" onclick="filterBySummary('unanalyzed')" data-filter="unanalyzed">
-                <h3 id="unanalyzedCount">{{ total_unanalyzed or 0 }}</h3>
-                <p>Unanalyzed<br>Records</p>
+            <div class="metric-card" style="background: linear-gradient(135deg, #dc3545, #e85563); color: white;">
+                <h3 id="escalatedGroups">0</h3>
+                <p>Escalated<br>Groups</p>
             </div>
         </div>
         <div class="col-md-3">
-            {% if total_unanalyzed and total_unanalyzed > 0 %}
-            <div class="card text-center border-warning h-100">
-                <div class="card-body d-flex flex-column justify-content-center">
-                    <button class="btn btn-warning btn-sm mb-2" onclick="reanalyzeSession()">
-                        <i class="fas fa-sync-alt"></i> Re-analyze Records
-                    </button>
-                    <h4 class="text-info">{{ cases.items | selectattr('case_status', 'equalto', 'Active') | list | length }}</h4>
-                    <p class="text-muted mb-0">Active Cases</p>
-                </div>
+            <div class="metric-card" style="background: linear-gradient(135deg, #ffc107, #ffcd39); color: black;">
+                <h3 id="flaggedGroups">0</h3>
+                <p>Flagged<br>Groups</p>
             </div>
-            {% else %}
-            <div class="card text-center border-info h-100">
-                <div class="card-body d-flex flex-column justify-content-center">
-                    <h4 class="text-info">{{ cases.items | selectattr('case_status', 'equalto', 'Active') | list | length }}</h4>
-                    <p class="text-muted mb-0">Active Cases</p>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -307,8 +294,8 @@
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
             <h5 class="card-title mb-0">
-                <i class="fas fa-list text-primary"></i>
-                Email Cases
+                <i class="fas fa-layer-group text-primary"></i>
+                Grouped Email Cases
             </h5>
             <div class="bulk-actions">
                 <button class="btn btn-sm btn-outline-secondary" onclick="selectAllCases()">
@@ -340,8 +327,8 @@
         {% endif %}
         
         <div class="table-responsive">
-            <!-- Individual Cases Table -->
-            <table class="table table-hover" id="casesTable">
+            <!-- Individual Cases Table (Hidden by default) -->
+            <table class="table table-hover" id="casesTable" style="display: none;">
                 <thead>
                     <tr>
                         <th width="30">
@@ -448,7 +435,7 @@
             </table>
             
             <!-- Grouped Cases Table -->
-            <div id="groupedCasesContainer" style="display: none;">
+            <div id="groupedCasesContainer">
                 <div class="alert alert-info">
                     <i class="fas fa-layer-group"></i> <strong>Grouped View Active:</strong> 
                     Showing email groups. Click rows to expand individual recipients.
@@ -538,8 +525,8 @@
 // Set session ID for JavaScript functions
 window.currentSessionId = '{{ session.id }}';
 
-// Grouping functionality
-let isGroupingEnabled = false;
+// Grouping functionality - Always enabled now
+let isGroupingEnabled = true;
 let groupedCasesData = null;
 
 async function toggleGrouping(event) {
@@ -769,6 +756,9 @@ async function loadGroupedCases() {
         
         // Update summary info
         updateGroupedSummary(data.total_groups, data.total_records);
+        
+        // Update executive summary
+        updateExecutiveSummaryWithGroupedData();
         
     } catch (error) {
         console.error('Error loading grouped cases:', error);
@@ -1305,8 +1295,9 @@ function filterBySummary(filterType) {
     document.getElementById('filterForm').submit();
 }
 
-// Set active state on page load based on current filter
+// Initialize grouped view on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Set active state on page load based on current filter
     const currentRiskLevel = document.getElementById('risk_level').value;
     const activeFilter = currentRiskLevel || 'all';
     
@@ -1314,7 +1305,72 @@ document.addEventListener('DOMContentLoaded', function() {
     if (activeCard) {
         activeCard.classList.add('active');
     }
+    
+    // Load grouped view automatically
+    loadGroupedCases().then(() => {
+        updateExecutiveSummaryWithGroupedData();
+    }).catch(error => {
+        console.error('Error loading grouped cases on page load:', error);
+    });
 });
+
+// Function to update executive summary with grouped data
+function updateExecutiveSummaryWithGroupedData() {
+    if (!window.groupedCasesData) {
+        console.log('No grouped data available for summary update');
+        return;
+    }
+    
+    const groups = window.groupedCasesData;
+    
+    // Calculate statistics
+    const totalGroups = groups.length;
+    const totalRecipients = groups.reduce((sum, group) => sum + (group.record_count || group.recipients.length), 0);
+    
+    // Count by risk level
+    const riskCounts = {
+        Critical: groups.filter(g => g.risk_level === 'Critical').length,
+        High: groups.filter(g => g.risk_level === 'High').length,
+        Medium: groups.filter(g => g.risk_level === 'Medium').length,
+        Low: groups.filter(g => g.risk_level === 'Low').length
+    };
+    
+    // Count by status
+    const statusCounts = {
+        Active: groups.filter(g => g.group_status === 'Active').length,
+        Cleared: groups.filter(g => g.group_status === 'Cleared').length,
+        Escalated: groups.filter(g => g.group_status === 'Escalated').length,
+        Flagged: groups.filter(g => g.is_flagged).length
+    };
+    
+    // Update the DOM elements
+    const updates = [
+        { id: 'totalGroups', value: totalGroups },
+        { id: 'criticalGroups', value: riskCounts.Critical },
+        { id: 'highGroups', value: riskCounts.High },
+        { id: 'mediumGroups', value: riskCounts.Medium },
+        { id: 'lowGroups', value: riskCounts.Low },
+        { id: 'totalRecords', value: totalRecipients },
+        { id: 'activeGroups', value: statusCounts.Active },
+        { id: 'clearedGroups', value: statusCounts.Cleared },
+        { id: 'escalatedGroups', value: statusCounts.Escalated },
+        { id: 'flaggedGroups', value: statusCounts.Flagged }
+    ];
+    
+    updates.forEach(update => {
+        const element = document.getElementById(update.id);
+        if (element) {
+            element.textContent = update.value;
+        }
+    });
+    
+    console.log('Executive summary updated with grouped data:', {
+        totalGroups,
+        totalRecipients,
+        riskCounts,
+        statusCounts
+    });
+}
 
 // Re-analyze session function
 async function reanalyzeSession() {
