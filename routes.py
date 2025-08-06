@@ -1077,8 +1077,13 @@ def api_grouped_cases(session_id):
                 db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
             )
         else:
+            # Default: Show only Active cases (exclude whitelisted, cleared, escalated, and excluded records)
             base_query = EmailRecord.query.filter_by(session_id=session_id).filter(
-                db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False)
+                db.and_(
+                    db.or_(EmailRecord.whitelisted.is_(None), EmailRecord.whitelisted == False),
+                    db.or_(EmailRecord.excluded_by_rule.is_(None)),
+                    EmailRecord.case_status == 'Active'  # Only show Active cases by default
+                )
             )
         
         # Apply filters
@@ -2140,8 +2145,8 @@ def admin_update_whitelist():
 
 
 @app.route('/api/case/<session_id>/<record_id>/status', methods=['PUT'])
-def update_case_status(session_id, record_id):
-    """Update case status"""
+def update_case_status_put(session_id, record_id):
+    """Update case status (PUT method)"""
     try:
         case = EmailRecord.query.filter_by(session_id=session_id, record_id=record_id).first_or_404()
         data = request.get_json()
@@ -2166,6 +2171,37 @@ def update_case_status(session_id, record_id):
         
         return jsonify({'status': 'updated'})
     except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/update-case-status/<session_id>/<record_id>', methods=['POST'])
+def update_case_status(session_id, record_id):
+    """Update case status (POST method for JavaScript compatibility)"""
+    try:
+        case = EmailRecord.query.filter_by(session_id=session_id, record_id=record_id).first_or_404()
+        data = request.get_json()
+
+        new_status = data.get('new_status', data.get('status'))
+        case.case_status = new_status
+        case.notes = data.get('notes', case.notes)
+
+        if new_status == 'Escalated':
+            case.escalated_at = datetime.utcnow()
+        elif new_status == 'Cleared':
+            case.resolved_at = datetime.utcnow()
+
+        db.session.commit()
+        
+        # Log the case status update
+        AuditLogger.log_case_action(
+            action=new_status or 'UPDATE',
+            session_id=session_id,
+            case_id=record_id,
+            details=f"Status updated to {new_status}"
+        )
+        
+        return jsonify({'status': 'updated', 'message': f'Case status updated to {new_status}'})
+    except Exception as e:
+        logger.error(f"Error updating case status: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 # Adaptive ML API Routes

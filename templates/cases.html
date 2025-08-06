@@ -845,6 +845,60 @@ async function escalateGroup(groupId) {
     }
 }
 
+// Flag group action with record removal
+async function flagGroup(groupId, senderEmail) {
+    const flagReason = prompt(`Enter reason for flagging all emails in this group from ${senderEmail}:`);
+    if (!flagReason) {
+        return;
+    }
+    
+    const flaggedBy = prompt('Flagged by (optional):') || 'Case Manager User';
+    
+    try {
+        showLoading('Flagging grouped case...');
+        
+        // Get the group data to find all record IDs
+        const groupData = window.groupedCasesData.find(g => g.group_id === groupId);
+        if (!groupData || !groupData.recipients) {
+            showError('Group data not found');
+            hideLoading();
+            return;
+        }
+        
+        // Flag all records in the group
+        const recordIds = groupData.recipients.map(r => r.record_id);
+        
+        for (const recordId of recordIds) {
+            const response = await fetch(`/api/flag-event/${window.currentSessionId}/${recordId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    flag_reason: flagReason,
+                    flagged_by: flaggedBy
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to flag record ${recordId}`);
+            }
+        }
+        
+        showSuccess(`Successfully flagged ${recordIds.length} records`);
+        
+        // Remove the group from the view
+        removeGroupFromView(groupId);
+        
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error flagging group:', error);
+        showError('Failed to flag group');
+        hideLoading();
+    }
+}
+
 // Whitelist sender from individual case
 async function whitelistSenderFromCase(recordId, senderEmail) {
     if (!senderEmail || senderEmail === 'undefined' || senderEmail === 'null') {
@@ -1093,7 +1147,7 @@ function createGroupRow(group, index) {
                 <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewGroupDetails(${index})" title="View">
                     <i class="fas fa-eye"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-warning" onclick="event.stopPropagation(); flagGroup('${group.group_id}')" title="Flag">
+                <button class="btn btn-sm btn-outline-warning" onclick="event.stopPropagation(); flagGroup('${group.group_id}', '${group.sender}')" title="Flag">
                     <i class="fas fa-flag"></i>
                 </button>
                 <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); clearGroup('${group.group_id}')" title="Clear">
