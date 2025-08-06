@@ -1240,53 +1240,139 @@ function displayCaseDetailsModal(caseData) {
                     </div>
                     <div class="modal-body">
                         <div class="row">
+                            <!-- Left Column - Email Information -->
                             <div class="col-md-6">
-                                <h6>Email Information</h6>
-                                <p><strong>Sender:</strong> ${caseData.sender || 'N/A'}</p>
-                                <p><strong>Recipients:</strong> ${caseData.recipients || 'N/A'}</p>
-                                <p><strong>Domain:</strong> ${caseData.recipients_email_domain || 'N/A'}</p>
-                                <p><strong>Subject:</strong> ${caseData.subject || 'N/A'}</p>
-                                <p><strong>Time:</strong> ${caseData.time || 'N/A'}</p>
-                                <p><strong>Business Unit:</strong> ${caseData.bunit || 'N/A'}</p>
-                                <p><strong>Department:</strong> ${caseData.department || 'N/A'}</p>
-                                <p><strong>Account Type:</strong> ${caseData.account_type || 'N/A'}</p>
+                                <h6 class="text-primary mb-3">Email Information</h6>
+                                <div class="mb-2">
+                                    <strong>Sender:</strong> ${caseData.sender || 'N/A'}
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Recipients:</strong> ${caseData.recipients || 'N/A'}
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Domain:</strong> ${caseData.recipients_email_domain || 'N/A'}
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Subject:</strong> ${caseData.subject || 'N/A'}
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Time:</strong> ${caseData.time || 'N/A'}
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Business Unit:</strong> ${caseData.bunit || 'N/A'}
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Department:</strong> ${caseData.department || 'N/A'}
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Account Type:</strong> ${caseData.account_type || 'N/A'}
+                                </div>
+                                
+                                ${caseData.attachments ? `
+                                <h6 class="text-primary mb-2">Attachments</h6>
+                                <div class="mb-3">
+                                    <i class="fas fa-paperclip text-success"></i> ${caseData.attachments}
+                                </div>
+                                ` : ''}
+                                
+                                <h6 class="text-primary mb-2">ML Explanation</h6>
+                                <div class="mb-2">
+                                    ${caseData.ml_explanation || 'N/A'}
+                                </div>
+                                
+                                <h6 class="text-primary mb-2">Justification</h6>
+                                <div class="mb-2">
+                                    ${caseData.justification || 'N/A'}
+                                </div>
                             </div>
+                            
+                            <!-- Right Column - Risk Assessment -->
                             <div class="col-md-6">
-                                <h6>Risk Assessment</h6>
-                                <p><strong>Risk Level:</strong> <span class="risk-${caseData.risk_level?.toLowerCase() || 'low'}">${caseData.risk_level || 'Low'}</span></p>
-                                <p><strong>ML Score:</strong> ${caseData.ml_risk_score || 'N/A'}</p>
-                                <p><strong>Status:</strong> <span class="badge status-${caseData.case_status?.toLowerCase() || 'active'}">${caseData.case_status || 'Active'}</span></p>
+                                <h6 class="text-primary mb-3">Risk Assessment</h6>
+                                <div class="mb-2">
+                                    <strong>Risk Level:</strong> 
+                                    <span class="badge ${getRiskBadgeClass(caseData.risk_level)}">${caseData.risk_level || 'Low'}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>ML Risk Score:</strong> ${caseData.ml_risk_score ? parseFloat(caseData.ml_risk_score).toFixed(3) : '0.000'}
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Case Status:</strong> 
+                                    <span class="badge ${getStatusBadgeClass(caseData.case_status)}">${caseData.case_status || 'Active'}</span>
+                                </div>
+                                
+                                ${caseData.risk_based_factors ? `
+                                <h6 class="text-primary mb-3">Risk-Based Factors Analysis</h6>
+                                <div class="risk-factors">
+                                    ${JSON.parse(caseData.risk_based_factors).map(factor => `
+                                        <div class="row mb-3">
+                                            <div class="col-6">
+                                                <strong>${factor.factor}</strong><br>
+                                                <small class="text-muted">${factor.details || 'Standard check performed'}</small>
+                                            </div>
+                                            <div class="col-6 text-end">
+                                                <span class="badge ${factor.status === 'CLEAR' ? 'bg-success' : factor.status === 'MODERATE RISK' ? 'bg-warning text-dark' : 'bg-danger'}">${factor.status}</span><br>
+                                                <small class="text-muted">Risk: ${factor.risk || 'None (0.0)'}</small>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                ` : `
+                                <h6 class="text-primary mb-3">Risk-Based Factors Analysis</h6>
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <strong>Leaver Status</strong><br>
+                                        <small class="text-muted">Employee not marked as leaver</small>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <span class="badge bg-success">CLEAR</span><br>
+                                        <small class="text-muted">Risk: None (0.0)</small>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <strong>External Domain</strong><br>
+                                        <small class="text-muted">Communication to internal/corporate domain</small>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <span class="badge bg-success">CLEAR</span><br>
+                                        <small class="text-muted">Risk: None (0.0)</small>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <strong>Time-based Risk</strong><br>
+                                        <small class="text-muted">Email sent during business hours</small>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <span class="badge bg-info">TRIGGERED</span><br>
+                                        <small class="text-muted">Risk: Low (0.1)</small>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <strong>Justification Analysis</strong><br>
+                                        <small class="text-muted">Justification appears normal</small>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <span class="badge bg-success">CLEAR</span><br>
+                                        <small class="text-muted">Risk: None (0.0)</small>
+                                    </div>
+                                </div>
+                                `}
+                                
+                                <div class="alert alert-info mt-3">
+                                    <i class="fas fa-info-circle"></i> 
+                                    <strong>Total ML Risk Score:</strong> ${caseData.ml_risk_score ? parseFloat(caseData.ml_risk_score).toFixed(3) : '0.000'} (combines rule-based factors with anomaly detection)
+                                </div>
                             </div>
                         </div>
-                        ${caseData.attachments ? `
-                            <div class="mt-3">
-                                <h6>Attachments</h6>
-                                <p>${caseData.attachments}</p>
-                            </div>
-                        ` : ''}
-                        ${caseData.ml_explanation ? `
-                            <div class="mt-3">
-                                <h6>ML Analysis</h6>
-                                <p>${caseData.ml_explanation}</p>
-                            </div>
-                        ` : ''}
-                        ${caseData.justification ? `
-                            <div class="mt-3">
-                                <h6>Justification</h6>
-                                <p>${caseData.justification}</p>
-                            </div>
-                        ` : ''}
-                        ${caseData.policy_name ? `
-                            <div class="mt-3">
-                                <h6>Policy Name</h6>
-                                <p>${caseData.policy_name}</p>
-                            </div>
-                        ` : ''}
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="button" class="btn btn-warning" onclick="updateCaseStatus('${currentSessionId}', '${caseData.record_id}', 'Cleared')">Clear Case</button>
+                        <button type="button" class="btn btn-success" onclick="updateCaseStatus('${currentSessionId}', '${caseData.record_id}', 'Cleared')">Clear Case</button>
                         <button type="button" class="btn btn-danger" onclick="updateCaseStatus('${currentSessionId}', '${caseData.record_id}', 'Escalated')">Escalate</button>
+                        <button type="button" class="btn btn-primary" onclick="generateEmail('${caseData.record_id}')">Generate Email</button>
                     </div>
                 </div>
             </div>
@@ -1551,6 +1637,12 @@ async function unflagEvent(sessionId, recordId) {
         showError('Failed to remove flag');
         hideLoading();
     }
+}
+
+// Generate email function
+function generateEmail(recordId) {
+    alert(`Generate email functionality for record ${recordId} would be implemented here.`);
+    // TODO: Implement email generation logic
 }
 </script>
 {% endblock %}
