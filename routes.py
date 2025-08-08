@@ -3,7 +3,10 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from werkzeug.utils import secure_filename
 from app import app, db
 from models import *
-import config
+from performance_config import PerformanceConfig
+
+# Initialize config
+config = PerformanceConfig()
 import os
 import json
 import logging
@@ -2396,7 +2399,10 @@ from data_processor import DataProcessor
 from ml_engine import MLEngine
 from advanced_ml_engine import AdvancedMLEngine
 from adaptive_ml_engine import AdaptiveMLEngine
-from performance_config import config
+from performance_config import PerformanceConfig
+
+# Initialize config
+config = PerformanceConfig()
 from ml_config import MLRiskConfig
 from rule_engine import RuleEngine
 from domain_manager import DomainManager
@@ -2651,7 +2657,9 @@ def dashboard(session_id):
         stats = session_manager.get_processing_stats(session_id)
     except Exception as e:
         logger.warning(f"Could not get processing stats: {str(e)}")
-    @app.route('/admin-temp')
+        stats = {}
+
+@app.route('/admin-temp')
 def admin_temp():
     """Temporary admin route - will be cleaned up"""
     stats = {}
@@ -3238,7 +3246,10 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from werkzeug.utils import secure_filename
 from app import app, db
 from models import *
-import config
+from performance_config import PerformanceConfig
+
+# Initialize config
+config = PerformanceConfig()
 import os
 import json
 import logging
