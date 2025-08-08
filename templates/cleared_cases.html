@@ -40,6 +40,22 @@
     </div>
 </div>
 
+<!-- View Mode Toggle -->
+<div class="row mb-3">
+    <div class="col-12 d-flex justify-content-end">
+        <div class="btn-group" role="group">
+            <input type="radio" class="btn-check" name="clearedViewMode" id="clearedIndividualView" value="individual">
+            <label class="btn btn-outline-primary btn-sm" for="clearedIndividualView">
+                <i class="fas fa-list"></i> Individual
+            </label>
+            <input type="radio" class="btn-check" name="clearedViewMode" id="clearedGroupedView" value="grouped" checked>
+            <label class="btn btn-outline-primary btn-sm" for="clearedGroupedView">
+                <i class="fas fa-layer-group"></i> Grouped
+            </label>
+        </div>
+    </div>
+</div>
+
 <!-- Quick Actions Bar -->
 <div class="card mb-4">
     <div class="card-body">
@@ -155,6 +171,228 @@ window.currentSessionId = '{{ session.id }}';
 function reopenCase(recordId) {
     if (confirm('Are you sure you want to reopen this case?')) {
         updateCaseStatus(currentSessionId, recordId, 'Active');
+    }
+}
+
+// Cleared Cases Grouping JavaScript
+let clearedGroupedData = [];
+let currentClearedViewMode = 'grouped';
+
+// Initialize cleared cases page
+document.addEventListener('DOMContentLoaded', function() {
+    initializeClearedViewToggle();
+    // Start with grouped view by default
+    switchToClearedGroupedView();
+});
+
+// Initialize view mode toggle for cleared cases
+function initializeClearedViewToggle() {
+    const individualViewRadio = document.getElementById('clearedIndividualView');
+    const groupedViewRadio = document.getElementById('clearedGroupedView');
+    
+    if (individualViewRadio) {
+        individualViewRadio.addEventListener('change', function() {
+            if (this.checked) {
+                currentClearedViewMode = 'individual';
+                switchToClearedIndividualView();
+            }
+        });
+    }
+    
+    if (groupedViewRadio) {
+        groupedViewRadio.addEventListener('change', function() {
+            if (this.checked) {
+                currentClearedViewMode = 'grouped';
+                switchToClearedGroupedView();
+            }
+        });
+    }
+}
+
+// Switch to individual view for cleared cases
+function switchToClearedIndividualView() {
+    location.reload(); // Simple approach - reload to get individual view
+}
+
+// Switch to grouped view for cleared cases
+function switchToClearedGroupedView() {
+    loadClearedGroupedData();
+}
+
+// Load grouped cleared data
+function loadClearedGroupedData() {
+    const sessionId = window.location.pathname.split('/')[2];
+    
+    fetch(`/api/grouped-cases/${sessionId}`)
+        .then(response => response.json())
+        .then(data => {
+            // Filter groups that have cleared recipients
+            clearedGroupedData = data.grouped_cases.filter(group => 
+                group.recipients.some(recipient => recipient.case_status === 'Cleared')
+            );
+            renderClearedGroupedData();
+        })
+        .catch(error => {
+            console.error('Error loading cleared grouped data:', error);
+        });
+}
+
+// Render cleared grouped data
+function renderClearedGroupedData() {
+    // Replace cleared table with grouped view
+    const clearedTableContainer = document.querySelector('.table-responsive');
+    if (clearedTableContainer && clearedGroupedData.length > 0) {
+        clearedTableContainer.innerHTML = `
+            <div class="alert alert-success">
+                <i class="fas fa-layer-group"></i> <strong>Grouped Cleared Cases:</strong> 
+                Resolved communications grouped by sender, subject, time, and attachments.
+            </div>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th width="30"><i class="fas fa-expand-alt"></i></th>
+                        <th>Sender</th>
+                        <th>Subject</th>
+                        <th>Recipients</th>
+                        <th>Risk Level</th>
+                        <th>Cleared Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="clearedGroupedBody">
+                </tbody>
+            </table>
+        `;
+        
+        const tbody = document.getElementById('clearedGroupedBody');
+        clearedGroupedData.forEach((group, index) => {
+            const clearedRecipients = group.recipients.filter(r => r.case_status === 'Cleared');
+            if (clearedRecipients.length > 0) {
+                const groupCard = createClearedGroupCard(group, clearedRecipients, index);
+                tbody.appendChild(groupCard);
+            }
+        });
+    } else if (clearedGroupedData.length === 0) {
+        // Show no cleared cases message
+        const clearedTableContainer = document.querySelector('.table-responsive');
+        if (clearedTableContainer) {
+            clearedTableContainer.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Cleared Case Groups</h4>
+                    <p class="text-muted">No grouped cases have been cleared yet.</p>
+                </div>
+            `;
+        }
+    }
+}
+
+// Create cleared group card
+function createClearedGroupCard(group, clearedRecipients, index) {
+    const row = document.createElement('tr');
+    row.className = 'table-success-subtle';
+    
+    const riskBadgeClass = {
+        'Critical': 'bg-danger',
+        'High': 'bg-warning text-dark',
+        'Medium': 'bg-info', 
+        'Low': 'bg-success'
+    }[group.risk_level] || 'bg-secondary';
+    
+    row.innerHTML = `
+        <td>
+            <button class="btn btn-sm btn-outline-success" onclick="toggleClearedGroupDetails(${index})">
+                <i class="fas fa-chevron-right" id="cleared-toggle-${index}"></i>
+            </button>
+        </td>
+        <td>
+            <strong>${group.sender || 'Unknown'}</strong>
+            ${group.is_leaver ? '<span class="badge bg-warning text-dark ms-2">Leaver</span>' : ''}
+        </td>
+        <td>${(group.subject || 'No Subject').substring(0, 50)}${(group.subject || '').length > 50 ? '...' : ''}</td>
+        <td>
+            <span class="badge bg-success">${clearedRecipients.length} cleared</span>
+            <small class="text-muted ms-2">of ${group.record_count} total</small>
+        </td>
+        <td><span class="badge ${riskBadgeClass}">${group.risk_level}</span></td>
+        <td><small>${group.time_display}</small></td>
+        <td>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary" onclick="viewClearedGroup(${index})">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-outline-warning" onclick="reopenAllInGroup(${index})">
+                    <i class="fas fa-undo"></i>
+                </button>
+            </div>
+        </td>
+    `;
+    
+    // Add details row (initially hidden)
+    const detailsRow = document.createElement('tr');
+    detailsRow.className = 'group-details-row';
+    detailsRow.id = `cleared-details-${index}`;
+    detailsRow.style.display = 'none';
+    detailsRow.innerHTML = `
+        <td colspan="7">
+            <div class="border-start border-success border-3 ps-3 py-2">
+                <h6>Cleared Recipients (${clearedRecipients.length}):</h6>
+                <div class="row">
+                    ${clearedRecipients.map(recipient => `
+                        <div class="col-md-6 mb-2">
+                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                <div>
+                                    <strong>${recipient.recipient || 'Unknown'}</strong>
+                                    <span class="badge bg-success ms-2">Cleared</span>
+                                    <br><small class="text-muted">${recipient.recipient_domain || ''}</small>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" onclick="viewClearedCase('${recipient.record_id}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-outline-warning" onclick="reopenCase('${recipient.record_id}')">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </td>
+    `;
+    
+    row.parentNode.insertBefore(detailsRow, row.nextSibling);
+    return row;
+}
+
+// Toggle cleared group details
+function toggleClearedGroupDetails(index) {
+    const detailsRow = document.getElementById(`cleared-details-${index}`);
+    const toggleIcon = document.getElementById(`cleared-toggle-${index}`);
+    
+    if (detailsRow.style.display === 'none') {
+        detailsRow.style.display = 'table-row';
+        toggleIcon.className = 'fas fa-chevron-down';
+    } else {
+        detailsRow.style.display = 'none';
+        toggleIcon.className = 'fas fa-chevron-right';
+    }
+}
+
+// View cleared case
+function viewClearedCase(recordId) {
+    showCaseDetails(window.currentSessionId, recordId);
+}
+
+// Reopen all in group
+function reopenAllInGroup(index) {
+    const group = clearedGroupedData[index];
+    if (group && confirm(`Reopen all cleared cases in this group?`)) {
+        group.recipients.filter(r => r.case_status === 'Cleared').forEach(recipient => {
+            updateCaseStatus(window.currentSessionId, recipient.record_id, 'Active');
+        });
+        showSuccess('All cleared cases in group reopened');
     }
 }
 

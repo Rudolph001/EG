@@ -11,17 +11,22 @@ let selectedCases = new Set();
 let charts = {};
 let sessionId = '';
 let currentViewMode = 'individual';
+let currentSessionId = null;
+let chartInstances = {};
+let reportsGroupedData = [];
+let currentReportsViewMode = 'grouped';
 
 // Initialize dashboard
 function initializeReportsDashboard() {
     // Get session ID from URL
     sessionId = window.location.pathname.split('/')[2];
-    
+    currentSessionId = sessionId; // Set global session ID for reports
+
     // Initialize all components
     loadCasesData();
     initializeEventListeners();
     updateSelection();
-    initializeGroupedView();
+    // initializeGroupedView(); // This is replaced by the new grouped view initialization
 }
 
 // Load cases data from API
@@ -31,13 +36,13 @@ function loadCasesData() {
         .then(data => {
             allCases = data.cases || [];
             filteredCases = [...allCases];
-            
+
             // Initialize charts with API data
             createStatusChart(data.status_distribution);
             createRiskChart(data.risk_distribution);
             createTimelineChart(data.timeline_data);
             createDomainsChart(data.top_domains);
-            
+
             // Initialize counters
             initializeCounters(data);
         })
@@ -62,38 +67,38 @@ function loadGroupedCasesData() {
 }
 
 // Always use grouped view - no toggle functionality needed
-function initializeGroupedView() {
-    // Set view mode to grouped
-    currentViewMode = 'grouped';
-    
-    // Always show grouped header
-    const groupedHeader = document.getElementById('groupedHeader');
-    const individualHeader = document.getElementById('individualHeader');
-    
-    if (groupedHeader && individualHeader) {
-        groupedHeader.style.display = '';
-        individualHeader.style.display = 'none';
-    }
-    
-    // Load and render grouped cases
-    loadGroupedCasesData();
-}
+// function initializeGroupedView() {
+//     // Set view mode to grouped
+//     currentViewMode = 'grouped';
+
+//     // Always show grouped header
+//     const groupedHeader = document.getElementById('groupedHeader');
+//     const individualHeader = document.getElementById('individualHeader');
+
+//     if (groupedHeader && individualHeader) {
+//         groupedHeader.style.display = '';
+//         individualHeader.style.display = 'none';
+//     }
+
+//     // Load and render grouped cases
+//     loadGroupedCasesData();
+// }
 
 // Render grouped cases
 function renderGroupedCases() {
     const tbody = document.getElementById('casesTableBody');
     tbody.innerHTML = '';
-    
+
     if (!groupedCases || groupedCases.length === 0) {
         tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No grouped cases found</td></tr>';
         return;
     }
-    
+
     groupedCases.forEach((group, index) => {
         // Create main group row
         const groupRow = createGroupRowForReports(group, index);
         tbody.appendChild(groupRow);
-        
+
         // Create expandable details row (initially hidden)
         const detailsRow = createGroupDetailsRowForReports(group, index);
         tbody.appendChild(detailsRow);
@@ -106,15 +111,15 @@ function createGroupRowForReports(group, index) {
     row.className = 'group-row';
     row.style.cursor = 'pointer';
     row.onclick = () => toggleGroupDetailsReports(index);
-    
+
     // Get risk level badge class
     const riskBadgeClass = {
         'Critical': 'bg-danger',
-        'High': 'bg-warning text-dark', 
+        'High': 'bg-warning text-dark',
         'Medium': 'bg-info',
         'Low': 'bg-success'
     }[group.risk_level] || 'bg-secondary';
-    
+
     // Get status badge class
     const statusBadgeClass = {
         'Escalated': 'bg-danger',
@@ -122,7 +127,7 @@ function createGroupRowForReports(group, index) {
         'Cleared': 'bg-success',
         'Mixed': 'bg-warning text-dark'
     }[group.group_status] || 'bg-secondary';
-    
+
     row.innerHTML = `
         <td>
             <i class="fas fa-chevron-right group-toggle" id="toggle-${index}"></i>
@@ -166,7 +171,7 @@ function createGroupRowForReports(group, index) {
             </div>
         </td>
     `;
-    
+
     return row;
 }
 
@@ -176,20 +181,20 @@ function createGroupDetailsRowForReports(group, index) {
     row.className = 'group-details-row';
     row.id = `details-${index}`;
     row.style.display = 'none';
-    
+
     const recipientsList = group.recipients.map(recipient => {
         const statusBadge = {
             'Active': 'bg-primary',
-            'Cleared': 'bg-success', 
+            'Cleared': 'bg-success',
             'Escalated': 'bg-danger'
         }[recipient.case_status] || 'bg-secondary';
-        
+
         const riskBadge = {
             'High': 'bg-danger',
             'Medium': 'bg-warning',
             'Low': 'bg-success'
         }[recipient.risk_level] || 'bg-secondary';
-        
+
         return `
             <div class="recipient-item p-2 mb-2 border rounded">
                 <div class="d-flex justify-content-between align-items-center">
@@ -206,7 +211,7 @@ function createGroupDetailsRowForReports(group, index) {
             </div>
         `;
     }).join('');
-    
+
     row.innerHTML = `
         <td colspan="9">
             <div class="p-3 bg-light border-start border-primary border-3">
@@ -217,7 +222,7 @@ function createGroupDetailsRowForReports(group, index) {
             </div>
         </td>
     `;
-    
+
     return row;
 }
 
@@ -225,7 +230,7 @@ function createGroupDetailsRowForReports(group, index) {
 function toggleGroupDetailsReports(index) {
     const detailsRow = document.getElementById(`details-${index}`);
     const toggle = document.getElementById(`toggle-${index}`);
-    
+
     if (detailsRow.style.display === 'none') {
         detailsRow.style.display = '';
         toggle.className = 'fas fa-chevron-down group-toggle';
@@ -239,8 +244,6 @@ function toggleGroupDetailsReports(index) {
 function expandGroup(index) {
     toggleGroupDetailsReports(index);
 }
-}
-
 // Initialize event listeners
 function initializeEventListeners() {
     // Filter inputs
@@ -248,14 +251,14 @@ function initializeEventListeners() {
     document.getElementById('riskFilter').addEventListener('change', applyFilters);
     document.getElementById('dateFilter').addEventListener('change', applyFilters);
     document.getElementById('searchFilter').addEventListener('keyup', debounce(applyFilters, 300));
-    
+
     // Case checkboxes
     document.addEventListener('change', function(e) {
         if (e.target.classList.contains('case-checkbox')) {
             updateCaseSelection(e.target);
         }
     });
-    
+
     // Select all checkbox
     document.getElementById('selectAllCheckbox').addEventListener('change', toggleSelectAll);
 }
@@ -263,12 +266,12 @@ function initializeEventListeners() {
 // Create status distribution chart
 function createStatusChart(data) {
     const ctx = document.getElementById('statusChart').getContext('2d');
-    
+
     // Destroy existing chart if it exists
     if (charts.status) {
         charts.status.destroy();
     }
-    
+
     charts.status = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -321,11 +324,11 @@ function createStatusChart(data) {
 // Create risk level chart
 function createRiskChart(data) {
     const ctx = document.getElementById('riskChart').getContext('2d');
-    
+
     if (charts.risk) {
         charts.risk.destroy();
     }
-    
+
     charts.risk = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -386,11 +389,11 @@ function createRiskChart(data) {
 // Create timeline chart
 function createTimelineChart(data) {
     const ctx = document.getElementById('timelineChart').getContext('2d');
-    
+
     if (charts.timeline) {
         charts.timeline.destroy();
     }
-    
+
     charts.timeline = new Chart(ctx, {
         type: 'line',
         data: {
@@ -450,11 +453,11 @@ function createTimelineChart(data) {
 // Create domains chart
 function createDomainsChart(data) {
     const ctx = document.getElementById('domainsChart').getContext('2d');
-    
+
     if (charts.domains) {
         charts.domains.destroy();
     }
-    
+
     charts.domains = new Chart(ctx, {
         type: 'horizontalBar',
         data: {
@@ -506,7 +509,7 @@ function initializeCounters(data) {
         { id: 'resolvedCounter', value: data.cases.filter(c => ['Cleared', 'Escalated'].includes(c.status)).length },
         { id: 'pendingCounter', value: data.cases.filter(c => c.status === 'Active').length }
     ];
-    
+
     counters.forEach(counter => {
         animateCounter(counter.id, counter.value);
     });
@@ -516,27 +519,27 @@ function initializeCounters(data) {
 function animateCounter(elementId, targetValue, duration = 1000) {
     const element = document.getElementById(elementId);
     if (!element) return;
-    
+
     let startValue = 0;
     const startTime = performance.now();
-    
+
     function updateCounter(currentTime) {
         const elapsed = currentTime - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        
+
         // Easing function (ease-out)
         const easeOut = 1 - Math.pow(1 - progress, 3);
         const currentValue = Math.floor(startValue + (targetValue - startValue) * easeOut);
-        
+
         element.textContent = currentValue.toLocaleString();
-        
+
         if (progress < 1) {
             requestAnimationFrame(updateCounter);
         } else {
             element.textContent = targetValue.toLocaleString();
         }
     }
-    
+
     requestAnimationFrame(updateCounter);
 }
 
@@ -550,16 +553,16 @@ function applyFilters() {
     filteredCases = allCases.filter(caseItem => {
         // Status filter
         if (statusFilter && caseItem.status !== statusFilter) return false;
-        
+
         // Risk filter
         if (riskFilter && caseItem.risk_level !== riskFilter) return false;
-        
+
         // Date filter
         if (dateFilter) {
             const caseDate = new Date(caseItem.time).toISOString().split('T')[0];
             if (caseDate !== dateFilter) return false;
         }
-        
+
         // Search filter
         if (searchFilter) {
             const searchableText = [
@@ -567,10 +570,10 @@ function applyFilters() {
                 caseItem.subject,
                 caseItem.recipient_domain
             ].join(' ').toLowerCase();
-            
+
             if (!searchableText.includes(searchFilter)) return false;
         }
-        
+
         return true;
     });
 
@@ -582,16 +585,16 @@ function applyFilters() {
 function updateCasesTable() {
     const tbody = document.getElementById('casesTableBody');
     if (!tbody) return;
-    
+
     // Clear existing rows
     tbody.innerHTML = '';
-    
+
     // Add filtered cases
     filteredCases.forEach(caseItem => {
         const row = createCaseRow(caseItem);
         tbody.appendChild(row);
     });
-    
+
     // Update selection state
     updateSelectionCheckboxes();
 }
@@ -602,7 +605,7 @@ function createCaseRow(caseItem) {
     row.setAttribute('data-case-id', caseItem.record_id);
     row.setAttribute('data-risk', caseItem.risk_level);
     row.setAttribute('data-status', caseItem.status);
-    
+
     row.innerHTML = `
         <td>
             <input type="checkbox" class="case-checkbox" value="${caseItem.record_id}" onchange="updateSelection()">
@@ -638,8 +641,8 @@ function createCaseRow(caseItem) {
             <small>${formatDateTime(caseItem.time)}</small>
         </td>
         <td>
-            ${caseItem.attachments ? 
-                `<i class="fas fa-paperclip text-warning" title="Has attachments"></i>` : 
+            ${caseItem.attachments ?
+                `<i class="fas fa-paperclip text-warning" title="Has attachments"></i>` :
                 '<span class="text-muted">None</span>'
             }
         </td>
@@ -654,7 +657,7 @@ function createCaseRow(caseItem) {
             </div>
         </td>
     `;
-    
+
     return row;
 }
 
@@ -665,18 +668,18 @@ function createRiskBadge(riskLevel) {
         'Medium': 'bg-warning',
         'Low': 'bg-success'
     }[riskLevel] || 'bg-secondary';
-    
+
     return `<span class="badge ${badgeClass}">${riskLevel} Risk</span>`;
 }
 
 function createMLScoreProgress(mlScore) {
     const percentage = (mlScore * 100).toFixed(1);
     const progressClass = mlScore >= 0.7 ? 'bg-danger' : mlScore >= 0.4 ? 'bg-warning' : 'bg-success';
-    
+
     return `
         <div class="progress" style="height: 20px;">
-            <div class="progress-bar ${progressClass}" 
-                 role="progressbar" 
+            <div class="progress-bar ${progressClass}"
+                 role="progressbar"
                  style="width: ${percentage}%">
                 ${percentage}%
             </div>
@@ -690,7 +693,7 @@ function createStatusBadge(status) {
         'Cleared': 'bg-success',
         'Escalated': 'bg-danger'
     }[status] || 'bg-secondary';
-    
+
     return `<span class="badge ${badgeClass}">${status}</span>`;
 }
 
@@ -707,16 +710,16 @@ function formatDateTime(dateTimeString) {
 function toggleSelectAll() {
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     const caseCheckboxes = document.querySelectorAll('.case-checkbox');
-    
+
     selectedCases.clear();
-    
+
     caseCheckboxes.forEach(checkbox => {
         checkbox.checked = selectAllCheckbox.checked;
         if (selectAllCheckbox.checked) {
             selectedCases.add(checkbox.value);
         }
     });
-    
+
     updateSelection();
 }
 
@@ -726,7 +729,7 @@ function updateCaseSelection(checkbox) {
     } else {
         selectedCases.delete(checkbox.value);
     }
-    
+
     updateSelection();
 }
 
@@ -746,14 +749,14 @@ function updateSelection() {
     const selectionText = document.getElementById('selectionText');
     const exportBtn = document.getElementById('exportBtn');
     const bulkUpdateBtn = document.getElementById('bulkUpdateBtn');
-    
+
     // Update UI based on selection count
     if (count > 0) {
         summaryDiv.style.display = 'block';
         selectionText.textContent = `${count} case${count > 1 ? 's' : ''} selected`;
         exportBtn.disabled = false;
         bulkUpdateBtn.disabled = false;
-        
+
         // Calculate breakdown
         updateSelectionBreakdown();
     } else {
@@ -761,28 +764,28 @@ function updateSelection() {
         exportBtn.disabled = true;
         bulkUpdateBtn.disabled = true;
     }
-    
+
     // Update select all checkbox state
     updateSelectAllCheckboxState();
 }
 
 function updateSelectionBreakdown() {
     let breakdown = { high: 0, medium: 0, low: 0, active: 0, cleared: 0, escalated: 0 };
-    
+
     selectedCases.forEach(caseId => {
         const row = document.querySelector(`tr[data-case-id="${caseId}"]`);
         if (row) {
             const risk = row.dataset.risk;
             const status = row.dataset.status;
-            
+
             if (risk) breakdown[risk.toLowerCase()]++;
             if (status) breakdown[status.toLowerCase()]++;
         }
     });
-    
+
     const breakdownText = `High Risk: ${breakdown.high}, Medium: ${breakdown.medium}, Low: ${breakdown.low} | ` +
                          `Active: ${breakdown.active}, Cleared: ${breakdown.cleared}, Escalated: ${breakdown.escalated}`;
-    
+
     document.getElementById('selectionBreakdown').textContent = breakdownText;
 }
 
@@ -790,7 +793,7 @@ function updateSelectAllCheckboxState() {
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     const caseCheckboxes = document.querySelectorAll('.case-checkbox');
     const checkedCount = document.querySelectorAll('.case-checkbox:checked').length;
-    
+
     if (checkedCount === 0) {
         selectAllCheckbox.indeterminate = false;
         selectAllCheckbox.checked = false;
@@ -814,7 +817,7 @@ function updateSelectionCheckboxes() {
 function viewCaseDetails(caseId) {
     const caseData = allCases.find(c => c.record_id === caseId);
     if (!caseData) return;
-    
+
     // Create and show modal with case details
     showCaseDetailsModal(caseData);
 }
@@ -860,21 +863,21 @@ function exportSelectedCases() {
         showNotification('Please select cases to export', 'warning');
         return;
     }
-    
+
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = `/api/export-cases/${sessionId}`;
-    
+
     const input = document.createElement('input');
     input.type = 'hidden';
     input.name = 'case_ids';
     input.value = JSON.stringify([...selectedCases]);
-    
+
     form.appendChild(input);
     document.body.appendChild(form);
     form.submit();
     document.body.removeChild(form);
-    
+
     showNotification('Export started', 'info');
 }
 
@@ -885,7 +888,7 @@ function generateFullReport() {
     document.body.appendChild(form);
     form.submit();
     document.body.removeChild(form);
-    
+
     showNotification('Report generation started', 'info');
 }
 
@@ -895,7 +898,7 @@ function bulkUpdateStatus() {
         showNotification('Please select cases to update', 'warning');
         return;
     }
-    
+
     document.getElementById('bulkUpdateCount').textContent = selectedCases.size;
     const modal = new bootstrap.Modal(document.getElementById('bulkUpdateModal'));
     modal.show();
@@ -907,7 +910,7 @@ function confirmBulkUpdate() {
         showNotification('Please select a status', 'warning');
         return;
     }
-    
+
     fetch(`/api/bulk-update-status/${sessionId}`, {
         method: 'POST',
         headers: {
@@ -949,9 +952,9 @@ function showNotification(message, type = 'info') {
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     // Auto-remove after 5 seconds
     setTimeout(() => {
         if (notification.parentNode) {
@@ -994,18 +997,18 @@ function showCaseDetailsModal(caseData) {
             </div>
         </div>
     `;
-    
+
     // Remove existing modal if present
     const existingModal = document.getElementById('caseDetailsModal');
     if (existingModal) {
         existingModal.remove();
     }
-    
+
     // Add modal to page and show
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     const modal = new bootstrap.Modal(document.getElementById('caseDetailsModal'));
     modal.show();
-    
+
     // Clean up modal after hiding
     document.getElementById('caseDetailsModal').addEventListener('hidden.bs.modal', function() {
         this.remove();
@@ -1033,10 +1036,231 @@ function updateFilteredCounters() {
         resolved: filteredCases.filter(c => ['Cleared', 'Escalated'].includes(c.status)).length,
         pending: filteredCases.filter(c => c.status === 'Active').length
     };
-    
+
     // Update counter displays (optional - can show filtered vs total)
     // For now, we'll keep the original totals displayed
 }
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', initializeReportsDashboard);
+// Initialize dashboard when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeReportsViewToggle();
+    refreshDashboard();
+    // Start with grouped view by default
+    switchToReportsGroupedView();
+});
+
+// Initialize view mode toggle for reports
+function initializeReportsViewToggle() {
+    const individualViewRadio = document.getElementById('reportsIndividualView');
+    const groupedViewRadio = document.getElementById('reportsGroupedView');
+
+    if (individualViewRadio) {
+        individualViewRadio.addEventListener('change', function() {
+            if (this.checked) {
+                currentReportsViewMode = 'individual';
+                switchToReportsIndividualView();
+            }
+        });
+    }
+
+    if (groupedViewRadio) {
+        groupedViewRadio.addEventListener('change', function() {
+            if (this.checked) {
+                currentReportsViewMode = 'grouped';
+                switchToReportsGroupedView();
+            }
+        });
+    }
+}
+
+// Switch to individual view for reports
+function switchToReportsIndividualView() {
+    // Hide grouped containers and show individual tables
+    const groupedContainers = document.querySelectorAll('.reports-grouped-container');
+    const individualTables = document.querySelectorAll('.reports-individual-table');
+
+    groupedContainers.forEach(container => container.style.display = 'none');
+    individualTables.forEach(table => table.style.display = 'table');
+}
+
+// Switch to grouped view for reports
+function switchToReportsGroupedView() {
+    loadReportsGroupedData();
+}
+
+// Load grouped reports data
+function loadReportsGroupedData() {
+    if (!currentSessionId) return;
+
+    fetch(`/api/grouped-cases/${currentSessionId}`)
+        .then(response => response.json())
+        .then(data => {
+            reportsGroupedData = data.grouped_cases || [];
+            renderReportsGroupedData();
+        })
+        .catch(error => {
+            console.error('Error loading reports grouped data:', error);
+        });
+}
+
+// Render reports grouped data
+function renderReportsGroupedData() {
+    // Hide individual tables and show grouped containers
+    const individualTables = document.querySelectorAll('.reports-individual-table');
+    const groupedContainers = document.querySelectorAll('.reports-grouped-container');
+
+    individualTables.forEach(table => table.style.display = 'none');
+    groupedContainers.forEach(container => {
+        container.style.display = 'block';
+        const tableBody = container.querySelector('tbody');
+        if (tableBody) {
+            tableBody.innerHTML = '';
+
+            // Render grouped data
+            reportsGroupedData.forEach((group, index) => {
+                const groupRow = createReportsGroupRow(group, index);
+                tableBody.appendChild(groupRow);
+            });
+        }
+    });
+
+    // Update statistics for grouped view
+    updateGroupedStatistics();
+}
+
+// Create reports group row
+function createReportsGroupRow(group, index) {
+    const row = document.createElement('tr');
+    row.className = 'grouped-row';
+
+    const riskBadgeClass = {
+        'Critical': 'bg-danger',
+        'High': 'bg-warning text-dark',
+        'Medium': 'bg-info',
+        'Low': 'bg-success'
+    }[group.risk_level] || 'bg-secondary';
+
+    row.innerHTML = `
+        <td>
+            <button class="btn btn-sm btn-outline-primary" onclick="toggleReportsGroupDetails(${index})">
+                <i class="fas fa-chevron-right" id="reports-toggle-${index}"></i>
+            </button>
+        </td>
+        <td>
+            <strong>${group.sender || 'Unknown'}</strong>
+            ${group.is_leaver ? '<span class="badge bg-warning text-dark ms-2">Leaver</span>' : ''}
+        </td>
+        <td>${(group.subject || 'No Subject').substring(0, 50)}${(group.subject || '').length > 50 ? '...' : ''}</td>
+        <td>
+            <span class="badge bg-info">${group.record_count}</span>
+            <small class="text-muted ms-2">${group.recipients.length} unique</small>
+        </td>
+        <td><span class="badge ${riskBadgeClass}">${group.risk_level}</span></td>
+        <td><strong>${group.avg_risk_score}</strong></td>
+        <td><span class="badge bg-primary">${group.case_status}</span></td>
+        <td><small>${group.time_display}</small></td>
+        <td>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary" onclick="viewReportsGroupDetails(${index})">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-outline-info" onclick="exportReportsGroup(${index})">
+                    <i class="fas fa-download"></i>
+                </button>
+            </div>
+        </td>
+    `;
+
+    // Add details row (initially hidden)
+    const detailsRow = document.createElement('tr');
+    detailsRow.className = 'group-details-row';
+    detailsRow.id = `reports-details-${index}`;
+    detailsRow.style.display = 'none';
+    detailsRow.innerHTML = `
+        <td colspan="9">
+            <div class="border-start border-primary border-3 ps-3 py-2">
+                <h6>Recipients in this group (${group.recipients.length}):</h6>
+                <div class="row">
+                    ${group.recipients.map(recipient => `
+                        <div class="col-md-6 mb-2">
+                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                <div>
+                                    <strong>${recipient.recipient || 'Unknown'}</strong>
+                                    <span class="badge bg-${recipient.risk_level === 'Critical' ? 'danger' : recipient.risk_level === 'High' ? 'warning text-dark' : recipient.risk_level === 'Medium' ? 'info' : 'success'} ms-2">${recipient.risk_level}</span>
+                                    <br><small class="text-muted">${recipient.recipient_domain || ''}</small>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" onclick="viewReportsCase('${recipient.record_id}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </td>
+    `;
+
+    row.parentNode.insertBefore(detailsRow, row.nextSibling);
+    return row;
+}
+
+// Toggle reports group details
+function toggleReportsGroupDetails(index) {
+    const detailsRow = document.getElementById(`reports-details-${index}`);
+    const toggleIcon = document.getElementById(`reports-toggle-${index}`);
+
+    if (detailsRow.style.display === 'none') {
+        detailsRow.style.display = 'table-row';
+        toggleIcon.className = 'fas fa-chevron-down';
+    } else {
+        detailsRow.style.display = 'none';
+        toggleIcon.className = 'fas fa-chevron-right';
+    }
+}
+
+// View reports group details
+function viewReportsGroupDetails(index) {
+    const group = reportsGroupedData[index];
+    if (group) {
+        // Show detailed analytics for this group
+        showGroupAnalytics(group);
+    }
+}
+
+// Export reports group
+function exportReportsGroup(index) {
+    const group = reportsGroupedData[index];
+    if (group) {
+        generateGroupReport(group);
+    }
+}
+
+// View reports case
+function viewReportsCase(recordId) {
+    if (currentSessionId) {
+        showCaseDetails(currentSessionId, recordId);
+    }
+}
+
+// Update statistics for grouped view
+function updateGroupedStatistics() {
+    if (reportsGroupedData.length === 0) return;
+
+    const totalGroups = reportsGroupedData.length;
+    const totalRecords = reportsGroupedData.reduce((sum, group) => sum + group.record_count, 0);
+    const criticalGroups = reportsGroupedData.filter(group => group.risk_level === 'Critical').length;
+    const highRiskGroups = reportsGroupedData.filter(group => group.risk_level === 'High').length;
+
+    // Update summary cards if they exist
+    const totalGroupsElement = document.getElementById('totalGroups');
+    const totalRecordsElement = document.getElementById('totalRecords');
+    const criticalGroupsElement = document.getElementById('criticalGroups');
+    const highRiskGroupsElement = document.getElementById('highRiskGroups');
+
+    if (totalGroupsElement) totalGroupsElement.textContent = totalGroups;
+    if (totalRecordsElement) totalRecordsElement.textContent = totalRecords.toLocaleString();
+    if (criticalGroupsElement) criticalGroupsElement.textContent = criticalGroups;
+    if (highRiskGroupsElement) highRiskGroupsElement.textContent = highRiskGroups;
+}
