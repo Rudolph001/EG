@@ -4539,7 +4539,7 @@ def reanalyze_session(session_id):
 # Flagged Events API Endpoints
 @app.route('/api/flag-event/<session_id>/<record_id>', methods=['POST'])
 def flag_event(session_id, record_id):
-    """Flag an email event with a custom note"""
+    """Flag all emails from a sender based on a specific record - flags by sender email, not individual record"""
     try:
         data = request.get_json()
         flag_reason = data.get('flag_reason', '').strip()
@@ -4548,17 +4548,30 @@ def flag_event(session_id, record_id):
         if not flag_reason:
             return jsonify({'error': 'Flag reason is required'}), 400
         
-        # Get the email record
+        # Get the email record to identify the sender
         record = EmailRecord.query.filter_by(session_id=session_id, record_id=record_id).first_or_404()
+        sender_email = record.sender
         
-        # Update the email record
-        record.is_flagged = True
-        record.flag_reason = flag_reason
-        record.flagged_at = datetime.utcnow()
-        record.flagged_by = flagged_by
+        if not sender_email:
+            return jsonify({'error': 'No sender email found for this record'}), 400
         
-        # Create or update flagged event entry
-        existing_flag = FlaggedEvent.query.filter_by(sender_email=record.sender).first()
+        # Flag ALL records from this sender in the session
+        records_to_flag = EmailRecord.query.filter_by(
+            sender=sender_email,
+            session_id=session_id
+        ).all()
+        
+        flagged_count = 0
+        for record_item in records_to_flag:
+            record_item.is_flagged = True
+            record_item.flag_reason = flag_reason
+            record_item.flagged_at = datetime.utcnow()
+            record_item.flagged_by = flagged_by
+            record_item.previously_flagged = True
+            flagged_count += 1
+        
+        # Create or update flagged event entry (sender-centric)
+        existing_flag = FlaggedEvent.query.filter_by(sender_email=sender_email).first()
         
         if existing_flag:
             # Update existing flag
@@ -4571,7 +4584,7 @@ def flag_event(session_id, record_id):
         else:
             # Create new flagged event
             flagged_event = FlaggedEvent(
-                sender_email=record.sender,
+                sender_email=sender_email,
                 original_session_id=session_id,
                 original_record_id=record_id,
                 flag_reason=flag_reason,
@@ -4587,12 +4600,14 @@ def flag_event(session_id, record_id):
         
         return jsonify({
             'success': True,
-            'message': f'Event flagged successfully for sender {record.sender}',
-            'flag_reason': flag_reason
+            'message': f'Flagged {flagged_count} emails from sender {sender_email}',
+            'flag_reason': flag_reason,
+            'flagged_count': flagged_count,
+            'sender_email': sender_email
         })
         
     except Exception as e:
-        logger.error(f"Error flagging event: {str(e)}")
+        logger.error(f"Error flagging event by sender: {str(e)}")
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
@@ -4795,26 +4810,46 @@ def whitelist_senders_dashboard():
 
 @app.route('/api/unflag-event/<session_id>/<record_id>', methods=['POST'])
 def unflag_event(session_id, record_id):
-    """Remove flag from an email event"""
+    """Remove flag from all emails from a sender based on a specific record - unflags by sender email, not individual record"""
     try:
-        # Get the email record
+        # Get the email record to identify the sender
         record = EmailRecord.query.filter_by(session_id=session_id, record_id=record_id).first_or_404()
+        sender_email = record.sender
         
-        # Update the email record
-        record.is_flagged = False
-        record.flag_reason = None
-        record.flagged_at = None
-        record.flagged_by = None
+        if not sender_email:
+            return jsonify({'error': 'No sender email found for this record'}), 400
+        
+        # Remove flag from ALL records from this sender in the session
+        records_to_unflag = EmailRecord.query.filter_by(
+            sender=sender_email,
+            session_id=session_id
+        ).all()
+        
+        unflagged_count = 0
+        for record_item in records_to_unflag:
+            record_item.is_flagged = False
+            record_item.flag_reason = None
+            record_item.flagged_at = None
+            record_item.flagged_by = None
+            record_item.previously_flagged = False
+            unflagged_count += 1
+        
+        # Deactivate the flagged event entry for this sender
+        flagged_event = FlaggedEvent.query.filter_by(sender_email=sender_email).first()
+        if flagged_event:
+            flagged_event.is_active = False
         
         db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': 'Flag removed successfully'
+            'message': f'Removed flags from {unflagged_count} emails from sender {sender_email}',
+            'unflagged_count': unflagged_count,
+            'sender_email': sender_email
         })
         
     except Exception as e:
-        logger.error(f"Error removing flag: {str(e)}")
+        logger.error(f"Error unflagging event by sender: {str(e)}")
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 

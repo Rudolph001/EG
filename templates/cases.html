@@ -644,7 +644,7 @@ function debugToggle() {
 // Helper functions for grouped view - removed duplicate function
 
 async function flagSender(senderEmail) {
-    const flagReason = prompt(`Enter reason for flagging all emails from ${senderEmail}:`);
+    const flagReason = prompt(`⚠️ Flag ALL emails from sender: ${senderEmail}\n\nThis will flag ALL emails from this sender in the current session.\n\nEnter reason for flagging:`);
     if (!flagReason) {
         return;
     }
@@ -862,7 +862,7 @@ window.escalateGroup = async function(groupId) {
 window.flagGroup = async function(groupId, senderEmail) {
     console.log('flagGroup called with groupId:', groupId, 'senderEmail:', senderEmail);
     
-    const flagReason = prompt(`Enter reason for flagging all emails in this group from ${senderEmail}:`);
+    const flagReason = prompt(`⚠️ Flag ALL emails from sender: ${senderEmail}\n\nThis will flag ALL emails from this sender in the current session.\n\nEnter reason for flagging:`);
     if (!flagReason) {
         console.log('User cancelled flag action - no reason provided');
         return;
@@ -2419,7 +2419,7 @@ async function submitFlagEvent(sessionId, recordId) {
     const flaggedBy = document.getElementById('flaggedBy').value.trim();
     
     if (!flagReason) {
-        showError('Please provide a reason for flagging this event');
+        showError('Please provide a reason for flagging all emails from this sender');
         return;
     }
     
@@ -2444,7 +2444,7 @@ async function submitFlagEvent(sessionId, recordId) {
             return;
         }
         
-        showSuccess('Event flagged successfully! This sender will be highlighted in future imports.');
+        showSuccess(`✓ Flagged all emails from sender ${data.sender_email} (${data.flagged_count} emails). This sender will be highlighted in future imports.`);
         
         // Close modal and refresh page
         const modal = bootstrap.Modal.getInstance(document.getElementById('flagEventModal'));
@@ -2484,7 +2484,7 @@ async function unflagEvent(sessionId, recordId) {
             return;
         }
         
-        showSuccess('Flag removed successfully');
+        showSuccess(`✓ Removed flags from sender ${data.sender_email} (${data.unflagged_count} emails).`);
         setTimeout(() => {
             location.reload();
         }, 1500);
