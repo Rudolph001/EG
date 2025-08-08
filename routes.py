@@ -90,11 +90,6 @@ def index():
     recent_sessions = ProcessingSession.query.order_by(ProcessingSession.upload_time.desc()).limit(10).all()
     return render_template('index.html', recent_sessions=recent_sessions)
 
-@app.route('/whitelist-domains')
-def whitelist_domains():
-    """Whitelist domains management interface"""
-    return render_template('whitelist_domains.html')
-
 @app.route('/rules')
 def rules():
     """Rules management interface"""
@@ -336,7 +331,7 @@ def api_grouped_cases(session_id):
                     time_key = dt.strftime('%Y-%m-%d %H:00:00')
                 except:
                     time_key = record.time[:16] if record.time else ''
-            
+
             group_key = (
                 record.sender or '',
                 record.subject or '',
@@ -400,7 +395,6 @@ def api_grouped_cases(session_id):
                 }
 
             link_dict[link_key]['weight'] += 1
-
 
         # Convert to list and sort by highest risk score
         grouped_data = []
@@ -2212,7 +2206,7 @@ def bulk_add_ml_keywords():
                 if category not in ["Business", "Personal", "Suspicious", "Exclusion"]:
                     errors.append(f'Invalid category "{category}" for keyword "{keyword_text}"')
                     continue
-                
+
                 if keyword_type not in ["risk", "exclusion"]:
                     errors.append(f'Invalid keyword type "{keyword_type}" for keyword "{keyword_text}"')
                     continue
@@ -2220,7 +2214,7 @@ def bulk_add_ml_keywords():
                 if applies_to not in ["subject", "attachment", "both"]:
                     errors.append(f'Invalid applies_to value "{applies_to}" for keyword "{keyword_text}"')
                     continue
-                
+
                 if match_condition not in ["contains", "equals", "starts_with", "ends_with"]:
                     errors.append(f'Invalid match condition "{match_condition}" for keyword "{keyword_text}"')
                     continue
@@ -2475,7 +2469,7 @@ def processing_status(session_id):
             critical_cases_count = EmailRecord.query.filter_by(
                 session_id=session_id,
                 risk_level='Critical'
-            ).count()
+            ).filter(EmailRecord.whitelisted != True).count()
 
             workflow_stats = {
                 'excluded_count': excluded_count,
@@ -3312,7 +3306,7 @@ def api_grouped_cases(session_id):
                     time_key = dt.strftime('%Y-%m-%d %H:00:00')
                 except:
                     time_key = record.time[:16] if record.time else ''
-            
+
             group_key = (
                 record.sender or '',
                 record.subject or '',
@@ -5187,7 +5181,7 @@ def bulk_add_ml_keywords():
                 if category not in ["Business", "Personal", "Suspicious", "Exclusion"]:
                     errors.append(f'Invalid category "{category}" for keyword "{keyword_text}"')
                     continue
-                
+
                 if keyword_type not in ["risk", "exclusion"]:
                     errors.append(f'Invalid keyword type "{keyword_type}" for keyword "{keyword_text}"')
                     continue
@@ -5195,7 +5189,7 @@ def bulk_add_ml_keywords():
                 if applies_to not in ["subject", "attachment", "both"]:
                     errors.append(f'Invalid applies_to value "{applies_to}" for keyword "{keyword_text}"')
                     continue
-                
+
                 if match_condition not in ["contains", "equals", "starts_with", "ends_with"]:
                     errors.append(f'Invalid match condition "{match_condition}" for keyword "{keyword_text}"')
                     continue
