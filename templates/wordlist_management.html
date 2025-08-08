@@ -45,6 +45,15 @@
         color: #495057;
     }
     
+    .match-condition-badge {
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
+    
     .risk-score {
         font-weight: bold;
         padding: 2px 6px;
@@ -181,6 +190,7 @@
                                                 <div class="mt-1">
                                                     <span class="type-badge type-{{ keyword.keyword_type }}">{{ keyword.keyword_type.title() }}</span>
                                                     <span class="applies-to-badge ms-1">{{ keyword.applies_to }}</span>
+                                                    <span class="match-condition-badge ms-1">{{ keyword.match_condition|default('contains')|replace('_', ' ')|title }}</span>
                                                     <span class="risk-score risk-score-{{ keyword.risk_score }} ms-1">Risk: {{ keyword.risk_score }}</span>
                                                 </div>
                                             </div>
@@ -306,7 +316,7 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label for="keywordCategory" class="form-label">Category</label>
                             <select class="form-select" id="keywordCategory">
                                 <option value="Business">Business</option>
@@ -314,13 +324,23 @@
                                 <option value="Suspicious">Suspicious</option>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label for="appliesTo" class="form-label">Applies To</label>
                             <select class="form-select" id="appliesTo">
                                 <option value="both">Subject & Attachments</option>
                                 <option value="subject">Subject Only</option>
                                 <option value="attachment">Attachments Only</option>
                             </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="matchCondition" class="form-label">Match Condition</label>
+                            <select class="form-select" id="matchCondition">
+                                <option value="contains">Contains</option>
+                                <option value="equals">Equals (Exact)</option>
+                                <option value="starts_with">Starts With</option>
+                                <option value="ends_with">Ends With</option>
+                            </select>
+                            <div class="form-text">How the keyword should be matched in text</div>
                         </div>
                     </div>
 
@@ -332,10 +352,18 @@
                     </div>
 
                     <div class="alert alert-info">
-                        <h6><i class="fas fa-info-circle me-1"></i>Keyword Types</h6>
+                        <h6><i class="fas fa-info-circle me-1"></i>Keyword Configuration</h6>
                         <ul class="mb-0 small">
                             <li><strong>Risk Keywords:</strong> Increase the risk score when found in emails</li>
                             <li><strong>Exclusion Keywords:</strong> Automatically exclude emails from analysis</li>
+                            <li><strong>Match Conditions:</strong> 
+                                <ul class="mt-1">
+                                    <li><em>Contains:</em> Text contains the keyword anywhere</li>
+                                    <li><em>Equals:</em> Text exactly matches the keyword</li>
+                                    <li><em>Starts With:</em> Text begins with the keyword</li>
+                                    <li><em>Ends With:</em> Text ends with the keyword</li>
+                                </ul>
+                            </li>
                             <li><strong>Multi-word phrases:</strong> Supported (e.g., "personal information", "data breach")</li>
                         </ul>
                     </div>
@@ -368,14 +396,14 @@
                         <div class="col-12">
                             <h6 class="text-primary"><i class="fas fa-cog me-2"></i>Default Settings for All Keywords</h6>
                             <div class="row">
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <label for="bulkKeywordType" class="form-label">Type</label>
                                     <select class="form-select" id="bulkKeywordType">
                                         <option value="risk">Risk Keyword</option>
                                         <option value="exclusion">Exclusion Keyword</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <label for="bulkKeywordCategory" class="form-label">Category</label>
                                     <select class="form-select" id="bulkKeywordCategory">
                                         <option value="Business">Business</option>
@@ -391,7 +419,16 @@
                                         <option value="attachment">Attachments Only</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3" id="bulkRiskScoreRow">
+                                <div class="col-md-3">
+                                    <label for="bulkMatchCondition" class="form-label">Match Condition</label>
+                                    <select class="form-select" id="bulkMatchCondition">
+                                        <option value="contains">Contains</option>
+                                        <option value="equals">Equals (Exact)</option>
+                                        <option value="starts_with">Starts With</option>
+                                        <option value="ends_with">Ends With</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2" id="bulkRiskScoreRow">
                                     <label for="bulkRiskScore" class="form-label">Risk Score (1-10)</label>
                                     <input type="number" class="form-control" id="bulkRiskScore" min="1" max="10" value="1">
                                 </div>
@@ -489,6 +526,7 @@ function saveKeyword() {
         keyword_type: document.getElementById('keywordType').value,
         category: document.getElementById('keywordCategory').value,
         applies_to: document.getElementById('appliesTo').value,
+        match_condition: document.getElementById('matchCondition').value,
         risk_score: parseInt(document.getElementById('riskScore').value) || 1
     };
     
@@ -603,16 +641,19 @@ function previewBulkKeywords() {
             <strong>Preview:</strong> ${keywords.length} keywords will be added with these settings:
         </div>
         <div class="row mb-3">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <strong>Type:</strong> <span class="badge bg-${keywordType === 'risk' ? 'primary' : 'warning'}">${keywordType.charAt(0).toUpperCase() + keywordType.slice(1)}</span>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <strong>Category:</strong> <span class="badge bg-secondary">${category}</span>
             </div>
             <div class="col-md-3">
                 <strong>Applies To:</strong> <span class="badge bg-info">${appliesTo}</span>
             </div>
-            ${keywordType === 'risk' ? `<div class="col-md-3"><strong>Risk Score:</strong> <span class="badge bg-danger">${riskScore}</span></div>` : ''}
+            <div class="col-md-3">
+                <strong>Match:</strong> <span class="badge bg-warning">${document.getElementById('bulkMatchCondition').value.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+            </div>
+            ${keywordType === 'risk' ? `<div class="col-md-2"><strong>Risk Score:</strong> <span class="badge bg-danger">${riskScore}</span></div>` : ''}
         </div>
         <div class="keywords-preview">
             <strong>Keywords to add:</strong><br>
@@ -652,6 +693,7 @@ function saveBulkKeywords() {
         default_keyword_type: document.getElementById('bulkKeywordType').value,
         default_category: document.getElementById('bulkKeywordCategory').value,
         default_applies_to: document.getElementById('bulkAppliesTo').value,
+        default_match_condition: document.getElementById('bulkMatchCondition').value,
         default_risk_score: parseInt(document.getElementById('bulkRiskScore').value) || 1
     };
     

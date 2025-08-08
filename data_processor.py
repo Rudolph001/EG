@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import json
@@ -17,8 +16,12 @@ logger = logging.getLogger(__name__)
 
 class DataProcessor:
     """Main data processing engine for CSV files with custom wordlist matching"""
-    
+
     def __init__(self):
+        """Initialize DataProcessor with performance configurations"""
+        self.config = config
+        self.logger = logging.getLogger(__name__)
+        self.logger.info(f"DataProcessor initialized with config: {self._get_config_summary()}")
         self.chunk_size = config.chunk_size
         self.batch_commit_size = config.batch_commit_size
         self.workflow_manager = WorkflowManager()
@@ -28,98 +31,121 @@ class DataProcessor:
         # Cache for datetime parsing optimization
         self._datetime_format_cache = {}
         logger.info(f"DataProcessor initialized with config: {config.__dict__}")
-    
+
+    def _get_config_summary(self):
+        """Provide a summary of key configuration parameters for logging"""
+        return {
+            'chunk_size': self.chunk_size,
+            'batch_commit_size': self.batch_commit_size,
+            'log_level': logger.getEffectiveLevel(),
+            'workflow_manager_enabled': isinstance(self.workflow_manager, WorkflowManager)
+        }
+
+    def _matches_condition(self, text, keyword, match_condition):
+        """Check if text matches keyword based on the specified condition"""
+        text_lower = text.lower()
+        keyword_lower = keyword.lower()
+
+        if match_condition == 'equals':
+            return text_lower == keyword_lower
+        elif match_condition == 'starts_with':
+            return text_lower.startswith(keyword_lower)
+        elif match_condition == 'ends_with':
+            return text_lower.endswith(keyword_lower)
+        else:  # default: contains
+            return keyword_lower in text_lower
+
     def process_csv(self, session_id, file_path):
         """Process CSV file with comprehensive 8-stage workflow and improved error handling"""
         session = None
         try:
             logger.info(f"Starting CSV processing for session {session_id}")
-            
+
             # Initialize workflow with database connection validation
             session = self._get_session_with_retry(session_id)
             if not session:
                 raise Exception(f"Session {session_id} not found")
-            
+
             # Check if processing can be resumed
             if session.status == 'processing' and session.processed_records > 0:
                 logger.info(f"Resuming processing for session {session_id} from record {session.processed_records}")
                 return self._resume_processing(session_id, file_path)
-            
+
             session.status = 'processing'
             session.data_path = file_path
             session.error_message = None
             self._commit_with_retry()
-            
+
             # Initialize 8-stage workflow
             self.workflow_manager.initialize_workflow(session_id)
-            
+
             # Stage 1: Data Ingestion (0-5%)
             self.workflow_manager.start_stage(session_id, 1)
-            
+
             # Count total records first with validation
             total_records = self._count_csv_records_with_validation(file_path)
             session.total_records = total_records
             self._commit_with_retry()
-            
+
             logger.info(f"Processing {total_records} records in chunks of {self.chunk_size}")
-            
+
             processed_count = 0
             current_chunk = 0
-            
+
             # Process file in chunks with enhanced error handling
             try:
                 for chunk_df in pd.read_csv(file_path, chunksize=self.chunk_size):
                     current_chunk += 1
-                    
+
                     # Process chunk with retry mechanism
                     chunk_processed = self._process_chunk_with_retry(session_id, chunk_df, processed_count, current_chunk)
                     processed_count += chunk_processed
-                    
+
                     # Update session less frequently for better performance
                     if current_chunk % 2 == 0 or processed_count >= total_records:
                         session = self._get_session_with_retry(session_id)
                         session.current_chunk = current_chunk
                         session.total_chunks = (total_records // self.chunk_size) + 1
                         session.processed_records = processed_count
-                        
+
                         # Update progress within Data Ingestion stage (0-5%)
                         progress = min(100, (processed_count / total_records) * 100) if total_records > 0 else 100
                         self.workflow_manager.update_stage_progress(session_id, 1, progress)
-                        
+
                         self._commit_with_retry()
-                    
+
                     logger.info(f"Processed chunk {current_chunk}: {processed_count}/{total_records} records")
-                    
+
                     # Yield control less frequently for better performance
                     if current_chunk % 10 == 0:
                         import time
                         time.sleep(0.05)
-                        
+
             except Exception as chunk_error:
                 logger.error(f"Error processing chunks: {str(chunk_error)}")
                 raise Exception(f"Data ingestion failed at chunk {current_chunk}: {str(chunk_error)}")
-            
+
             # Complete Data Ingestion
             self.workflow_manager.complete_stage(session_id, 1)
             logger.info(f"Data Ingestion completed: {processed_count} records processed")
-            
+
             # Apply remaining 7-stage processing workflow
             self._apply_9_stage_workflow(session_id)
-            
+
             # Final completion
             session = self._get_session_with_retry(session_id)
             session.processed_records = processed_count
             session.status = 'completed'
             self._commit_with_retry()
-            
+
             logger.info(f"8-stage CSV processing completed for session {session_id}: {processed_count} records")
-            
+
         except Exception as e:
             logger.error(f"Error processing CSV for session {session_id}: {str(e)}")
             try:
                 if not session:
                     session = self._get_session_with_retry(session_id)
-                
+
                 if session:
                     # Mark current stage as error with detailed message
                     if hasattr(self, 'workflow_manager') and session.current_stage > 0:
@@ -132,7 +158,7 @@ class DataProcessor:
             except Exception as error_handling_exception:
                 logger.error(f"Failed to handle error properly: {str(error_handling_exception)}")
             raise
-    
+
     def _get_session_with_retry(self, session_id, max_retries=3):
         """Get session with database retry mechanism"""
         for attempt in range(max_retries):
@@ -147,7 +173,7 @@ class DataProcessor:
                     continue
                 else:
                     raise Exception(f"Failed to connect to database after {max_retries} attempts")
-    
+
     def _commit_with_retry(self, max_retries=3):
         """Commit database changes with retry mechanism"""
         for attempt in range(max_retries):
@@ -163,18 +189,18 @@ class DataProcessor:
                     continue
                 else:
                     raise Exception(f"Failed to commit to database after {max_retries} attempts")
-    
+
     def _count_csv_records_with_validation(self, file_path):
         """Count total records in CSV file with validation"""
         try:
             # Validate file exists and is readable
             if not os.path.exists(file_path):
                 raise Exception(f"File not found: {file_path}")
-            
+
             # Count records efficiently
             with open(file_path, 'r', encoding='utf-8') as f:
                 return sum(1 for line in f) - 1  # Subtract header
-                
+
         except Exception as e:
             logger.warning(f"Could not count CSV records efficiently: {e}")
             try:
@@ -184,7 +210,7 @@ class DataProcessor:
                 return len(df)
             except Exception as pandas_error:
                 raise Exception(f"Failed to read CSV file: {str(pandas_error)}")
-    
+
     def _process_chunk_with_retry(self, session_id, chunk_df, start_index, chunk_number, max_retries=3):
         """Process a chunk with retry mechanism"""
         for attempt in range(max_retries):
@@ -199,110 +225,110 @@ class DataProcessor:
                     continue
                 else:
                     raise Exception(f"Failed to process chunk {chunk_number} after {max_retries} attempts: {str(e)}")
-    
+
     def _resume_processing(self, session_id, file_path):
         """Resume processing from where it left off"""
         try:
             logger.info(f"Attempting to resume processing for session {session_id}")
-            
+
             session = self._get_session_with_retry(session_id)
             if not session:
                 raise Exception(f"Session {session_id} not found for resume")
-            
+
             # Get current processing state
             processed_records = session.processed_records or 0
             total_records = session.total_records or self._count_csv_records_with_validation(file_path)
-            
+
             # Check if data ingestion is complete
             if processed_records >= total_records:
                 logger.info(f"Data ingestion already complete, proceeding to workflow stages")
                 self.workflow_manager.complete_stage(session_id, 1)
                 self._apply_9_stage_workflow(session_id)
                 return
-            
+
             # Resume data ingestion from current position
             current_chunk = session.current_chunk or 0
-            
+
             logger.info(f"Resuming from record {processed_records}, chunk {current_chunk}")
-            
+
             # Skip to the correct position in file
             chunk_iterator = pd.read_csv(file_path, chunksize=self.chunk_size)
-            
+
             # Skip already processed chunks
             for i in range(current_chunk):
                 try:
                     next(chunk_iterator)
                 except StopIteration:
                     break
-            
+
             # Continue processing from current position
             for chunk_df in chunk_iterator:
                 current_chunk += 1
-                
+
                 chunk_processed = self._process_chunk_with_retry(session_id, chunk_df, processed_records, current_chunk)
                 processed_records += chunk_processed
-                
+
                 # Update session
                 session = self._get_session_with_retry(session_id)
                 session.current_chunk = current_chunk
                 session.processed_records = processed_records
-                
+
                 # Update progress
                 progress = min(100, (processed_records / total_records) * 100) if total_records > 0 else 100
                 self.workflow_manager.update_stage_progress(session_id, 1, progress)
-                
+
                 self._commit_with_retry()
-                
+
                 logger.info(f"Resumed chunk {current_chunk}: {processed_records}/{total_records} records")
-            
+
             # Complete data ingestion and continue with workflow
             self.workflow_manager.complete_stage(session_id, 1)
             self._apply_9_stage_workflow(session_id)
-            
+
             logger.info(f"Resume processing completed for session {session_id}")
-            
+
         except Exception as e:
             logger.error(f"Error resuming processing: {str(e)}")
             raise
-    
+
     def _count_csv_records(self, file_path):
         """Count total records in CSV file (legacy method)"""
         return self._count_csv_records_with_validation(file_path)
-    
+
     def _process_chunk(self, session_id, chunk_df, start_index):
         """Process a chunk of data with custom wordlist matching"""
         try:
             records_to_add = []
-            
+
             for idx, row in chunk_df.iterrows():
                 try:
                     # Create email record with custom wordlist analysis
                     record = self._create_email_record(session_id, row, start_index + idx)
                     records_to_add.append(record)
-                    
+
                     # Batch commit for performance
                     if len(records_to_add) >= self.batch_commit_size:
                         db.session.add_all(records_to_add)
                         db.session.commit()
                         records_to_add = []
-                        
+
                 except Exception as e:
                     logger.warning(f"Error processing record at index {idx}: {str(e)}")
                     self._log_processing_error(session_id, 'record_processing', str(e), row.to_dict())
                     continue
-            
+
             # Commit remaining records
             if records_to_add:
                 db.session.add_all(records_to_add)
                 db.session.commit()
-            
+
             return len(chunk_df)
-            
+
         except Exception as e:
             logger.error(f"Error processing chunk: {str(e)}")
             db.session.rollback()
             raise
-    
+
     def _create_email_record(self, session_id, row, record_index):
         """Create email record with custom wordlist analysis"""
         # Extract basic fields using correct CSV column names
@@ -325,13 +351,13 @@ class DataProcessor:
             'justification': str(row.get('justification', '')),
             'policy_name': str(row.get('policy_name', 'Standard'))
         }
-        
+
         # Skip wordlist analysis during data ingestion for speed
         # This will be done in Stage 5 (Wordlist Analysis) instead
         # No additional fields needed - using existing model fields
-        
+
         return EmailRecord(**record_data)
-    
+
     def _get_cached_keywords(self):
         """Get cached keywords to avoid repeated database queries"""
         if self._risk_keywords_cache is None or self._exclusion_keywords_cache is None:
@@ -339,40 +365,63 @@ class DataProcessor:
                 is_active=True,
                 keyword_type='risk'
             ).all()
-            
+
             self._exclusion_keywords_cache = AttachmentKeyword.query.filter_by(
                 is_active=True,
                 keyword_type='exclusion'
             ).all()
-            
+
             logger.info(f"Cached {len(self._risk_keywords_cache)} risk keywords and {len(self._exclusion_keywords_cache)} exclusion keywords")
-        
+
         return self._risk_keywords_cache, self._exclusion_keywords_cache
-    
+
     def _analyze_record_keywords(self, record, keywords):
         """Analyze a single record against a list of keywords"""
         subject_matches = []
         attachment_matches = []
-        
+
         try:
             # Get text content to analyze
             subject_text = (record.subject or '').lower()
             attachment_text = (record.attachments or '').lower()
-            
+
             for keyword_obj in keywords:
                 keyword = keyword_obj.keyword.lower()
-                applies_to = keyword_obj.applies_to
-                
-                # Check if keyword matches (support both single words and multi-word phrases)
-                if applies_to in ['subject', 'both'] and keyword in subject_text:
-                    subject_matches.append(keyword_obj.keyword)  # Store original case
-                
-                if applies_to in ['attachment', 'both'] and keyword in attachment_text:
-                    attachment_matches.append(keyword_obj.keyword)  # Store original case
-            
+                applies_to = getattr(keyword_obj, 'applies_to', 'both')
+                match_condition = getattr(keyword_obj, 'match_condition', 'contains')
+
+                # Check for matches in subject and attachments
+                subject_matches = []
+                attachment_matches = []
+
+                for keyword_obj in keywords:
+                    keyword = keyword_obj.keyword.lower()
+                    applies_to = getattr(keyword_obj, 'applies_to', 'both')
+                    match_condition = getattr(keyword_obj, 'match_condition', 'contains')
+
+                    # Check subject
+                    if applies_to in ['subject', 'both'] and subject_text:
+                        if self._matches_condition(subject_text, keyword, match_condition):
+                            subject_matches.append({
+                                'keyword': keyword_obj.keyword,
+                                'category': keyword_obj.category,
+                                'score': keyword_obj.risk_score,
+                                'match_condition': match_condition
+                            })
+
+                    # Check attachments
+                    if applies_to in ['attachment', 'both'] and attachment_text:
+                        if self._matches_condition(attachment_text, keyword, match_condition):
+                            attachment_matches.append({
+                                'keyword': keyword_obj.keyword,
+                                'category': keyword_obj.category,
+                                'score': keyword_obj.risk_score,
+                                'match_condition': match_condition
+                            })
+
         except Exception as e:
             logger.warning(f"Error analyzing keywords for record {record.record_id}: {str(e)}")
-        
+
         return subject_matches, attachment_matches
 
     def _analyze_exclusion_keywords_smart(self, record, exclusion_keywords):
@@ -384,95 +433,95 @@ class DataProcessor:
                 'matched_keywords': [],
                 'attachment_analysis': []
             }
-            
+
             # Analyze subject first
             subject_text = (record.subject or '').lower()
             subject_matches = []
-            
+
             for keyword_obj in exclusion_keywords:
                 if keyword_obj.applies_to in ['subject', 'both']:
                     keyword = keyword_obj.keyword.lower()
                     if keyword in subject_text:
                         subject_matches.append(keyword_obj.keyword)
-            
+
             # If subject has exclusion keywords, exclude entire email
             if subject_matches:
                 result['should_exclude'] = True
                 result['exclusion_reason'] = f"Exclusion keywords in subject: {', '.join(subject_matches)}"
                 result['matched_keywords'] = subject_matches
                 return result
-            
+
             # Smart attachment analysis
             attachments_text = record.attachments or ''
-            
+
             # Handle empty or null attachments
             if not attachments_text or attachments_text.lower() in ['nan', 'none', 'null', '']:
                 return result
-            
+
             # Split attachments by common delimiters
             attachment_list = self._parse_attachment_list(attachments_text)
-            
+
             exclusion_attachments = []
             safe_attachments = []
-            
+
             # Analyze each attachment individually
             for attachment in attachment_list:
                 attachment_lower = attachment.lower().strip()
                 has_exclusion = False
                 matched_exclusion_keywords = []
-                
+
                 for keyword_obj in exclusion_keywords:
                     if keyword_obj.applies_to in ['attachment', 'both']:
                         keyword = keyword_obj.keyword.lower()
                         if keyword in attachment_lower:
                             has_exclusion = True
                             matched_exclusion_keywords.append(keyword_obj.keyword)
-                
+
                 attachment_info = {
                     'name': attachment.strip(),
                     'has_exclusion': has_exclusion,
                     'exclusion_keywords': matched_exclusion_keywords
                 }
-                
+
                 result['attachment_analysis'].append(attachment_info)
-                
+
                 if has_exclusion:
                     exclusion_attachments.append(attachment.strip())
                     result['matched_keywords'].extend(matched_exclusion_keywords)
                 else:
                     safe_attachments.append(attachment.strip())
-            
+
             # Exclusion Logic Options:
             # Option 1: STRICT - Exclude if ANY attachment has exclusion keywords (current behavior)
             # Option 2: PERMISSIVE - Only exclude if ALL attachments have exclusion keywords
             # Option 3: SMART - Exclude based on risk assessment
-            
+
             exclusion_mode = self._get_exclusion_mode()  # Can be configured
-            
+
             if exclusion_mode == 'strict' or exclusion_mode == 'default':
                 # Exclude if any attachment matches exclusion keywords
                 if exclusion_attachments:
                     result['should_exclude'] = True
                     result['exclusion_reason'] = f"Exclusion keywords in attachments: {', '.join(set(result['matched_keywords']))} (affected files: {', '.join(exclusion_attachments[:3])}{'...' if len(exclusion_attachments) > 3 else ''})"
-            
+
             elif exclusion_mode == 'permissive':
                 # Only exclude if ALL attachments have exclusion keywords
                 if exclusion_attachments and not safe_attachments:
                     result['should_exclude'] = True
                     result['exclusion_reason'] = f"All attachments contain exclusion keywords: {', '.join(set(result['matched_keywords']))}"
-            
+
             elif exclusion_mode == 'smart':
                 # Smart mode: exclude based on ratio and risk assessment
                 total_attachments = len(attachment_list)
                 exclusion_ratio = len(exclusion_attachments) / total_attachments if total_attachments > 0 else 0
-                
+
                 # Exclude if >50% of attachments have exclusion keywords OR if high-risk patterns detected
                 if exclusion_ratio > 0.5 or self._has_high_risk_exclusion_pattern(exclusion_attachments, result['matched_keywords']):
                     result['should_exclude'] = True
                     result['exclusion_reason'] = f"Smart exclusion: {len(exclusion_attachments)}/{total_attachments} attachments flagged for keywords: {', '.join(set(result['matched_keywords']))}"
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Error in smart exclusion keyword analysis for record {record.record_id}: {str(e)}")
             return {'should_exclude': False, 'exclusion_reason': '', 'matched_keywords': [], 'attachment_analysis': []}
@@ -481,27 +530,27 @@ class DataProcessor:
         """Parse attachment text into individual attachment names"""
         if not attachments_text:
             return []
-        
+
         # Common delimiters for attachment lists
         delimiters = [',', ';', '|', '\n', '\r\n']
-        
+
         # Start with the full text
         attachment_list = [attachments_text]
-        
+
         # Split by each delimiter
         for delimiter in delimiters:
             new_list = []
             for item in attachment_list:
                 new_list.extend([part.strip() for part in item.split(delimiter) if part.strip()])
             attachment_list = new_list
-        
+
         # Filter out empty items and common non-attachment text
         filtered_list = []
         for item in attachment_list:
             item = item.strip()
             if item and item.lower() not in ['none', 'null', 'nan', '', 'no attachments']:
                 filtered_list.append(item)
-        
+
         return filtered_list if filtered_list else [attachments_text.strip()]
 
     def _get_exclusion_mode(self):
@@ -514,36 +563,36 @@ class DataProcessor:
         """Detect high-risk patterns that should always trigger exclusion"""
         high_risk_keywords = ['malware', 'virus', 'trojan', 'backdoor', 'exploit']
         high_risk_extensions = ['.exe', '.scr', '.bat', '.cmd']
-        
+
         # Check for high-risk keywords
         for keyword in matched_keywords:
             if any(risk_word in keyword.lower() for risk_word in high_risk_keywords):
                 return True
-        
+
         # Check for high-risk file extensions
         for attachment in exclusion_attachments:
             if any(attachment.lower().endswith(ext) for ext in high_risk_extensions):
                 return True
-        
+
         return False
-    
+
     def _apply_custom_wordlist_analysis(self, record_data):
         """Legacy method - wordlist analysis now done in Stage 5"""
         # Wordlist analysis moved to Stage 5 for better performance and accuracy
         pass
-    
+
     def _parse_datetime(self, date_value):
         """Parse datetime with caching and malformed timestamp handling"""
         if pd.isna(date_value) or date_value is None or str(date_value).strip() == '':
             return None
-        
+
         date_str = str(date_value).strip()
-        
+
         # Fix malformed timestamps before parsing
         date_str = self._sanitize_timestamp(date_str)
         if not date_str:
             return None
-        
+
         # Check cache first
         if date_str in self._datetime_format_cache:
             fmt = self._datetime_format_cache[date_str]
@@ -552,7 +601,7 @@ class DataProcessor:
             except ValueError:
                 # Cache was wrong, remove it
                 del self._datetime_format_cache[date_str]
-        
+
         try:
             if isinstance(date_value, str) or isinstance(date_str, str):
                 # Try common formats (prioritize most likely)
@@ -569,7 +618,7 @@ class DataProcessor:
                     '%d/%m/%Y %H:%M:%S',
                     '%d/%m/%Y'
                 ]
-                
+
                 for fmt in formats:
                     try:
                         result = datetime.strptime(date_str, fmt)
@@ -578,7 +627,7 @@ class DataProcessor:
                         return result
                     except ValueError:
                         continue
-                
+
                 # If all formats fail, return None
                 logger.warning(f"Could not parse date: {date_value}")
                 return None
@@ -593,15 +642,15 @@ class DataProcessor:
         """Sanitize malformed timestamps to fix common data quality issues"""
         if not timestamp_str:
             return None
-            
+
         try:
             import re
-            
+
             # Fix malformed seconds field (e.g., "12:12:700" -> "12:12:07.000")
             # Pattern: HH:MM:SSS where SSS is 3 digits but might be invalid seconds
             pattern = r'(\d{1,2}):(\d{1,2}):(\d{3})(\+\d{4})?'
             match = re.search(pattern, timestamp_str)
-            
+
             if match:
                 hour, minute, invalid_seconds, timezone = match.groups()
                 # Check if this is actually milliseconds that got misplaced
@@ -611,89 +660,89 @@ class DataProcessor:
                         # This is likely malformed - treat first 2 digits as seconds, last as milliseconds
                         seconds = invalid_seconds[:2]
                         milliseconds = invalid_seconds[2:] + "00"  # Pad to 3 digits
-                        
+
                         # Validate seconds
                         if int(seconds) > 59:
                             seconds = str(int(seconds) % 60).zfill(2)
-                        
+
                         corrected_time = f"{hour}:{minute}:{seconds}.{milliseconds}"
                         if timezone:
                             corrected_time += timezone
-                            
+
                         timestamp_str = timestamp_str.replace(match.group(0), corrected_time)
                         logger.debug(f"Fixed malformed timestamp: {match.group(0)} -> {corrected_time}")
-            
+
             # Handle cases where timezone format might need adjustment
             # Python's %z expects format like +0200, ensure it's properly formatted
             if re.search(r'\+\d{4}$', timestamp_str):
                 # Keep timezone as-is since our parser now supports it
                 pass
-            
+
             return timestamp_str.strip()
-            
+
         except Exception as e:
             logger.warning(f"Error sanitizing timestamp {timestamp_str}: {str(e)}")
             return timestamp_str
-    
+
     def _apply_9_stage_workflow(self, session_id):
         """Apply the comprehensive 9-stage processing workflow"""
         try:
             logger.info(f"Starting 9-stage workflow for session {session_id}")
-            
+
             # Stage 2: Exclusion Rules (5-20%)
             self.workflow_manager.start_stage(session_id, 2)
             self._apply_exclusion_rules(session_id)
             self.workflow_manager.complete_stage(session_id, 2)
-            
+
             # Stage 3: Whitelist Filtering (20-35%)
             self.workflow_manager.start_stage(session_id, 3)
             self._apply_whitelist_filtering(session_id)
             self.workflow_manager.complete_stage(session_id, 3)
-            
+
             # Stage 4: Security Rules (35-50%)
             self.workflow_manager.start_stage(session_id, 4)
             self._apply_security_rules(session_id)
             self.workflow_manager.complete_stage(session_id, 4)
-            
+
             # Stage 5: Risk Keywords (50-60%)
             self.workflow_manager.start_stage(session_id, 5)
             self._apply_risk_keywords(session_id)
             self.workflow_manager.complete_stage(session_id, 5)
-            
+
             # Stage 6: Exclusion Keywords (60-70%)
             self.workflow_manager.start_stage(session_id, 6)
             self._apply_exclusion_keywords(session_id)
             self.workflow_manager.complete_stage(session_id, 6)
-            
+
             # Stage 7: Flag Matching (70-75%)
             self.workflow_manager.start_stage(session_id, 7)
             self._check_flagged_senders(session_id)
             self.workflow_manager.complete_stage(session_id, 7)
-            
+
             # Stage 8: ML Analysis (75-85%)
             self.workflow_manager.start_stage(session_id, 8)
             self._apply_ml_analysis(session_id)
             self.workflow_manager.complete_stage(session_id, 8)
-            
+
             # Stage 9: Case Generation (85-95%)
             self.workflow_manager.start_stage(session_id, 9)
             self._generate_cases(session_id)
             self.workflow_manager.complete_stage(session_id, 9)
-            
+
             # Stage 10: Final Validation (95-100%)
             self.workflow_manager.start_stage(session_id, 10)
             self._final_validation(session_id)
             self.workflow_manager.complete_stage(session_id, 10)
-            
+
             logger.info(f"10-stage workflow completed for session {session_id}")
-            
+
         except Exception as e:
             logger.error(f"Error in workflow for session {session_id}: {str(e)}")
             session = ProcessingSession.query.get(session_id)
             if session and session.current_stage > 0:
                 self.workflow_manager.error_stage(session_id, session.current_stage, str(e))
             raise
-    
+
     def _apply_exclusion_rules(self, session_id):
         """Stage 2: Apply exclusion rules"""
         try:
@@ -705,70 +754,70 @@ class DataProcessor:
         except Exception as e:
             logger.error(f"Error in exclusion rules stage: {str(e)}")
             raise
-    
+
     def _apply_whitelist_filtering(self, session_id):
         """Stage 3: Apply whitelist filtering (domains and senders)"""
         try:
             from domain_manager import DomainManager
             from datetime import datetime
-            
+
             domain_manager = DomainManager()
-            
+
             # Apply domain whitelist first
             domain_whitelisted_count = domain_manager.apply_whitelist_filtering(session_id)
             logger.info(f"Domain whitelist applied: {domain_whitelisted_count} records whitelisted")
-            
+
             # Apply sender whitelist filtering
             sender_whitelisted_count = self._apply_sender_whitelist_filtering(session_id)
             logger.info(f"Sender whitelist applied: {sender_whitelisted_count} records whitelisted")
-            
+
             total_whitelisted = domain_whitelisted_count + sender_whitelisted_count
             logger.info(f"Total whitelist filtering completed: {total_whitelisted} records whitelisted")
-            
+
             self._mark_workflow_step_completed(session_id, 'whitelist_applied')
-            
+
         except Exception as e:
             logger.error(f"Error in whitelist filtering stage: {str(e)}")
             raise
-            
+
     def _apply_sender_whitelist_filtering(self, session_id):
         """Apply sender email whitelist filtering"""
         try:
             # Get all active whitelisted senders
             whitelisted_senders = db.session.query(WhitelistSender).filter_by(is_active=True).all()
-            
+
             if not whitelisted_senders:
                 logger.info("No active whitelisted senders found")
                 return 0
-            
+
             # Create a set of whitelisted email addresses for quick lookup (case-insensitive)
             whitelisted_emails = {sender.email_address.lower() for sender in whitelisted_senders}
             logger.info(f"Found {len(whitelisted_emails)} active whitelisted senders")
-            
+
             # Get all records for this session that are not already whitelisted or excluded
             records = db.session.query(EmailRecord).filter_by(
                 session_id=session_id,
                 whitelisted=False
             ).filter(EmailRecord.excluded_by_rule.is_(None)).all()
-            
+
             if not records:
                 logger.info("No eligible records found for sender whitelist filtering")
                 return 0
-            
+
             whitelisted_count = 0
-            
+
             # Process records in batches for better performance
             batch_size = 1000
             for i in range(0, len(records), batch_size):
                 batch_records = records[i:i + batch_size]
-                
+
                 for record in batch_records:
                     if record.sender and record.sender.lower() in whitelisted_emails:
                         # Mark record as whitelisted
                         record.whitelisted = True
                         record.case_status = 'Cleared'  # Auto-clear whitelisted records
                         record.resolved_at = datetime.utcnow()
-                        
+
                         # Update sender whitelist statistics
                         sender_entry = next(
                             (s for s in whitelisted_senders if s.email_address.lower() == record.sender.lower()),
@@ -777,22 +826,22 @@ class DataProcessor:
                         if sender_entry:
                             sender_entry.times_excluded += 1
                             sender_entry.last_excluded = datetime.utcnow()
-                        
+
                         whitelisted_count += 1
                         logger.debug(f"Whitelisted record {record.record_id} from sender {record.sender}")
-                
+
                 # Commit batch
                 db.session.commit()
                 logger.info(f"Processed sender whitelist batch {i//batch_size + 1}: {min(i + batch_size, len(records))}/{len(records)} records")
-            
+
             logger.info(f"Sender whitelist filtering completed: {whitelisted_count} records whitelisted")
             return whitelisted_count
-            
+
         except Exception as e:
             logger.error(f"Error in sender whitelist filtering: {str(e)}")
             db.session.rollback()
             raise
-    
+
     def _apply_security_rules(self, session_id):
         """Stage 4: Apply security rules"""
         try:
@@ -804,156 +853,159 @@ class DataProcessor:
         except Exception as e:
             logger.error(f"Error in security rules stage: {str(e)}")
             raise
-    
+
     def _apply_risk_keywords(self, session_id):
         """Stage 5: Apply risk keywords analysis and scoring"""
         try:
             logger.info(f"Starting risk keywords analysis for session {session_id}")
-            
+
             # Get active risk keywords from AttachmentKeyword model
             risk_keywords = AttachmentKeyword.query.filter_by(is_active=True, keyword_type='risk').all()
             if not risk_keywords:
                 logger.warning("No active risk keywords found in AttachmentKeyword table")
                 return
-            
+
             logger.info(f"Found {len(risk_keywords)} active risk keywords for analysis")
-            
+
             # Get records to analyze (not excluded)
             records = EmailRecord.query.filter_by(session_id=session_id).filter(
                 db.or_(EmailRecord.excluded_by_rule.is_(None), EmailRecord.excluded_by_rule == '')
             ).all()
             logger.info(f"Analyzing {len(records)} non-excluded records for risk keywords")
-            
+
             risk_matches_count = 0
-            
+
             # Process records in batches for performance
             batch_size = 1000
             for i in range(0, len(records), batch_size):
                 batch_records = records[i:i + batch_size]
-                
+
                 for record in batch_records:
                     # Analyze risk keywords
                     subject_matches, attachment_matches = self._analyze_record_keywords(record, risk_keywords)
-                    
+
                     if subject_matches or attachment_matches:
-                        record.wordlist_subject = ', '.join(subject_matches) if subject_matches else None
-                        record.wordlist_attachment = ', '.join(attachment_matches) if attachment_matches else None
-                        
+                        record.wordlist_subject = ', '.join([m['keyword'] for m in subject_matches]) if subject_matches else None
+                        record.wordlist_attachment = ', '.join([m['keyword'] for m in attachment_matches]) if attachment_matches else None
+
                         # Calculate risk score based on matched keywords
                         max_risk_score = 0
                         for keyword_obj in risk_keywords:
-                            if keyword_obj.keyword in (subject_matches + attachment_matches):
-                                max_risk_score = max(max_risk_score, keyword_obj.risk_score or 1)
-                        
+                            # Check against all matched keywords, considering their match conditions
+                            for match_data in subject_matches + attachment_matches:
+                                if keyword_obj.keyword == match_data['keyword'] and keyword_obj.match_condition == match_data['match_condition']:
+                                    max_risk_score = max(max_risk_score, keyword_obj.risk_score or 1)
+                                    break # Found a match for this keyword_obj, move to next
+
                         # Store the highest risk score from matched keywords
                         if max_risk_score > 0:
                             record.ml_risk_score = min(1.0, max_risk_score / 10.0)  # Normalize to 0-1 scale
-                        
+
                         risk_matches_count += 1
-                
+
                 # Commit batch
                 db.session.commit()
                 logger.info(f"Processed risk keywords batch {i//batch_size + 1}: {min(i + batch_size, len(records))}/{len(records)} records")
-            
+
             logger.info(f"Risk keywords analysis completed: {risk_matches_count} records with risk keyword matches")
-            
+
         except Exception as e:
             logger.error(f"Error in risk keywords analysis stage: {str(e)}")
             db.session.rollback()
             raise
-    
+
     def _apply_exclusion_keywords(self, session_id):
         """Stage 6: Apply exclusion keywords to exclude emails with smart multi-attachment handling"""
         try:
             logger.info(f"Starting exclusion keywords analysis for session {session_id}")
-            
+
             # Get active exclusion keywords from AttachmentKeyword model
             exclusion_keywords = AttachmentKeyword.query.filter_by(is_active=True, keyword_type='exclusion').all()
             if not exclusion_keywords:
                 logger.warning("No active exclusion keywords found in AttachmentKeyword table")
                 return
-            
+
             logger.info(f"Found {len(exclusion_keywords)} active exclusion keywords for analysis")
-            
+
             # Get records to analyze (not already excluded)
             records = EmailRecord.query.filter_by(session_id=session_id).filter(
                 db.or_(EmailRecord.excluded_by_rule.is_(None), EmailRecord.excluded_by_rule == '')
             ).all()
             logger.info(f"Analyzing {len(records)} non-excluded records for exclusion keywords")
-            
+
             exclusion_matches_count = 0
-            
+
             # Process records in batches for performance
             batch_size = 1000
             for i in range(0, len(records), batch_size):
                 batch_records = records[i:i + batch_size]
-                
+
                 for record in batch_records:
                     # Apply smart exclusion keyword logic for multiple attachments
                     exclusion_result = self._analyze_exclusion_keywords_smart(record, exclusion_keywords)
-                    
+
                     if exclusion_result['should_exclude']:
                         record.excluded_by_rule = exclusion_result['exclusion_reason']
                         exclusion_matches_count += 1
                         logger.debug(f"Record {record.record_id} excluded: {exclusion_result['exclusion_reason']}")
-                
+
                 # Commit batch
                 db.session.commit()
                 logger.info(f"Processed exclusion keywords batch {i//batch_size + 1}: {min(i + batch_size, len(records))}/{len(records)} records")
-            
+
             logger.info(f"Exclusion keywords analysis completed: {exclusion_matches_count} records excluded by keywords")
-            
+
         except Exception as e:
             logger.error(f"Error in exclusion keywords analysis stage: {str(e)}")
             db.session.rollback()
             raise
-    
+
     def _check_flagged_senders(self, session_id):
         """Stage 7: Check for previously flagged senders"""
         try:
             from models import FlaggedEvent
-            
+
             logger.info(f"Starting flagged sender check for session {session_id}")
-            
+
             # Get all active flagged events
             flagged_events = FlaggedEvent.query.filter_by(is_active=True).all()
             if not flagged_events:
                 logger.info("No flagged events found")
                 return
-            
+
             flagged_senders = {event.sender_email.lower(): event for event in flagged_events}
             logger.info(f"Found {len(flagged_senders)} flagged senders to check against")
-            
+
             # Get records from current session
             records = EmailRecord.query.filter_by(session_id=session_id).all()
             matches_count = 0
-            
+
             # Process records in batches
             batch_size = 1000
             for i in range(0, len(records), batch_size):
                 batch_records = records[i:i + batch_size]
-                
+
                 for record in batch_records:
                     if record.sender and record.sender.lower() in flagged_senders:
                         flag_event = flagged_senders[record.sender.lower()]
-                        
+
                         # Mark as previously flagged if not already flagged in current session
                         if not record.is_flagged:
                             record.previously_flagged = True
                             matches_count += 1
                             logger.debug(f"Marked record {record.record_id} as previously flagged (sender: {record.sender})")
-                
+
                 # Commit batch
                 db.session.commit()
                 logger.info(f"Processed flag check batch {i//batch_size + 1}: {min(i + batch_size, len(records))}/{len(records)} records")
-            
+
             logger.info(f"Flagged sender check completed: {matches_count} records marked as previously flagged")
-            
+
         except Exception as e:
             logger.error(f"Error in flagged sender check stage: {str(e)}")
             db.session.rollback()
             raise
-    
+
     def _apply_ml_analysis(self, session_id):
         """Stage 8: Apply ML analysis"""
         try:
@@ -965,7 +1017,7 @@ class DataProcessor:
         except Exception as e:
             logger.error(f"Error in ML analysis stage: {str(e)}")
             raise
-    
+
     def _generate_cases(self, session_id):
         """Stage 8: Generate security cases"""
         try:
@@ -976,20 +1028,20 @@ class DataProcessor:
         except Exception as e:
             logger.error(f"Error in case generation stage: {str(e)}")
             raise
-    
+
     def _final_validation(self, session_id):
         """Stage 9: Final validation and cleanup"""
         try:
             session = ProcessingSession.query.get(session_id)
             if not session:
                 raise Exception(f"Session {session_id} not found")
-            
+
             # Validate processing results
             total_records = EmailRecord.query.filter_by(session_id=session_id).count()
             analyzed_records = EmailRecord.query.filter_by(session_id=session_id).filter(
                 EmailRecord.ml_risk_score.isnot(None)
             ).count()
-            
+
             # Update final statistics
             session.processing_stats = {
                 'total_records': total_records,
@@ -997,10 +1049,10 @@ class DataProcessor:
                 'analysis_rate': (analyzed_records / total_records * 100) if total_records > 0 else 0,
                 'workflow_completed': True
             }
-            
+
             db.session.commit()
             logger.info(f"Final validation completed: {total_records} total, {analyzed_records} analyzed")
-            
+
         except Exception as e:
             logger.error(f"Error in final validation stage: {str(e)}")
             raise
@@ -1009,56 +1061,56 @@ class DataProcessor:
         """Apply complete processing workflow (Legacy method)"""
         try:
             logger.info(f"Starting legacy processing workflow for session {session_id}")
-            
+
             # Import required engines
             from rule_engine import RuleEngine
             from domain_manager import DomainManager
             from ml_engine import MLEngine
-            
+
             rule_engine = RuleEngine()
             domain_manager = DomainManager()
             ml_engine = MLEngine()
-            
+
             # Step 1: Apply exclusion rules
             if not self._is_workflow_step_completed(session_id, 'exclusion_applied'):
                 excluded_count = rule_engine.apply_exclusion_rules(session_id)
                 logger.info(f"Exclusion rules applied: {excluded_count} records excluded")
                 self._mark_workflow_step_completed(session_id, 'exclusion_applied')
-            
+
             # Step 2: Apply domain whitelist
             if not self._is_workflow_step_completed(session_id, 'whitelist_applied'):
                 whitelisted_count = domain_manager.apply_whitelist_filtering(session_id)
                 logger.info(f"Domain whitelist applied: {whitelisted_count} records whitelisted")
                 self._mark_workflow_step_completed(session_id, 'whitelist_applied')
-            
+
             # Step 3: Apply security rules
             if not self._is_workflow_step_completed(session_id, 'rules_applied'):
                 flagged_count = rule_engine.apply_security_rules(session_id)
                 logger.info(f"Security rules applied: {flagged_count} records flagged")
                 self._mark_workflow_step_completed(session_id, 'rules_applied')
-            
+
             # Step 4: Apply ML analysis
             if not self._is_workflow_step_completed(session_id, 'ml_applied'):
                 analyzed_count = ml_engine.analyze_session(session_id)
                 logger.info(f"ML analysis applied: {analyzed_count} records analyzed")
                 self._mark_workflow_step_completed(session_id, 'ml_applied')
-            
+
         except Exception as e:
             logger.error(f"Error in processing workflow for session {session_id}: {str(e)}")
             raise
-    
+
     def _is_workflow_step_completed(self, session_id, step_name):
         """Check if a workflow step has been completed"""
         session = ProcessingSession.query.get(session_id)
         return getattr(session, step_name, False) if session else False
-    
+
     def _mark_workflow_step_completed(self, session_id, step_name):
         """Mark a workflow step as completed"""
         session = ProcessingSession.query.get(session_id)
         if session:
             setattr(session, step_name, True)
             db.session.commit()
-    
+
     def _log_processing_error(self, session_id, error_type, error_message, record_data=None):
         """Log processing error to database"""
         try:
@@ -1072,14 +1124,14 @@ class DataProcessor:
             db.session.commit()
         except Exception as e:
             logger.error(f"Failed to log processing error: {str(e)}")
-    
+
     def get_processing_summary(self, session_id):
         """Get processing summary for a session"""
         try:
             session = ProcessingSession.query.get(session_id)
             if not session:
                 return None
-            
+
             total_records = EmailRecord.query.filter_by(session_id=session_id).count()
             excluded_records = EmailRecord.query.filter(
                 EmailRecord.session_id == session_id,
@@ -1093,7 +1145,7 @@ class DataProcessor:
                 EmailRecord.session_id == session_id,
                 EmailRecord.ml_risk_score.isnot(None)
             ).count()
-            
+
             return {
                 'session_id': session_id,
                 'filename': session.filename,
@@ -1110,7 +1162,7 @@ class DataProcessor:
                     'ml_applied': session.ml_applied
                 }
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting processing summary for session {session_id}: {str(e)}")
             return None

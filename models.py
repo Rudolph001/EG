@@ -128,6 +128,7 @@ class AttachmentKeyword(db.Model):
     category = db.Column(db.String(50))  # Suspicious, Personal, etc.
     risk_score = db.Column(db.Float, default=0.5)
     applies_to = db.Column(db.String(20), default='both')  # subject, attachment, both
+    match_condition = db.Column(db.String(20), default='contains')  # contains, equals, starts_with, ends_with
     is_active = db.Column(db.Boolean, default=True)
     added_by = db.Column(db.String(255))
     added_at = db.Column(db.DateTime, default=datetime.utcnow)
