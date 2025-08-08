@@ -6,9 +6,11 @@
 // Global variables
 let allCases = [];
 let filteredCases = [];
+let groupedCases = [];
 let selectedCases = new Set();
 let charts = {};
 let sessionId = '';
+let currentViewMode = 'individual';
 
 // Initialize dashboard
 function initializeReportsDashboard() {
@@ -19,6 +21,7 @@ function initializeReportsDashboard() {
     loadCasesData();
     initializeEventListeners();
     updateSelection();
+    initializeViewModeToggle();
 }
 
 // Load cases data from API
@@ -42,6 +45,225 @@ function loadCasesData() {
             console.error('Error loading cases data:', error);
             showNotification('Error loading dashboard data', 'error');
         });
+}
+
+// Load grouped cases data from API
+function loadGroupedCasesData() {
+    fetch(`/api/grouped-cases/${sessionId}`)
+        .then(response => response.json())
+        .then(data => {
+            groupedCases = data.grouped_cases || [];
+            renderGroupedCases();
+        })
+        .catch(error => {
+            console.error('Error loading grouped cases data:', error);
+            showNotification('Error loading grouped cases data', 'error');
+        });
+}
+
+// Initialize view mode toggle
+function initializeViewModeToggle() {
+    const individualViewRadio = document.getElementById('individualView');
+    const groupedViewRadio = document.getElementById('groupedView');
+    
+    individualViewRadio.addEventListener('change', function() {
+        if (this.checked) {
+            currentViewMode = 'individual';
+            switchToIndividualView();
+        }
+    });
+    
+    groupedViewRadio.addEventListener('change', function() {
+        if (this.checked) {
+            currentViewMode = 'grouped';
+            switchToGroupedView();
+        }
+    });
+}
+
+// Switch to individual view
+function switchToIndividualView() {
+    document.getElementById('individualHeader').style.display = '';
+    document.getElementById('groupedHeader').style.display = 'none';
+    
+    // Render individual cases (existing functionality)
+    const tbody = document.getElementById('casesTableBody');
+    tbody.innerHTML = '';
+    
+    // Re-render individual cases from server-side data
+    // The table already contains server-rendered individual cases
+    location.reload(); // Simple approach - reload to get individual view
+}
+
+// Switch to grouped view
+function switchToGroupedView() {
+    document.getElementById('individualHeader').style.display = 'none';
+    document.getElementById('groupedHeader').style.display = '';
+    
+    // Load and render grouped cases
+    loadGroupedCasesData();
+}
+
+// Render grouped cases
+function renderGroupedCases() {
+    const tbody = document.getElementById('casesTableBody');
+    tbody.innerHTML = '';
+    
+    if (!groupedCases || groupedCases.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No grouped cases found</td></tr>';
+        return;
+    }
+    
+    groupedCases.forEach((group, index) => {
+        // Create main group row
+        const groupRow = createGroupRowForReports(group, index);
+        tbody.appendChild(groupRow);
+        
+        // Create expandable details row (initially hidden)
+        const detailsRow = createGroupDetailsRowForReports(group, index);
+        tbody.appendChild(detailsRow);
+    });
+}
+
+// Create group row for reports dashboard
+function createGroupRowForReports(group, index) {
+    const row = document.createElement('tr');
+    row.className = 'group-row';
+    row.style.cursor = 'pointer';
+    row.onclick = () => toggleGroupDetailsReports(index);
+    
+    // Get risk level badge class
+    const riskBadgeClass = {
+        'Critical': 'bg-danger',
+        'High': 'bg-warning text-dark', 
+        'Medium': 'bg-info',
+        'Low': 'bg-success'
+    }[group.risk_level] || 'bg-secondary';
+    
+    // Get status badge class
+    const statusBadgeClass = {
+        'Escalated': 'bg-danger',
+        'Active': 'bg-primary',
+        'Cleared': 'bg-success',
+        'Mixed': 'bg-warning text-dark'
+    }[group.group_status] || 'bg-secondary';
+    
+    row.innerHTML = `
+        <td>
+            <i class="fas fa-chevron-right group-toggle" id="toggle-${index}"></i>
+        </td>
+        <td>
+            <div class="d-flex align-items-center">
+                <div class="avatar-sm me-2">
+                    <div class="avatar-title bg-primary rounded-circle">
+                        ${(group.sender && group.sender[0]) ? group.sender[0].toUpperCase() : 'U'}
+                    </div>
+                </div>
+                <div>
+                    <div class="fw-bold">${group.sender || 'Unknown'}</div>
+                    ${group.is_leaver ? '<span class="badge bg-warning text-dark">Leaver</span>' : ''}
+                </div>
+            </div>
+        </td>
+        <td>
+            <span class="fw-bold">${(group.subject || 'No Subject').substring(0, 30)}${(group.subject || '').length > 30 ? '...' : ''}</span>
+        </td>
+        <td>
+            <span class="badge bg-info">${group.record_count} recipient${group.record_count > 1 ? 's' : ''}</span>
+        </td>
+        <td>
+            <span class="badge ${riskBadgeClass}">${group.risk_level}</span>
+        </td>
+        <td>
+            <small>${group.time_display}</small>
+        </td>
+        <td>
+            <span class="badge ${statusBadgeClass}">${group.group_status}</span>
+        </td>
+        <td>
+            ${group.attachments ? '<i class="fas fa-paperclip text-warning"></i>' : '<span class="text-muted">None</span>'}
+        </td>
+        <td>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary btn-sm" onclick="expandGroup(${index})" title="Expand Group">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+        </td>
+    `;
+    
+    return row;
+}
+
+// Create group details row for reports dashboard
+function createGroupDetailsRowForReports(group, index) {
+    const row = document.createElement('tr');
+    row.className = 'group-details-row';
+    row.id = `details-${index}`;
+    row.style.display = 'none';
+    
+    const recipientsList = group.recipients.map(recipient => {
+        const statusBadge = {
+            'Active': 'bg-primary',
+            'Cleared': 'bg-success', 
+            'Escalated': 'bg-danger'
+        }[recipient.case_status] || 'bg-secondary';
+        
+        const riskBadge = {
+            'High': 'bg-danger',
+            'Medium': 'bg-warning',
+            'Low': 'bg-success'
+        }[recipient.risk_level] || 'bg-secondary';
+        
+        return `
+            <div class="recipient-item p-2 mb-2 border rounded">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${recipient.recipient || 'Unknown'}</strong>
+                        <span class="badge bg-light text-dark ms-2">${recipient.recipient_domain || ''}</span>
+                    </div>
+                    <div>
+                        <span class="badge ${riskBadge} me-1">${recipient.risk_level}</span>
+                        <span class="badge ${statusBadge}">${recipient.case_status}</span>
+                    </div>
+                </div>
+                ${recipient.notes ? `<div class="text-muted small mt-1">${recipient.notes}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+    
+    row.innerHTML = `
+        <td colspan="9">
+            <div class="p-3 bg-light border-start border-primary border-3">
+                <h6><i class="fas fa-users"></i> Recipients (${group.recipients.length})</h6>
+                <div class="recipients-container">
+                    ${recipientsList}
+                </div>
+            </div>
+        </td>
+    `;
+    
+    return row;
+}
+
+// Toggle group details for reports dashboard
+function toggleGroupDetailsReports(index) {
+    const detailsRow = document.getElementById(`details-${index}`);
+    const toggle = document.getElementById(`toggle-${index}`);
+    
+    if (detailsRow.style.display === 'none') {
+        detailsRow.style.display = '';
+        toggle.className = 'fas fa-chevron-down group-toggle';
+    } else {
+        detailsRow.style.display = 'none';
+        toggle.className = 'fas fa-chevron-right group-toggle';
+    }
+}
+
+// Expand group (same as toggle for now)
+function expandGroup(index) {
+    toggleGroupDetailsReports(index);
+}
 }
 
 // Initialize event listeners

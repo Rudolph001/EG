@@ -1,0 +1,426 @@
+_time,sender,subject,attachments,recipients,recipients_email_domain,leaver,termination_date,time_month,account_type,wordlist_attachment,wordlist_subject,bunit,department,status,user_response,final_outcome,policy_name,justification
+2025-07-21T14:44:19,dave@company.com,Project Update,org.pdf,john@vendor.org,vendor.org,YES,202511,202507,intern,confidential,confidential,Finance,Accounting,Medium,b,f,policy_C,home
+2025-06-21T07:05:04,bob@company.com,Quarterly Report,contract.pdf,dave@external.com,external.com,NO,202508,202507,employee,confidential,salary,Engineering,Accounting,Medium,b,g,Ploicy_B,school work 
+2025-06-03T04:50:09,dave@company.com,Project Update,cv.pdf,john@vendor.org,vendor.org,YES,202511,202507,intern,confidential,confidential,HR,Recruitment,High,b,f,Ploicy_B,home
+2025-06-04T20:34:42,dave@company.com,Confidential Proposal,cv.pdf,sara@client.com,client.com,NO,202509,202507,intern,salary,confidential,HR,Recruitment,High,b,h,policy_C,school work 
+2025-06-17T02:02:07,dave@company.com,Resignation Letter,cv.pdf,sara@client.com,client.com,YES,202511,202507,employee,,,HR,Development,Critical,a,f,policy_C,home
+2025-06-28T02:29:58,dave@company.com,Quarterly Report,cv.pdf,john@vendor.org,vendor.org,NO,202507,202507,intern,confidential,,Finance,Development,Low,b,g,policy_C,school work 
+2025-07-06T18:42:48,dave@company.com,Quarterly Report,home.pdf,dave@external.com,external.com,NO,202507,202507,employee,confidential,,HR,Accounting,Critical,b,h,policy_C,home
+2025-06-21T03:46:58,carol@company.com,Resignation Letter,report.pdf,erin@partner.org,partner.org,YES,202510,202507,contractor,,,Engineering,Accounting,Critical,a,g,policy_A,school work 
+2025-07-15T01:02:00,alice@company.com,Project Update,report.pdf,erin@partner.org,partner.org,YES,202510,202507,employee,,salary,Engineering,Development,Medium,a,f,Ploicy_B,home
+2025-06-18T21:25:00,dave@company.com,Resignation Letter,,dave@external.com,external.com,YES,202507,202507,contractor,,,Finance,Recruitment,Critical,b,g,policy_C,school work 
+2025-06-14T05:14:30,carol@company.com,Project Update,report.pdf,john@vendor.org,vendor.org,YES,202512,202507,employee,salary,,Finance,Recruitment,High,a,g,policy_C,home
+2025-07-29T05:19:49,dave@company.com,Project Update,,sara@client.com,client.com,NO,202511,202507,intern,,,Finance,Accounting,Low,a,g,Ploicy_B,school work 
+2025-06-15T10:21:14,dave@company.com,Project Update,contract.pdf,dave@external.com,external.com,NO,202507,202507,intern,salary,,Engineering,Recruitment,Critical,a,f,policy_C,home
+2025-07-30T06:57:01,bob@company.com,Project Update,,sara@client.com,client.com,YES,202511,202507,employee,salary,confidential,Engineering,Accounting,Medium,c,h,policy_A,school work 
+2025-06-18T19:27:32,carol@company.com,Quarterly Report,org.pdf,erin@partner.org,partner.org,YES,202507,202507,contractor,salary,confidential,Engineering,Development,Critical,a,g,policy_C,home
+2025-07-08T08:16:48,carol@company.com,Confidential Proposal,org.pdf,dave@external.com,external.com,YES,202507,202507,contractor,salary,confidential,Finance,Development,Medium,b,f,policy_A,school work 
+2025-06-09T13:10:08,bob@company.com,Quarterly Report,contract.pdf,sara@client.com,client.com,NO,202512,202507,intern,confidential,,Engineering,Recruitment,Medium,a,f,policy_C,home
+2025-07-19T00:57:17,alice@company.com,Project Update,report.pdf,sara@client.com,client.com,YES,202509,202507,employee,,confidential,Engineering,Recruitment,Critical,a,h,Ploicy_B,school work 
+2025-06-25T08:28:17,dave@company.com,Project Update,home.pdf,erin@partner.org,partner.org,NO,202507,202507,intern,confidential,,HR,Recruitment,High,a,f,policy_A,home
+2025-07-27T11:55:50,bob@company.com,Confidential Proposal,cv.pdf,john@vendor.org,vendor.org,YES,202512,202507,intern,salary,,Finance,Recruitment,Medium,b,h,policy_C,school work 
+2025-06-08T13:50:56,dave@company.com,Quarterly Report,report.pdf,john@vendor.org,vendor.org,YES,202512,202507,intern,confidential,confidential,Finance,Accounting,Low,a,h,policy_A,home
+2025-07-30T19:41:58,dave@company.com,Quarterly Report,contract.pdf,dave@external.com,external.com,YES,202510,202507,intern,,salary,Engineering,Accounting,Medium,c,g,policy_C,school work 
+2025-06-23T22:46:20,alice@company.com,Resignation Letter,cv.pdf,sara@client.com,client.com,NO,202509,202507,employee,,confidential,Finance,Recruitment,Low,c,g,policy_A,home
+2025-07-12T18:54:38,bob@company.com,Resignation Letter,,john@vendor.org,vendor.org,YES,202507,202507,employee,salary,salary,HR,Accounting,Medium,a,g,policy_C,school work 
+2025-07-17T02:47:27,carol@company.com,Resignation Letter,home.pdf,dave@external.com,external.com,YES,202509,202507,contractor,salary,confidential,Finance,Accounting,Medium,a,h,policy_A,home
+2025-06-07T14:22:19,bob@company.com,Confidential Proposal,home.pdf,john@vendor.org,vendor.org,NO,202510,202507,intern,,,HR,Development,Low,c,f,Ploicy_B,school work 
+2025-07-06T19:44:00,carol@company.com,Quarterly Report,report.pdf,erin@partner.org,partner.org,YES,202509,202507,intern,salary,confidential,HR,Development,High,a,h,Ploicy_B,home
+2025-06-03T18:05:56,carol@company.com,Quarterly Report,,sara@client.com,client.com,YES,202510,202507,employee,,salary,HR,Accounting,Medium,b,h,Ploicy_B,school work 
+2025-06-18T05:37:57,dave@company.com,Confidential Proposal,contract.pdf,sara@client.com,client.com,NO,202510,202507,intern,salary,salary,Engineering,Recruitment,Critical,c,h,Ploicy_B,home
+2025-06-27T20:35:52,alice@company.com,Confidential Proposal,cv.pdf,john@vendor.org,vendor.org,YES,202510,202507,intern,salary,confidential,HR,Accounting,Medium,c,g,policy_A,school work 
+2025-06-03T19:52:42,carol@company.com,Quarterly Report,report.pdf,sara@client.com,client.com,NO,202508,202507,employee,,salary,HR,Recruitment,Low,c,f,policy_A,home
+2025-07-29T09:25:29,bob@company.com,Confidential Proposal,cv.pdf,erin@partner.org,partner.org,NO,202512,202507,contractor,,salary,Finance,Accounting,High,c,h,policy_C,school work 
+2025-06-06T05:31:20,bob@company.com,Project Update,contract.pdf,sara@client.com,client.com,YES,202511,202507,intern,,confidential,Finance,Recruitment,Critical,b,h,Ploicy_B,home
+2025-06-07T08:32:52,carol@company.com,Resignation Letter,org.pdf,erin@partner.org,partner.org,YES,202512,202507,intern,salary,salary,Finance,Recruitment,Medium,c,g,policy_C,school work 
+2025-07-06T05:13:30,carol@company.com,Project Update,org.pdf,john@vendor.org,vendor.org,YES,202508,202507,intern,salary,salary,Engineering,Development,Low,b,f,Ploicy_B,home
+2025-06-27T16:41:01,alice@company.com,Quarterly Report,org.pdf,john@vendor.org,vendor.org,NO,202511,202507,contractor,confidential,,Finance,Recruitment,Critical,c,f,policy_A,school work 
+2025-07-02T23:03:29,carol@company.com,Quarterly Report,report.pdf,sara@client.com,client.com,NO,202511,202507,intern,salary,confidential,HR,Accounting,Medium,a,g,policy_A,home
+2025-06-20T13:00:24,alice@company.com,Resignation Letter,home.pdf,dave@external.com,external.com,NO,202508,202507,contractor,confidential,,Finance,Recruitment,Critical,c,f,policy_A,school work 
+2025-06-23T00:52:26,carol@company.com,Confidential Proposal,,sara@client.com,client.com,YES,202508,202507,employee,,salary,Finance,Accounting,High,c,h,policy_C,home
+2025-06-14T01:04:14,dave@company.com,Project Update,cv.pdf,erin@partner.org,partner.org,NO,202511,202507,intern,salary,,HR,Development,Medium,a,f,policy_C,school work 
+2025-07-06T15:48:36,alice@company.com,Confidential Proposal,cv.pdf,dave@external.com,external.com,NO,202512,202507,contractor,salary,salary,Finance,Recruitment,Critical,c,g,policy_A,home
+2025-06-20T16:50:48,bob@company.com,Project Update,org.pdf,dave@external.com,external.com,YES,202510,202507,contractor,salary,salary,HR,Accounting,Low,a,g,policy_C,school work 
+2025-06-12T10:57:33,alice@company.com,Resignation Letter,cv.pdf,erin@partner.org,partner.org,NO,202508,202507,intern,confidential,confidential,HR,Recruitment,Critical,b,f,policy_A,home
+2025-06-23T23:19:49,alice@company.com,Confidential Proposal,cv.pdf,john@vendor.org,vendor.org,NO,202511,202507,contractor,confidential,,Engineering,Accounting,High,a,f,policy_A,school work 
+2025-07-01T03:14:46,carol@company.com,Resignation Letter,,john@vendor.org,vendor.org,YES,202512,202507,contractor,confidential,confidential,HR,Development,High,b,g,policy_A,home
+2025-07-06T01:46:00,dave@company.com,Project Update,,erin@partner.org,partner.org,YES,202508,202507,intern,salary,confidential,HR,Recruitment,Medium,b,g,policy_C,school work 
+2025-07-18T05:53:07,dave@company.com,Project Update,,erin@partner.org,partner.org,NO,202512,202507,intern,,salary,Engineering,Development,High,c,f,policy_A,home
+2025-06-22T13:12:47,carol@company.com,Resignation Letter,cv.pdf,sara@client.com,client.com,NO,202508,202507,intern,confidential,salary,Engineering,Development,Medium,c,f,Ploicy_B,school work 
+2025-06-16T10:13:04,bob@company.com,Confidential Proposal,home.pdf,john@vendor.org,vendor.org,NO,202507,202507,intern,,,HR,Accounting,Medium,b,f,Ploicy_B,home
+2025-07-12T19:36:01,alice@company.com,Resignation Letter,contract.pdf,sara@client.com,client.com,YES,202507,202507,intern,,confidential,Finance,Accounting,Medium,a,f,policy_A,school work 
+2025-07-06T00:16:27,carol@company.com,Confidential Proposal,,erin@partner.org,partner.org,YES,202512,202507,intern,,salary,HR,Recruitment,Low,a,h,policy_A,home
+2025-07-30T21:02:57,bob@company.com,Confidential Proposal,report.pdf,dave@external.com,external.com,NO,202509,202507,intern,salary,,HR,Accounting,High,c,f,Ploicy_B,school work 
+2025-06-02T02:57:04,alice@company.com,Resignation Letter,report.pdf,john@vendor.org,vendor.org,NO,202508,202507,contractor,,,Finance,Development,Critical,b,h,Ploicy_B,home
+2025-07-26T08:23:04,carol@company.com,Quarterly Report,,john@vendor.org,vendor.org,NO,202510,202507,intern,salary,,HR,Development,Medium,c,f,Ploicy_B,school work 
+2025-06-15T02:43:52,dave@company.com,Confidential Proposal,home.pdf,erin@partner.org,partner.org,NO,202507,202507,contractor,,salary,Engineering,Development,Low,a,g,policy_C,home
+2025-07-12T07:20:31,carol@company.com,Quarterly Report,cv.pdf,john@vendor.org,vendor.org,NO,202511,202507,contractor,,confidential,HR,Accounting,High,b,f,Ploicy_B,school work 
+2025-07-09T15:40:23,alice@company.com,Confidential Proposal,report.pdf,sara@client.com,client.com,YES,202509,202507,intern,confidential,,Finance,Development,Critical,a,h,policy_C,home
+2025-06-23T08:48:08,carol@company.com,Project Update,report.pdf,erin@partner.org,partner.org,NO,202510,202507,contractor,confidential,salary,Engineering,Recruitment,Critical,b,f,policy_C,school work 
+2025-06-26T18:59:19,dave@company.com,Project Update,home.pdf,sara@client.com,client.com,YES,202508,202507,employee,salary,salary,HR,Development,Medium,c,g,Ploicy_B,home
+2025-07-06T02:31:56,alice@company.com,Project Update,,dave@external.com,external.com,NO,202509,202507,contractor,,salary,Engineering,Accounting,Low,c,g,Ploicy_B,school work 
+2025-07-04T08:54:41,bob@company.com,Resignation Letter,org.pdf,sara@client.com,client.com,YES,202512,202507,contractor,confidential,salary,Engineering,Recruitment,High,a,h,Ploicy_B,home
+2025-06-15T07:21:13,bob@company.com,Quarterly Report,home.pdf,erin@partner.org,partner.org,YES,202507,202507,contractor,confidential,confidential,Finance,Recruitment,Critical,b,g,policy_A,school work 
+2025-06-11T06:58:00,dave@company.com,Resignation Letter,contract.pdf,john@vendor.org,vendor.org,YES,202508,202507,intern,,,Engineering,Accounting,Medium,a,h,policy_C,home
+2025-07-14T12:56:43,bob@company.com,Project Update,home.pdf,sara@client.com,client.com,YES,202507,202507,employee,confidential,,Finance,Development,Critical,a,f,Ploicy_B,school work 
+2025-07-24T07:52:28,bob@company.com,Project Update,cv.pdf,john@vendor.org,vendor.org,YES,202510,202507,employee,confidential,confidential,HR,Accounting,Critical,a,g,Ploicy_B,home
+2025-07-11T01:04:50,dave@company.com,Project Update,contract.pdf,john@vendor.org,vendor.org,YES,202511,202507,employee,salary,confidential,HR,Recruitment,Critical,c,g,policy_A,school work 
+2025-06-14T17:35:43,alice@company.com,Quarterly Report,home.pdf,erin@partner.org,partner.org,YES,202511,202507,employee,confidential,confidential,Finance,Accounting,High,b,g,policy_C,home
+2025-06-01T10:02:20,alice@company.com,Resignation Letter,,erin@partner.org,partner.org,NO,202512,202507,contractor,,confidential,HR,Accounting,Low,b,g,Ploicy_B,school work 
+2025-07-13T18:59:45,bob@company.com,Project Update,,dave@external.com,external.com,YES,202511,202507,intern,,salary,HR,Recruitment,Critical,c,f,policy_A,home
+2025-06-07T09:08:22,bob@company.com,Confidential Proposal,home.pdf,sara@client.com,client.com,NO,202509,202507,intern,,salary,Engineering,Accounting,Low,c,g,policy_C,school work 
+2025-06-10T21:08:39,alice@company.com,Quarterly Report,contract.pdf,dave@external.com,external.com,YES,202511,202507,contractor,,,Finance,Development,High,b,g,policy_A,home
+2025-06-03T04:43:58,alice@company.com,Confidential Proposal,contract.pdf,sara@client.com,client.com,NO,202512,202507,employee,confidential,confidential,Engineering,Recruitment,Medium,a,f,policy_A,school work 
+2025-06-24T05:32:02,bob@company.com,Confidential Proposal,contract.pdf,john@vendor.org,vendor.org,YES,202507,202507,intern,,,HR,Recruitment,Medium,c,f,Ploicy_B,home
+2025-06-10T15:08:03,dave@company.com,Resignation Letter,,sara@client.com,client.com,YES,202512,202507,intern,,,HR,Accounting,Medium,b,h,Ploicy_B,school work 
+2025-07-02T06:30:53,bob@company.com,Quarterly Report,contract.pdf,sara@client.com,client.com,YES,202508,202507,contractor,salary,salary,HR,Recruitment,High,b,h,policy_C,home
+2025-07-25T14:51:10,carol@company.com,Resignation Letter,report.pdf,john@vendor.org,vendor.org,NO,202512,202507,employee,confidential,salary,HR,Recruitment,Low,a,g,Ploicy_B,school work 
+2025-06-18T02:40:39,alice@company.com,Project Update,,john@vendor.org,vendor.org,NO,202508,202507,employee,,,Finance,Accounting,Critical,b,f,policy_A,home
+2025-06-15T21:33:36,bob@company.com,Confidential Proposal,org.pdf,erin@partner.org,partner.org,NO,202512,202507,contractor,,,Finance,Development,Low,b,g,policy_A,school work 
+2025-06-04T19:16:32,alice@company.com,Resignation Letter,contract.pdf,erin@partner.org,partner.org,NO,202512,202507,contractor,confidential,,HR,Development,Critical,b,f,policy_A,home
+2025-06-20T07:12:22,bob@company.com,Confidential Proposal,home.pdf,john@vendor.org,vendor.org,NO,202512,202507,employee,,salary,Engineering,Development,High,b,f,policy_C,school work 
+2025-06-10T17:23:22,alice@company.com,Quarterly Report,contract.pdf,john@vendor.org,vendor.org,NO,202512,202507,employee,confidential,confidential,HR,Recruitment,Medium,a,g,policy_C,home
+2025-06-26T18:56:21,dave@company.com,Confidential Proposal,cv.pdf,john@vendor.org,vendor.org,YES,202509,202507,contractor,,,Finance,Accounting,Medium,c,f,policy_C,school work 
+2025-06-21T21:45:54,alice@company.com,Quarterly Report,report.pdf,sara@client.com,client.com,NO,202508,202507,intern,confidential,,Engineering,Development,Critical,c,f,Ploicy_B,home
+2025-06-08T09:35:34,bob@company.com,Resignation Letter,report.pdf,dave@external.com,external.com,NO,202510,202507,contractor,salary,,Engineering,Recruitment,Low,b,f,Ploicy_B,school work 
+2025-07-02T14:29:48,alice@company.com,Project Update,report.pdf,john@vendor.org,vendor.org,YES,202510,202507,intern,salary,salary,Finance,Development,Medium,b,h,Ploicy_B,home
+2025-07-02T18:34:59,bob@company.com,Resignation Letter,contract.pdf,erin@partner.org,partner.org,NO,202508,202507,intern,salary,,HR,Recruitment,High,c,f,Ploicy_B,school work 
+2025-07-14T17:50:27,alice@company.com,Confidential Proposal,org.pdf,erin@partner.org,partner.org,YES,202508,202507,intern,salary,salary,Finance,Accounting,Medium,a,f,policy_A,home
+2025-07-16T13:47:25,dave@company.com,Quarterly Report,cv.pdf,sara@client.com,client.com,YES,202512,202507,contractor,salary,salary,Finance,Accounting,Critical,c,f,policy_A,school work 
+2025-06-17T23:08:35,dave@company.com,Confidential Proposal,contract.pdf,erin@partner.org,partner.org,NO,202511,202507,employee,,,HR,Accounting,High,a,g,policy_C,home
+2025-06-25T05:12:39,carol@company.com,Quarterly Report,org.pdf,john@vendor.org,vendor.org,NO,202507,202507,employee,confidential,,Engineering,Recruitment,Medium,b,g,policy_C,school work 
+2025-07-27T22:54:48,alice@company.com,Resignation Letter,cv.pdf,dave@external.com,external.com,YES,202508,202507,contractor,confidential,confidential,Engineering,Development,Critical,b,h,policy_A,home
+2025-06-13T00:56:15,alice@company.com,Quarterly Report,home.pdf,dave@external.com,external.com,NO,202509,202507,employee,,confidential,Engineering,Recruitment,Low,a,h,policy_C,school work 
+2025-06-21T08:41:59,carol@company.com,Resignation Letter,org.pdf,sara@client.com,client.com,NO,202511,202507,contractor,salary,,HR,Recruitment,Critical,b,f,Ploicy_B,home
+2025-07-26T17:10:46,alice@company.com,Project Update,cv.pdf,dave@external.com,external.com,YES,202510,202507,contractor,confidential,confidential,Engineering,Recruitment,Medium,b,f,policy_C,school work 
+2025-07-16T12:24:23,alice@company.com,Project Update,,sara@client.com,client.com,NO,202507,202507,contractor,salary,,Finance,Accounting,Critical,b,f,policy_C,home
+2025-07-17T21:17:53,bob@company.com,Quarterly Report,cv.pdf,erin@partner.org,partner.org,YES,202507,202507,employee,salary,confidential,Engineering,Recruitment,Critical,c,h,policy_A,school work 
+2025-07-24T02:54:58,dave@company.com,Project Update,,erin@partner.org,partner.org,YES,202512,202507,contractor,,confidential,Finance,Recruitment,Low,b,f,Ploicy_B,home
+2025-07-20T08:20:19,bob@company.com,Resignation Letter,org.pdf,erin@partner.org,partner.org,YES,202510,202507,contractor,,,HR,Accounting,High,b,g,policy_A,school work 
+2025-06-04T15:52:01,alice@company.com,Quarterly Report,,erin@partner.org,partner.org,NO,202511,202507,employee,confidential,salary,Finance,Recruitment,Medium,c,g,Ploicy_B,home
+2025-06-27T21:25:30,bob@company.com,Quarterly Report,org.pdf,sara@client.com,client.com,NO,202507,202507,employee,,confidential,HR,Accounting,High,b,h,policy_C,school work 
+2025-06-08T11:18:32,alice@company.com,Resignation Letter,contract.pdf,john@vendor.org,vendor.org,NO,202509,202507,contractor,,salary,Engineering,Development,High,b,g,Ploicy_B,home
+2025-07-12T13:59:08,carol@company.com,Quarterly Report,org.pdf,john@vendor.org,vendor.org,YES,202512,202507,intern,,,HR,Accounting,Low,b,g,policy_C,school work 
+2025-06-20T20:42:21,carol@company.com,Confidential Proposal,contract.pdf,sara@client.com,client.com,NO,202511,202507,contractor,confidential,,Engineering,Development,Low,b,f,policy_A,home
+2025-07-26T10:23:29,alice@company.com,Resignation Letter,,erin@partner.org,partner.org,NO,202512,202507,contractor,salary,confidential,Finance,Recruitment,Critical,b,f,policy_C,school work 
+2025-07-09T20:17:14,carol@company.com,Quarterly Report,report.pdf,john@vendor.org,vendor.org,NO,202509,202507,employee,salary,salary,HR,Recruitment,Low,b,g,Ploicy_B,home
+2025-07-01T15:33:17,bob@company.com,Resignation Letter,home.pdf,john@vendor.org,vendor.org,NO,202510,202507,intern,confidential,,HR,Development,Critical,a,h,policy_C,school work 
+2025-07-12T04:40:53,alice@company.com,Project Update,report.pdf,john@vendor.org,vendor.org,YES,202510,202507,contractor,,,Engineering,Development,Low,a,h,Ploicy_B,home
+2025-07-16T07:41:42,dave@company.com,Resignation Letter,cv.pdf,erin@partner.org,partner.org,YES,202509,202507,contractor,,confidential,HR,Accounting,Critical,a,h,policy_A,school work 
+2025-06-20T23:01:55,bob@company.com,Resignation Letter,home.pdf,sara@client.com,client.com,YES,202510,202507,employee,,salary,HR,Recruitment,High,b,f,Ploicy_B,home
+2025-06-14T11:38:57,alice@company.com,Quarterly Report,cv.pdf,erin@partner.org,partner.org,YES,202512,202507,intern,confidential,,HR,Development,Critical,c,f,Ploicy_B,school work 
+2025-06-30T22:06:01,carol@company.com,Project Update,contract.pdf,sara@client.com,client.com,NO,202509,202507,contractor,salary,,HR,Recruitment,Low,c,h,policy_A,home
+2025-07-30T23:30:32,carol@company.com,Confidential Proposal,cv.pdf,john@vendor.org,vendor.org,YES,202510,202507,intern,confidential,confidential,HR,Development,Medium,c,g,policy_C,school work 
+2025-07-22T01:03:52,alice@company.com,Resignation Letter,contract.pdf,erin@partner.org,partner.org,NO,202507,202507,contractor,confidential,confidential,Finance,Recruitment,Critical,c,h,Ploicy_B,home
+2025-06-30T22:45:38,alice@company.com,Resignation Letter,,erin@partner.org,partner.org,NO,202508,202507,contractor,confidential,,Finance,Accounting,Medium,a,f,policy_A,school work 
+2025-06-20T01:38:21,bob@company.com,Confidential Proposal,cv.pdf,dave@external.com,external.com,NO,202510,202507,contractor,confidential,confidential,Engineering,Accounting,High,b,h,policy_A,home
+2025-06-24T04:18:00,alice@company.com,Confidential Proposal,cv.pdf,dave@external.com,external.com,YES,202509,202507,intern,,salary,Engineering,Recruitment,Medium,b,g,policy_C,school work 
+2025-06-20T09:09:52,dave@company.com,Resignation Letter,org.pdf,erin@partner.org,partner.org,YES,202511,202507,contractor,salary,salary,Engineering,Recruitment,Low,b,g,Ploicy_B,home
+2025-06-20T20:18:05,carol@company.com,Confidential Proposal,org.pdf,erin@partner.org,partner.org,NO,202509,202507,contractor,salary,salary,Engineering,Development,High,b,g,Ploicy_B,school work 
+2025-07-15T10:33:10,bob@company.com,Quarterly Report,org.pdf,sara@client.com,client.com,NO,202512,202507,employee,confidential,confidential,Engineering,Accounting,Medium,c,f,policy_A,home
+2025-07-26T04:24:34,bob@company.com,Quarterly Report,contract.pdf,sara@client.com,client.com,NO,202510,202507,employee,salary,salary,Engineering,Development,High,b,f,policy_C,school work 
+2025-07-13T17:16:15,bob@company.com,Confidential Proposal,contract.pdf,sara@client.com,client.com,NO,202507,202507,intern,,salary,Finance,Development,Low,b,g,Ploicy_B,home
+2025-07-17T09:02:46,bob@company.com,Resignation Letter,org.pdf,erin@partner.org,partner.org,YES,202508,202507,employee,confidential,confidential,HR,Accounting,High,a,f,policy_C,school work 
+2025-07-01T10:52:18,bob@company.com,Project Update,contract.pdf,john@vendor.org,vendor.org,NO,202512,202507,intern,,salary,Engineering,Accounting,Medium,a,g,Ploicy_B,home
+2025-07-02T19:35:51,bob@company.com,Project Update,cv.pdf,john@vendor.org,vendor.org,YES,202512,202507,contractor,,confidential,Finance,Development,Critical,b,f,policy_A,school work 
+2025-06-02T19:59:13,dave@company.com,Confidential Proposal,org.pdf,dave@external.com,external.com,NO,202512,202507,intern,,,HR,Accounting,Medium,c,h,policy_C,home
+2025-07-22T09:32:10,alice@company.com,Quarterly Report,org.pdf,john@vendor.org,vendor.org,YES,202509,202507,employee,salary,confidential,Finance,Accounting,Medium,b,f,policy_C,school work 
+2025-07-15T06:25:04,dave@company.com,Resignation Letter,report.pdf,erin@partner.org,partner.org,NO,202509,202507,employee,,salary,HR,Recruitment,High,a,f,policy_C,home
+2025-07-17T10:52:20,bob@company.com,Project Update,contract.pdf,sara@client.com,client.com,NO,202510,202507,employee,,confidential,HR,Recruitment,High,b,g,Ploicy_B,school work 
+2025-07-01T06:44:44,dave@company.com,Quarterly Report,org.pdf,dave@external.com,external.com,NO,202511,202507,employee,,,Finance,Development,Critical,a,g,policy_A,home
+2025-07-25T09:50:57,alice@company.com,Confidential Proposal,,erin@partner.org,partner.org,YES,202511,202507,employee,confidential,,HR,Development,Low,a,h,Ploicy_B,school work 
+2025-07-09T11:27:26,dave@company.com,Confidential Proposal,report.pdf,dave@external.com,external.com,NO,202509,202507,contractor,salary,salary,Finance,Recruitment,Low,b,h,policy_A,home
+2025-07-27T15:08:32,bob@company.com,Confidential Proposal,org.pdf,john@vendor.org,vendor.org,NO,202512,202507,employee,,,HR,Development,High,a,g,policy_C,school work 
+2025-06-24T19:12:33,dave@company.com,Confidential Proposal,cv.pdf,sara@client.com,client.com,NO,202508,202507,intern,salary,,Engineering,Recruitment,Critical,a,f,Ploicy_B,home
+2025-06-26T09:26:41,bob@company.com,Project Update,,sara@client.com,client.com,NO,202512,202507,intern,salary,salary,Engineering,Recruitment,Medium,a,g,policy_A,school work 
+2025-07-04T10:16:19,dave@company.com,Confidential Proposal,,sara@client.com,client.com,NO,202509,202507,contractor,,salary,Finance,Recruitment,High,a,f,policy_A,home
+2025-06-15T23:04:19,bob@company.com,Resignation Letter,report.pdf,dave@external.com,external.com,NO,202509,202507,employee,,confidential,Engineering,Accounting,Medium,a,h,Ploicy_B,school work 
+2025-06-20T08:10:54,alice@company.com,Confidential Proposal,report.pdf,erin@partner.org,partner.org,YES,202510,202507,intern,salary,salary,Engineering,Accounting,Low,c,g,Ploicy_B,home
+2025-07-10T17:23:59,bob@company.com,Resignation Letter,,sara@client.com,client.com,YES,202507,202507,intern,,,Finance,Accounting,Low,b,f,policy_C,school work 
+2025-07-20T06:15:35,dave@company.com,Confidential Proposal,,john@vendor.org,vendor.org,YES,202512,202507,employee,,confidential,Engineering,Recruitment,Medium,c,h,policy_C,home
+2025-07-30T06:37:15,dave@company.com,Confidential Proposal,contract.pdf,erin@partner.org,partner.org,NO,202508,202507,intern,confidential,confidential,Engineering,Accounting,Low,a,g,Ploicy_B,school work 
+2025-07-18T01:29:50,alice@company.com,Confidential Proposal,home.pdf,john@vendor.org,vendor.org,YES,202511,202507,employee,salary,confidential,Finance,Accounting,High,a,h,Ploicy_B,home
+2025-07-06T12:54:25,carol@company.com,Quarterly Report,org.pdf,dave@external.com,external.com,YES,202510,202507,employee,confidential,,Engineering,Recruitment,Medium,a,h,policy_C,school work 
+2025-07-09T20:27:50,alice@company.com,Quarterly Report,report.pdf,erin@partner.org,partner.org,NO,202511,202507,intern,,,Engineering,Accounting,Critical,b,g,Ploicy_B,home
+2025-06-15T12:36:11,dave@company.com,Project Update,,sara@client.com,client.com,YES,202510,202507,contractor,,confidential,Finance,Development,Medium,b,h,policy_C,school work 
+2025-07-27T02:34:21,dave@company.com,Project Update,org.pdf,erin@partner.org,partner.org,NO,202507,202507,intern,confidential,,HR,Recruitment,Low,b,f,policy_C,home
+2025-06-28T17:29:41,dave@company.com,Confidential Proposal,report.pdf,dave@external.com,external.com,YES,202512,202507,contractor,confidential,salary,Engineering,Development,High,b,h,policy_A,school work 
+2025-07-27T08:44:05,alice@company.com,Confidential Proposal,org.pdf,erin@partner.org,partner.org,NO,202510,202507,contractor,,confidential,Finance,Accounting,Medium,b,h,Ploicy_B,home
+2025-07-17T23:13:17,bob@company.com,Project Update,cv.pdf,sara@client.com,client.com,YES,202508,202507,employee,confidential,confidential,HR,Recruitment,High,c,f,Ploicy_B,school work 
+2025-07-10T06:49:12,alice@company.com,Confidential Proposal,cv.pdf,dave@external.com,external.com,YES,202507,202507,intern,salary,salary,Finance,Recruitment,Critical,c,h,Ploicy_B,home
+2025-06-26T02:56:28,dave@company.com,Project Update,cv.pdf,sara@client.com,client.com,NO,202511,202507,employee,salary,,HR,Development,Critical,c,g,policy_C,school work 
+2025-06-06T23:12:30,carol@company.com,Quarterly Report,,john@vendor.org,vendor.org,NO,202508,202507,employee,,salary,HR,Recruitment,High,b,g,policy_C,home
+2025-07-26T13:27:00,dave@company.com,Resignation Letter,,john@vendor.org,vendor.org,YES,202512,202507,employee,,salary,Engineering,Recruitment,Low,b,g,Ploicy_B,school work 
+2025-07-06T07:40:00,bob@company.com,Resignation Letter,cv.pdf,john@vendor.org,vendor.org,NO,202511,202507,employee,,,Finance,Development,Medium,c,g,Ploicy_B,home
+2025-06-17T04:50:26,alice@company.com,Quarterly Report,,erin@partner.org,partner.org,YES,202508,202507,intern,confidential,salary,Finance,Development,Critical,a,h,Ploicy_B,school work 
+2025-07-16T12:05:46,bob@company.com,Confidential Proposal,contract.pdf,erin@partner.org,partner.org,YES,202510,202507,contractor,salary,confidential,HR,Accounting,Medium,c,h,policy_A,home
+2025-07-02T02:59:41,carol@company.com,Quarterly Report,report.pdf,dave@external.com,external.com,YES,202509,202507,employee,confidential,confidential,HR,Recruitment,Medium,a,g,Ploicy_B,school work 
+2025-07-07T11:30:26,alice@company.com,Quarterly Report,report.pdf,dave@external.com,external.com,NO,202509,202507,intern,confidential,,Engineering,Accounting,Critical,b,f,policy_C,home
+2025-06-29T16:46:06,alice@company.com,Project Update,,john@vendor.org,vendor.org,NO,202510,202507,contractor,,salary,Engineering,Accounting,Medium,c,g,policy_A,school work 
+2025-07-04T18:01:53,bob@company.com,Confidential Proposal,cv.pdf,erin@partner.org,partner.org,YES,202508,202507,contractor,confidential,,Engineering,Accounting,Medium,a,g,policy_A,home
+2025-06-09T08:48:53,dave@company.com,Quarterly Report,org.pdf,erin@partner.org,partner.org,YES,202510,202507,intern,salary,salary,HR,Accounting,High,c,f,policy_A,school work 
+2025-06-23T05:49:09,dave@company.com,Project Update,cv.pdf,john@vendor.org,vendor.org,YES,202511,202507,employee,salary,,Finance,Development,Medium,a,g,policy_C,home
+2025-06-06T09:03:32,bob@company.com,Resignation Letter,org.pdf,john@vendor.org,vendor.org,NO,202511,202507,employee,,confidential,HR,Recruitment,Low,c,f,Ploicy_B,school work 
+2025-06-21T04:55:29,alice@company.com,Quarterly Report,home.pdf,erin@partner.org,partner.org,NO,202512,202507,employee,confidential,,Finance,Development,Medium,a,g,policy_C,home
+2025-07-20T05:51:33,dave@company.com,Project Update,org.pdf,john@vendor.org,vendor.org,NO,202507,202507,employee,salary,confidential,HR,Accounting,High,a,f,policy_A,school work 
+2025-07-14T16:18:09,carol@company.com,Resignation Letter,report.pdf,sara@client.com,client.com,NO,202509,202507,intern,salary,confidential,Finance,Recruitment,Critical,b,f,policy_A,home
+2025-07-02T17:23:06,dave@company.com,Quarterly Report,home.pdf,sara@client.com,client.com,YES,202509,202507,employee,confidential,confidential,HR,Development,High,c,g,Ploicy_B,school work 
+2025-07-25T06:03:15,alice@company.com,Resignation Letter,home.pdf,dave@external.com,external.com,NO,202508,202507,intern,,confidential,Engineering,Development,Low,b,f,policy_A,home
+2025-07-22T09:58:13,bob@company.com,Confidential Proposal,home.pdf,john@vendor.org,vendor.org,NO,202508,202507,contractor,salary,salary,Engineering,Accounting,Medium,a,h,Ploicy_B,school work 
+2025-06-19T16:52:40,dave@company.com,Confidential Proposal,org.pdf,erin@partner.org,partner.org,NO,202509,202507,employee,confidential,confidential,HR,Accounting,Low,c,f,policy_A,home
+2025-07-09T09:25:53,carol@company.com,Confidential Proposal,report.pdf,erin@partner.org,partner.org,NO,202511,202507,contractor,,confidential,Engineering,Recruitment,Critical,c,g,policy_C,school work 
+2025-07-10T00:54:54,carol@company.com,Quarterly Report,,john@vendor.org,vendor.org,YES,202511,202507,contractor,,confidential,Finance,Recruitment,Medium,b,h,policy_A,home
+2025-07-02T11:05:31,carol@company.com,Quarterly Report,cv.pdf,dave@external.com,external.com,NO,202508,202507,intern,confidential,salary,HR,Recruitment,Critical,a,g,Ploicy_B,school work 
+2025-06-26T05:43:47,alice@company.com,Resignation Letter,home.pdf,dave@external.com,external.com,YES,202510,202507,employee,confidential,confidential,Engineering,Accounting,Critical,c,h,policy_C,home
+2025-07-12T14:15:07,carol@company.com,Quarterly Report,report.pdf,sara@client.com,client.com,NO,202511,202507,employee,confidential,salary,HR,Recruitment,Low,c,g,Ploicy_B,school work 
+2025-07-08T13:50:14,bob@company.com,Quarterly Report,home.pdf,erin@partner.org,partner.org,YES,202508,202507,contractor,confidential,salary,Finance,Recruitment,Low,b,h,policy_C,home
+2025-06-06T16:16:27,bob@company.com,Confidential Proposal,org.pdf,john@vendor.org,vendor.org,YES,202512,202507,contractor,salary,confidential,Engineering,Accounting,Critical,b,h,policy_A,school work 
+2025-07-20T21:32:06,bob@company.com,Confidential Proposal,,sara@client.com,client.com,YES,202507,202507,contractor,salary,salary,Engineering,Recruitment,Medium,c,g,policy_C,home
+2025-06-16T15:43:40,dave@company.com,Project Update,home.pdf,john@vendor.org,vendor.org,NO,202507,202507,employee,,,HR,Accounting,Medium,a,g,Ploicy_B,school work 
+2025-07-27T23:12:30,dave@company.com,Project Update,,dave@external.com,external.com,NO,202507,202507,employee,confidential,salary,Finance,Development,Medium,c,f,Ploicy_B,home
+2025-06-20T22:52:41,alice@company.com,Confidential Proposal,contract.pdf,sara@client.com,client.com,YES,202507,202507,contractor,salary,,HR,Recruitment,Medium,c,g,policy_C,school work 
+2025-07-05T17:40:53,dave@company.com,Confidential Proposal,cv.pdf,dave@external.com,external.com,NO,202510,202507,intern,confidential,confidential,Engineering,Development,Medium,c,g,policy_A,home
+2025-07-15T05:47:58,dave@company.com,Resignation Letter,org.pdf,dave@external.com,external.com,YES,202512,202507,employee,confidential,confidential,Engineering,Accounting,Critical,c,f,policy_C,school work 
+2025-06-18T11:33:42,alice@company.com,Quarterly Report,home.pdf,john@vendor.org,vendor.org,NO,202512,202507,intern,confidential,salary,HR,Development,Critical,b,g,policy_C,home
+2025-06-17T01:57:38,dave@company.com,Project Update,,sara@client.com,client.com,NO,202509,202507,employee,confidential,,Finance,Recruitment,Critical,a,h,policy_A,school work 
+2025-07-04T03:26:13,alice@company.com,Quarterly Report,home.pdf,dave@external.com,external.com,YES,202507,202507,intern,salary,,Engineering,Development,Medium,a,g,policy_A,home
+2025-06-04T03:17:08,alice@company.com,Confidential Proposal,report.pdf,dave@external.com,external.com,YES,202510,202507,contractor,confidential,,Finance,Accounting,Critical,c,h,policy_C,school work 
+2025-06-12T08:11:15,bob@company.com,Confidential Proposal,home.pdf,erin@partner.org,partner.org,YES,202508,202507,employee,salary,salary,HR,Development,Critical,a,f,policy_C,home
+2025-06-24T10:22:36,bob@company.com,Quarterly Report,org.pdf,erin@partner.org,partner.org,YES,202507,202507,intern,,confidential,Finance,Accounting,Medium,a,g,policy_A,school work 
+2025-06-25T14:22:08,alice@company.com,Confidential Proposal,org.pdf,john@vendor.org,vendor.org,YES,202508,202507,contractor,salary,salary,Finance,Recruitment,Low,b,f,policy_A,home
+2025-06-08T15:16:12,alice@company.com,Confidential Proposal,cv.pdf,dave@external.com,external.com,YES,202511,202507,intern,salary,,HR,Development,High,a,f,policy_A,school work 
+2025-06-01T21:02:29,carol@company.com,Quarterly Report,report.pdf,john@vendor.org,vendor.org,YES,202508,202507,contractor,confidential,confidential,HR,Accounting,Critical,b,h,Ploicy_B,home
+2025-06-09T13:00:48,alice@company.com,Quarterly Report,home.pdf,erin@partner.org,partner.org,YES,202511,202507,intern,confidential,salary,Engineering,Accounting,Low,c,f,policy_C,school work 
+2025-07-18T05:20:52,carol@company.com,Confidential Proposal,,erin@partner.org,partner.org,NO,202511,202507,employee,confidential,,Finance,Recruitment,Low,a,h,policy_C,home
+2025-06-23T07:05:01,bob@company.com,Quarterly Report,report.pdf,erin@partner.org,partner.org,YES,202507,202507,intern,confidential,salary,Finance,Recruitment,Medium,c,f,policy_C,school work 
+2025-07-19T08:08:51,bob@company.com,Quarterly Report,home.pdf,erin@partner.org,partner.org,NO,202512,202507,intern,confidential,salary,Finance,Accounting,High,b,h,policy_C,home
+2025-07-18T02:14:01,alice@company.com,Confidential Proposal,cv.pdf,dave@external.com,external.com,YES,202508,202507,intern,salary,,Engineering,Recruitment,Medium,a,g,policy_C,school work 
+2025-06-26T00:56:41,bob@company.com,Quarterly Report,contract.pdf,sara@client.com,client.com,YES,202511,202507,contractor,confidential,confidential,Finance,Recruitment,High,a,f,policy_A,home
+2025-07-01T06:04:08,bob@company.com,Confidential Proposal,home.pdf,sara@client.com,client.com,NO,202511,202507,employee,,,HR,Recruitment,Medium,c,h,policy_A,school work 
+2025-07-23T11:31:53,carol@company.com,Resignation Letter,org.pdf,john@vendor.org,vendor.org,YES,202512,202507,intern,,salary,Finance,Development,Medium,a,g,policy_C,home
+2025-07-07T18:56:38,carol@company.com,Confidential Proposal,report.pdf,erin@partner.org,partner.org,YES,202508,202507,contractor,salary,confidential,Finance,Accounting,High,c,f,policy_C,school work 
+2025-07-17T00:05:15,carol@company.com,Quarterly Report,contract.pdf,john@vendor.org,vendor.org,NO,202511,202507,contractor,,,Finance,Accounting,Critical,c,f,policy_C,home
+2025-07-30T10:41:12,dave@company.com,Quarterly Report,contract.pdf,john@vendor.org,vendor.org,NO,202509,202507,intern,confidential,salary,HR,Accounting,Critical,b,f,Ploicy_B,school work 
+2025-07-20T18:31:14,alice@company.com,Project Update,cv.pdf,erin@partner.org,partner.org,NO,202507,202507,contractor,salary,confidential,Engineering,Accounting,Low,a,f,policy_C,home
+2025-07-21T22:05:25,bob@company.com,Confidential Proposal,,john@vendor.org,vendor.org,NO,202512,202507,intern,salary,confidential,HR,Development,Medium,c,f,policy_C,school work 
+2025-06-29T08:02:26,alice@company.com,Resignation Letter,cv.pdf,dave@external.com,external.com,YES,202509,202507,employee,,confidential,Engineering,Recruitment,High,a,g,policy_A,home
+2025-07-02T05:14:41,dave@company.com,Quarterly Report,contract.pdf,sara@client.com,client.com,NO,202511,202507,intern,confidential,,Engineering,Recruitment,Low,b,g,policy_A,school work 
+2025-06-08T04:57:08,alice@company.com,Project Update,cv.pdf,dave@external.com,external.com,YES,202510,202507,employee,confidential,,HR,Development,Low,a,g,policy_A,home
+2025-07-06T07:06:45,alice@company.com,Confidential Proposal,report.pdf,john@vendor.org,vendor.org,YES,202507,202507,contractor,confidential,confidential,Finance,Recruitment,High,a,f,policy_A,school work 
+2025-06-29T11:47:36,dave@company.com,Resignation Letter,home.pdf,john@vendor.org,vendor.org,YES,202511,202507,employee,confidential,,Engineering,Recruitment,Low,c,g,Ploicy_B,home
+2025-07-31T14:59:01,dave@company.com,Project Update,,erin@partner.org,partner.org,NO,202512,202507,contractor,salary,confidential,Finance,Accounting,Medium,a,g,Ploicy_B,school work 
+2025-06-11T11:12:29,alice@company.com,Project Update,contract.pdf,sara@client.com,client.com,NO,202512,202507,intern,salary,confidential,Finance,Recruitment,High,a,h,policy_A,home
+2025-06-20T22:48:24,bob@company.com,Confidential Proposal,cv.pdf,dave@external.com,external.com,NO,202511,202507,contractor,confidential,salary,Engineering,Recruitment,Critical,a,h,policy_A,school work 
+2025-07-30T22:32:11,carol@company.com,Confidential Proposal,cv.pdf,john@vendor.org,vendor.org,NO,202512,202507,intern,confidential,,Finance,Accounting,Medium,c,h,policy_A,home
+2025-07-16T13:25:57,bob@company.com,Project Update,contract.pdf,john@vendor.org,vendor.org,NO,202508,202507,employee,salary,,HR,Recruitment,Critical,c,h,policy_A,school work 
+2025-07-01T03:08:24,carol@company.com,Project Update,home.pdf,erin@partner.org,partner.org,NO,202511,202507,employee,confidential,confidential,Finance,Accounting,Low,b,f,policy_C,home
+2025-07-05T13:09:32,bob@company.com,Confidential Proposal,org.pdf,erin@partner.org,partner.org,YES,202511,202507,contractor,,,Engineering,Development,Critical,c,f,policy_A,school work 
+2025-06-12T02:03:08,alice@company.com,Project Update,org.pdf,dave@external.com,external.com,NO,202511,202507,intern,confidential,salary,Engineering,Recruitment,Critical,b,f,policy_A,home
+2025-06-17T11:40:38,alice@company.com,Project Update,report.pdf,sara@client.com,client.com,NO,202511,202507,contractor,,,HR,Recruitment,High,a,g,policy_A,school work 
+2025-07-26T10:22:50,alice@company.com,Project Update,org.pdf,dave@external.com,external.com,YES,202512,202507,contractor,,confidential,Finance,Accounting,Critical,a,g,policy_A,home
+2025-07-10T19:18:38,alice@company.com,Quarterly Report,org.pdf,dave@external.com,external.com,YES,202509,202507,employee,,salary,HR,Development,Medium,b,g,Ploicy_B,school work 
+2025-06-23T05:14:33,bob@company.com,Quarterly Report,report.pdf,sara@client.com,client.com,YES,202510,202507,intern,confidential,,Finance,Recruitment,Critical,b,g,policy_A,home
+2025-06-13T14:54:56,bob@company.com,Resignation Letter,,erin@partner.org,partner.org,NO,202509,202507,contractor,,confidential,Finance,Development,High,b,f,policy_C,school work 
+2025-06-24T23:39:48,bob@company.com,Confidential Proposal,home.pdf,erin@partner.org,partner.org,YES,202507,202507,intern,confidential,salary,Finance,Recruitment,Medium,c,g,policy_C,home
+2025-07-17T02:28:51,alice@company.com,Confidential Proposal,report.pdf,erin@partner.org,partner.org,NO,202510,202507,contractor,salary,confidential,HR,Accounting,Low,c,g,policy_A,school work 
+2025-06-07T11:03:13,alice@company.com,Confidential Proposal,report.pdf,sara@client.com,client.com,YES,202511,202507,intern,salary,,Finance,Development,Critical,a,f,Ploicy_B,home
+2025-06-28T15:04:30,carol@company.com,Quarterly Report,home.pdf,john@vendor.org,vendor.org,NO,202509,202507,intern,confidential,confidential,Engineering,Development,Low,b,g,policy_C,school work 
+2025-07-02T09:59:14,dave@company.com,Confidential Proposal,home.pdf,sara@client.com,client.com,YES,202512,202507,contractor,,,HR,Development,Critical,a,f,policy_C,home
+2025-07-04T09:20:43,bob@company.com,Quarterly Report,cv.pdf,john@vendor.org,vendor.org,YES,202509,202507,intern,,,Finance,Recruitment,Low,b,h,policy_C,school work 
+2025-06-05T20:14:48,bob@company.com,Confidential Proposal,,john@vendor.org,vendor.org,NO,202508,202507,contractor,confidential,,Engineering,Recruitment,High,c,h,policy_A,home
+2025-06-07T14:24:43,alice@company.com,Confidential Proposal,,erin@partner.org,partner.org,YES,202512,202507,contractor,confidential,confidential,Engineering,Recruitment,Low,a,f,policy_C,school work 
+2025-06-17T17:22:10,dave@company.com,Quarterly Report,report.pdf,john@vendor.org,vendor.org,NO,202508,202507,intern,salary,confidential,Finance,Accounting,Critical,a,g,policy_A,home
+2025-06-20T07:00:13,carol@company.com,Quarterly Report,home.pdf,john@vendor.org,vendor.org,NO,202510,202507,contractor,,confidential,Finance,Recruitment,Low,c,h,policy_C,school work 
+2025-06-27T16:38:20,carol@company.com,Project Update,org.pdf,john@vendor.org,vendor.org,YES,202511,202507,employee,salary,salary,HR,Accounting,Critical,a,h,policy_A,home
+2025-07-12T08:06:45,alice@company.com,Quarterly Report,,dave@external.com,external.com,YES,202510,202507,employee,confidential,,HR,Development,Medium,b,h,Ploicy_B,school work 
+2025-07-10T18:30:42,alice@company.com,Confidential Proposal,report.pdf,sara@client.com,client.com,YES,202512,202507,contractor,,confidential,Engineering,Development,Critical,c,f,policy_C,home
+2025-07-17T16:39:59,bob@company.com,Quarterly Report,report.pdf,dave@external.com,external.com,YES,202510,202507,employee,confidential,confidential,Engineering,Accounting,Low,a,f,policy_C,school work 
+2025-06-12T05:10:57,alice@company.com,Confidential Proposal,home.pdf,john@vendor.org,vendor.org,YES,202509,202507,intern,confidential,confidential,Finance,Development,Low,b,f,policy_C,home
+2025-07-18T00:04:07,dave@company.com,Quarterly Report,home.pdf,john@vendor.org,vendor.org,YES,202507,202507,contractor,salary,salary,Finance,Development,Low,b,f,policy_A,school work 
+2025-06-28T16:35:32,carol@company.com,Project Update,org.pdf,erin@partner.org,partner.org,NO,202510,202507,employee,salary,salary,Finance,Recruitment,High,a,g,policy_C,home
+2025-07-28T09:54:26,alice@company.com,Resignation Letter,home.pdf,john@vendor.org,vendor.org,NO,202509,202507,contractor,confidential,,Finance,Accounting,High,a,h,policy_A,school work 
+2025-07-12T22:53:45,alice@company.com,Confidential Proposal,cv.pdf,john@vendor.org,vendor.org,NO,202511,202507,contractor,,,Finance,Development,Medium,a,h,policy_C,home
+2025-06-06T15:55:30,carol@company.com,Resignation Letter,,sara@client.com,client.com,YES,202511,202507,employee,salary,salary,Engineering,Accounting,Critical,c,h,Ploicy_B,school work 
+2025-07-05T09:46:02,dave@company.com,Confidential Proposal,cv.pdf,erin@partner.org,partner.org,NO,202512,202507,contractor,,,HR,Development,High,b,h,policy_C,home
+2025-07-09T13:59:07,dave@company.com,Quarterly Report,home.pdf,sara@client.com,client.com,YES,202510,202507,contractor,salary,salary,HR,Recruitment,Low,b,f,policy_C,school work 
+2025-07-08T15:21:47,bob@company.com,Quarterly Report,contract.pdf,sara@client.com,client.com,YES,202507,202507,employee,,confidential,Engineering,Accounting,Low,c,h,Ploicy_B,home
+2025-06-28T07:55:04,alice@company.com,Confidential Proposal,report.pdf,john@vendor.org,vendor.org,NO,202507,202507,intern,confidential,salary,Finance,Development,Medium,c,h,policy_A,school work 
+2025-07-23T04:10:21,carol@company.com,Quarterly Report,home.pdf,dave@external.com,external.com,NO,202510,202507,employee,confidential,,Engineering,Recruitment,Critical,b,g,policy_C,home
+2025-07-01T09:59:54,alice@company.com,Project Update,home.pdf,sara@client.com,client.com,YES,202508,202507,contractor,salary,salary,HR,Development,Medium,b,f,policy_C,school work 
+2025-06-07T23:19:37,bob@company.com,Confidential Proposal,contract.pdf,john@vendor.org,vendor.org,NO,202511,202507,contractor,confidential,confidential,Engineering,Development,High,a,f,policy_A,home
+2025-07-25T23:07:53,alice@company.com,Quarterly Report,home.pdf,sara@client.com,client.com,YES,202509,202507,employee,confidential,,Engineering,Recruitment,Medium,b,g,policy_A,school work 
+2025-07-28T05:47:46,carol@company.com,Quarterly Report,contract.pdf,dave@external.com,external.com,NO,202508,202507,contractor,confidential,salary,Finance,Accounting,Low,b,g,policy_A,home
+2025-07-02T00:03:20,alice@company.com,Quarterly Report,contract.pdf,sara@client.com,client.com,NO,202510,202507,contractor,,confidential,HR,Recruitment,High,c,h,Ploicy_B,school work 
+2025-07-29T11:15:16,carol@company.com,Project Update,home.pdf,erin@partner.org,partner.org,NO,202512,202507,employee,confidential,confidential,Engineering,Development,Low,a,f,policy_A,home
+2025-06-12T22:50:45,dave@company.com,Resignation Letter,org.pdf,john@vendor.org,vendor.org,NO,202510,202507,employee,salary,confidential,Finance,Accounting,Critical,b,f,policy_C,school work 
+2025-07-22T02:10:09,alice@company.com,Resignation Letter,home.pdf,john@vendor.org,vendor.org,NO,202510,202507,employee,salary,confidential,HR,Recruitment,High,b,f,policy_A,home
+2025-07-23T07:35:21,alice@company.com,Project Update,report.pdf,sara@client.com,client.com,NO,202511,202507,contractor,salary,,Finance,Accounting,Critical,b,f,Ploicy_B,school work 
+2025-07-16T04:33:45,carol@company.com,Confidential Proposal,org.pdf,erin@partner.org,partner.org,NO,202511,202507,intern,,confidential,Finance,Accounting,Low,c,f,Ploicy_B,home
+2025-07-21T09:19:07,carol@company.com,Resignation Letter,contract.pdf,dave@external.com,external.com,NO,202512,202507,contractor,,,Finance,Recruitment,High,a,f,policy_C,school work 
+2025-07-28T11:03:43,alice@company.com,Confidential Proposal,report.pdf,dave@external.com,external.com,NO,202509,202507,employee,salary,salary,Finance,Recruitment,Critical,a,h,Ploicy_B,home
+2025-06-26T18:23:20,bob@company.com,Project Update,cv.pdf,dave@external.com,external.com,YES,202508,202507,intern,,salary,Engineering,Development,High,a,f,policy_A,school work 
+2025-06-20T12:07:57,dave@company.com,Quarterly Report,,erin@partner.org,partner.org,YES,202507,202507,employee,confidential,,Finance,Recruitment,High,b,f,policy_A,home
+2025-06-13T12:06:54,dave@company.com,Quarterly Report,org.pdf,sara@client.com,client.com,YES,202508,202507,intern,confidential,,Finance,Development,Medium,b,g,policy_A,school work 
+2025-07-13T11:04:42,bob@company.com,Quarterly Report,home.pdf,erin@partner.org,partner.org,NO,202509,202507,intern,salary,confidential,HR,Development,Medium,a,h,policy_C,home
+2025-06-11T23:22:31,carol@company.com,Quarterly Report,cv.pdf,sara@client.com,client.com,NO,202509,202507,intern,,,Finance,Recruitment,Critical,b,g,Ploicy_B,school work 
+2025-06-25T00:56:17,bob@company.com,Project Update,contract.pdf,dave@external.com,external.com,YES,202510,202507,employee,confidential,,HR,Development,Medium,a,h,policy_A,home
+2025-06-08T06:19:01,dave@company.com,Resignation Letter,org.pdf,erin@partner.org,partner.org,YES,202508,202507,intern,confidential,confidential,Finance,Development,Low,c,h,policy_C,school work 
+2025-07-11T10:05:49,alice@company.com,Resignation Letter,report.pdf,john@vendor.org,vendor.org,YES,202508,202507,contractor,confidential,salary,Engineering,Development,Critical,a,f,policy_A,home
+2025-06-09T18:27:28,alice@company.com,Quarterly Report,home.pdf,dave@external.com,external.com,NO,202510,202507,employee,,,Engineering,Accounting,High,a,h,Ploicy_B,school work 
+2025-06-19T22:28:58,carol@company.com,Confidential Proposal,report.pdf,sara@client.com,client.com,YES,202512,202507,employee,salary,salary,HR,Accounting,Medium,a,f,Ploicy_B,home
+2025-07-18T18:42:38,dave@company.com,Resignation Letter,home.pdf,john@vendor.org,vendor.org,NO,202511,202507,employee,confidential,salary,Finance,Development,High,a,h,policy_C,school work 
+2025-07-25T14:23:10,alice@company.com,Quarterly Report,org.pdf,sara@client.com,client.com,YES,202508,202507,contractor,,confidential,Engineering,Accounting,Low,a,g,policy_C,home
+2025-06-05T15:22:17,dave@company.com,Confidential Proposal,,dave@external.com,external.com,YES,202509,202507,contractor,confidential,salary,HR,Recruitment,Medium,a,g,policy_A,school work 
+2025-06-13T09:09:03,carol@company.com,Confidential Proposal,org.pdf,john@vendor.org,vendor.org,YES,202509,202507,contractor,salary,salary,HR,Development,Medium,c,h,policy_C,home
+2025-06-03T09:17:45,carol@company.com,Resignation Letter,contract.pdf,erin@partner.org,partner.org,YES,202511,202507,intern,,confidential,Engineering,Development,Low,b,g,Ploicy_B,school work 
+2025-07-30T11:36:33,carol@company.com,Resignation Letter,cv.pdf,sara@client.com,client.com,NO,202511,202507,intern,confidential,,Finance,Recruitment,Low,c,h,Ploicy_B,home
+2025-07-01T10:42:54,carol@company.com,Resignation Letter,contract.pdf,erin@partner.org,partner.org,NO,202511,202507,contractor,,confidential,Engineering,Recruitment,High,c,g,policy_A,school work 
+2025-07-31T23:36:55,dave@company.com,Resignation Letter,org.pdf,erin@partner.org,partner.org,YES,202508,202507,intern,confidential,,HR,Development,Medium,a,g,policy_C,home
+2025-06-30T04:10:58,alice@company.com,Confidential Proposal,cv.pdf,sara@client.com,client.com,NO,202512,202507,contractor,salary,,Engineering,Accounting,Low,b,g,policy_C,school work 
+2025-06-07T23:10:32,dave@company.com,Resignation Letter,home.pdf,dave@external.com,external.com,NO,202508,202507,employee,,salary,HR,Accounting,High,c,f,policy_A,home
+2025-06-14T09:29:26,alice@company.com,Confidential Proposal,home.pdf,dave@external.com,external.com,NO,202512,202507,intern,confidential,salary,Engineering,Accounting,Low,a,f,Ploicy_B,school work 
+2025-07-04T01:45:06,dave@company.com,Confidential Proposal,contract.pdf,sara@client.com,client.com,YES,202510,202507,contractor,salary,salary,HR,Recruitment,Critical,c,h,policy_A,home
+2025-06-03T14:47:55,dave@company.com,Project Update,report.pdf,erin@partner.org,partner.org,NO,202512,202507,intern,confidential,salary,HR,Recruitment,High,c,f,policy_C,school work 
+2025-07-10T15:10:36,bob@company.com,Project Update,home.pdf,dave@external.com,external.com,YES,202508,202507,intern,salary,confidential,Finance,Recruitment,Critical,b,f,policy_A,home
+2025-07-12T05:21:50,dave@company.com,Quarterly Report,report.pdf,erin@partner.org,partner.org,NO,202510,202507,intern,confidential,salary,Finance,Accounting,Medium,a,g,policy_C,school work 
+2025-06-14T23:08:18,bob@company.com,Resignation Letter,org.pdf,erin@partner.org,partner.org,YES,202512,202507,intern,,salary,HR,Development,Low,a,g,policy_C,home
+2025-07-10T11:02:02,alice@company.com,Project Update,org.pdf,john@vendor.org,vendor.org,NO,202511,202507,employee,,salary,Finance,Development,High,a,g,policy_A,school work 
+2025-06-09T00:22:32,dave@company.com,Project Update,report.pdf,sara@client.com,client.com,NO,202508,202507,intern,,confidential,HR,Development,High,c,f,policy_A,home
+2025-06-13T15:34:31,carol@company.com,Confidential Proposal,contract.pdf,john@vendor.org,vendor.org,NO,202509,202507,intern,confidential,confidential,Finance,Recruitment,High,b,g,policy_C,school work 
+2025-06-24T19:06:45,bob@company.com,Project Update,org.pdf,dave@external.com,external.com,NO,202512,202507,contractor,salary,salary,Engineering,Accounting,High,c,g,Ploicy_B,home
+2025-07-16T04:34:07,carol@company.com,Confidential Proposal,org.pdf,john@vendor.org,vendor.org,NO,202511,202507,employee,salary,confidential,Finance,Development,Critical,c,h,policy_A,school work 
+2025-07-01T02:46:25,carol@company.com,Project Update,report.pdf,sara@client.com,client.com,NO,202507,202507,employee,confidential,,Finance,Development,Low,a,g,policy_C,home
+2025-07-26T04:07:28,bob@company.com,Quarterly Report,,dave@external.com,external.com,YES,202508,202507,intern,,confidential,Finance,Accounting,Low,b,f,Ploicy_B,school work 
+2025-07-28T02:45:49,dave@company.com,Confidential Proposal,org.pdf,dave@external.com,external.com,NO,202511,202507,contractor,,salary,HR,Development,Medium,b,g,policy_A,home
+2025-06-16T17:34:24,carol@company.com,Confidential Proposal,report.pdf,dave@external.com,external.com,NO,202509,202507,contractor,salary,,Engineering,Accounting,Critical,a,g,policy_A,school work 
+2025-07-31T03:28:17,carol@company.com,Confidential Proposal,home.pdf,sara@client.com,client.com,YES,202508,202507,contractor,salary,,Engineering,Accounting,High,a,f,Ploicy_B,home
+2025-06-03T04:40:47,alice@company.com,Confidential Proposal,home.pdf,dave@external.com,external.com,YES,202507,202507,employee,salary,confidential,Engineering,Recruitment,Critical,b,g,policy_C,school work 
+2025-07-09T11:37:32,carol@company.com,Resignation Letter,cv.pdf,erin@partner.org,partner.org,NO,202509,202507,employee,,salary,HR,Accounting,Medium,a,h,Ploicy_B,home
+2025-07-05T18:00:43,dave@company.com,Resignation Letter,cv.pdf,erin@partner.org,partner.org,YES,202511,202507,intern,confidential,salary,Engineering,Recruitment,High,a,g,policy_A,school work 
+2025-07-10T10:31:18,dave@company.com,Quarterly Report,report.pdf,john@vendor.org,vendor.org,YES,202507,202507,employee,salary,salary,Finance,Recruitment,Medium,c,h,Ploicy_B,home
+2025-06-02T14:20:19,bob@company.com,Confidential Proposal,report.pdf,sara@client.com,client.com,NO,202509,202507,employee,,,HR,Recruitment,High,b,h,policy_C,school work 
+2025-06-10T09:30:23,carol@company.com,Confidential Proposal,cv.pdf,dave@external.com,external.com,YES,202511,202507,contractor,salary,,HR,Recruitment,Critical,b,h,policy_A,home
+2025-06-26T12:09:41,bob@company.com,Project Update,org.pdf,dave@external.com,external.com,NO,202512,202507,contractor,,confidential,Engineering,Accounting,High,b,f,Ploicy_B,school work 
+2025-07-29T09:46:54,dave@company.com,Confidential Proposal,home.pdf,dave@external.com,external.com,NO,202507,202507,contractor,,salary,HR,Accounting,High,c,f,policy_C,home
+2025-07-31T21:58:16,alice@company.com,Confidential Proposal,,dave@external.com,external.com,NO,202512,202507,intern,salary,confidential,Engineering,Development,Critical,b,g,policy_C,school work 
+2025-06-27T00:46:56,bob@company.com,Confidential Proposal,cv.pdf,dave@external.com,external.com,NO,202511,202507,intern,confidential,,Finance,Development,High,b,f,policy_C,home
+2025-06-09T22:32:10,dave@company.com,Resignation Letter,org.pdf,dave@external.com,external.com,YES,202507,202507,employee,salary,,Finance,Recruitment,High,a,h,policy_A,school work 
+2025-06-30T14:23:42,alice@company.com,Quarterly Report,,john@vendor.org,vendor.org,NO,202511,202507,intern,salary,confidential,Finance,Development,Critical,b,g,policy_A,home
+2025-06-07T03:13:52,dave@company.com,Confidential Proposal,cv.pdf,sara@client.com,client.com,YES,202508,202507,intern,,salary,Finance,Accounting,Medium,b,h,policy_C,school work 
+2025-06-04T01:43:50,bob@company.com,Quarterly Report,report.pdf,dave@external.com,external.com,NO,202511,202507,intern,confidential,confidential,HR,Recruitment,Critical,a,g,policy_C,home
+2025-07-27T21:29:59,dave@company.com,Resignation Letter,,dave@external.com,external.com,NO,202511,202507,intern,,,Engineering,Recruitment,Medium,b,f,policy_C,school work 
+2025-06-16T21:33:22,dave@company.com,Quarterly Report,cv.pdf,sara@client.com,client.com,YES,202510,202507,contractor,confidential,,Engineering,Recruitment,Low,b,h,policy_A,home
+2025-07-06T14:45:03,alice@company.com,Quarterly Report,report.pdf,dave@external.com,external.com,NO,202512,202507,employee,confidential,confidential,Engineering,Development,High,a,f,policy_C,school work 
+2025-06-03T19:08:25,carol@company.com,Confidential Proposal,contract.pdf,dave@external.com,external.com,NO,202510,202507,intern,confidential,confidential,Engineering,Development,High,b,g,policy_C,home
+2025-07-15T04:10:05,dave@company.com,Project Update,contract.pdf,john@vendor.org,vendor.org,YES,202508,202507,intern,confidential,,Finance,Recruitment,High,b,g,policy_A,school work 
+2025-06-04T07:05:20,alice@company.com,Quarterly Report,contract.pdf,erin@partner.org,partner.org,YES,202512,202507,contractor,,salary,Engineering,Accounting,High,b,h,policy_C,home
+2025-07-11T03:35:25,bob@company.com,Resignation Letter,contract.pdf,john@vendor.org,vendor.org,YES,202509,202507,intern,,,Engineering,Recruitment,Critical,b,h,Ploicy_B,school work 
+2025-07-01T22:59:52,alice@company.com,Resignation Letter,cv.pdf,sara@client.com,client.com,NO,202508,202507,employee,,confidential,Engineering,Development,Critical,a,h,policy_A,home
+2025-06-07T15:00:07,bob@company.com,Quarterly Report,cv.pdf,john@vendor.org,vendor.org,YES,202508,202507,intern,salary,,Engineering,Accounting,Low,a,h,policy_C,school work 
+2025-06-17T21:23:08,carol@company.com,Quarterly Report,contract.pdf,sara@client.com,client.com,YES,202507,202507,employee,confidential,,Engineering,Development,Medium,b,g,Ploicy_B,home
+2025-07-02T02:08:46,alice@company.com,Quarterly Report,org.pdf,sara@client.com,client.com,YES,202509,202507,contractor,,salary,Finance,Accounting,Critical,b,g,Ploicy_B,school work 
+2025-06-27T02:41:18,carol@company.com,Resignation Letter,contract.pdf,erin@partner.org,partner.org,NO,202512,202507,intern,,salary,Finance,Development,High,b,f,policy_C,home
+2025-06-28T17:20:43,carol@company.com,Project Update,org.pdf,john@vendor.org,vendor.org,YES,202511,202507,contractor,,salary,Engineering,Development,Low,b,g,policy_C,school work 
+2025-07-30T20:57:58,carol@company.com,Project Update,org.pdf,dave@external.com,external.com,NO,202507,202507,employee,salary,,HR,Development,Medium,c,h,Ploicy_B,home
+2025-07-07T04:53:03,alice@company.com,Confidential Proposal,cv.pdf,john@vendor.org,vendor.org,NO,202508,202507,intern,confidential,confidential,Finance,Accounting,Critical,a,h,policy_C,school work 
+2025-06-17T15:33:45,bob@company.com,Quarterly Report,home.pdf,john@vendor.org,vendor.org,YES,202512,202507,employee,salary,salary,HR,Development,Low,a,f,policy_C,home
+2025-07-12T10:00:52,carol@company.com,Confidential Proposal,home.pdf,erin@partner.org,partner.org,YES,202509,202507,employee,confidential,,Engineering,Development,Low,a,f,policy_C,school work 
+2025-07-09T21:19:40,alice@company.com,Resignation Letter,org.pdf,dave@external.com,external.com,YES,202512,202507,employee,,confidential,HR,Accounting,Low,a,f,policy_A,home
+2025-07-04T05:10:52,bob@company.com,Project Update,contract.pdf,john@vendor.org,vendor.org,NO,202512,202507,contractor,,confidential,Engineering,Development,Low,a,h,policy_C,school work 
+2025-07-23T00:23:58,carol@company.com,Confidential Proposal,cv.pdf,sara@client.com,client.com,YES,202508,202507,employee,confidential,salary,Engineering,Development,Medium,b,f,policy_A,home
+2025-06-14T17:59:17,bob@company.com,Project Update,cv.pdf,dave@external.com,external.com,NO,202512,202507,employee,salary,,HR,Recruitment,Medium,b,h,policy_C,school work 
+2025-07-05T16:42:13,alice@company.com,Resignation Letter,home.pdf,sara@client.com,client.com,YES,202510,202507,employee,confidential,,HR,Accounting,Low,c,h,policy_C,home
+2025-06-26T12:53:16,dave@company.com,Confidential Proposal,home.pdf,john@vendor.org,vendor.org,NO,202512,202507,intern,salary,salary,Finance,Accounting,Medium,c,h,policy_A,school work 
+2025-06-30T03:40:17,alice@company.com,Project Update,home.pdf,john@vendor.org,vendor.org,NO,202511,202507,employee,salary,salary,Finance,Development,Medium,a,h,Ploicy_B,home
+2025-07-08T23:31:19,dave@company.com,Quarterly Report,report.pdf,erin@partner.org,partner.org,NO,202508,202507,intern,confidential,,Finance,Recruitment,Critical,c,g,policy_C,school work 
+2025-07-30T15:55:15,dave@company.com,Project Update,home.pdf,erin@partner.org,partner.org,NO,202512,202507,employee,confidential,,Engineering,Accounting,High,c,h,Ploicy_B,home
+2025-07-03T23:10:37,carol@company.com,Project Update,contract.pdf,john@vendor.org,vendor.org,NO,202510,202507,contractor,salary,salary,Engineering,Recruitment,Critical,b,h,policy_A,school work 
+2025-07-07T22:51:31,carol@company.com,Confidential Proposal,org.pdf,erin@partner.org,partner.org,NO,202512,202507,contractor,salary,,HR,Recruitment,High,b,g,policy_C,home
+2025-06-05T01:57:35,alice@company.com,Quarterly Report,org.pdf,erin@partner.org,partner.org,YES,202508,202507,employee,salary,confidential,Engineering,Recruitment,Critical,a,g,policy_A,school work 
+2025-07-17T15:28:47,dave@company.com,Quarterly Report,cv.pdf,erin@partner.org,partner.org,NO,202510,202507,intern,confidential,,HR,Recruitment,Low,c,h,policy_A,home
+2025-06-17T11:57:50,carol@company.com,Resignation Letter,report.pdf,dave@external.com,external.com,NO,202508,202507,intern,,confidential,Finance,Recruitment,Medium,c,h,policy_C,school work 
+2025-07-04T08:41:59,carol@company.com,Project Update,org.pdf,dave@external.com,external.com,YES,202508,202507,contractor,salary,,Finance,Accounting,High,a,f,policy_A,home
+2025-06-24T16:24:31,bob@company.com,Quarterly Report,,dave@external.com,external.com,YES,202508,202507,intern,,confidential,Finance,Recruitment,Low,a,h,policy_C,school work 
+2025-07-05T07:45:26,alice@company.com,Resignation Letter,contract.pdf,john@vendor.org,vendor.org,YES,202507,202507,contractor,,,HR,Recruitment,Low,a,g,policy_A,home
+2025-07-30T11:22:09,dave@company.com,Quarterly Report,home.pdf,john@vendor.org,vendor.org,YES,202511,202507,contractor,,salary,Finance,Recruitment,Medium,b,h,policy_C,school work 
+2025-06-08T14:11:10,bob@company.com,Project Update,org.pdf,erin@partner.org,partner.org,NO,202511,202507,contractor,confidential,confidential,Finance,Recruitment,Critical,a,f,policy_C,home
+2025-07-26T01:50:52,bob@company.com,Project Update,report.pdf,john@vendor.org,vendor.org,YES,202510,202507,intern,salary,,Engineering,Accounting,Critical,b,h,policy_A,school work 
+2025-07-06T04:18:21,carol@company.com,Quarterly Report,org.pdf,sara@client.com,client.com,YES,202507,202507,employee,salary,salary,HR,Recruitment,Low,b,f,Ploicy_B,home
+2025-06-16T09:41:02,carol@company.com,Project Update,,erin@partner.org,partner.org,YES,202509,202507,employee,confidential,,Engineering,Accounting,Critical,a,f,policy_C,school work 
+2025-07-03T18:35:27,carol@company.com,Quarterly Report,cv.pdf,john@vendor.org,vendor.org,YES,202508,202507,intern,confidential,confidential,Engineering,Development,Critical,b,g,Ploicy_B,home
+2025-07-07T08:58:38,dave@company.com,Project Update,,john@vendor.org,vendor.org,NO,202507,202507,intern,salary,salary,Engineering,Recruitment,Critical,a,h,Ploicy_B,school work 
+2025-06-16T18:37:20,dave@company.com,Quarterly Report,org.pdf,sara@client.com,client.com,NO,202511,202507,contractor,confidential,salary,HR,Development,Low,a,g,policy_C,home
+2025-07-31T14:30:03,alice@company.com,Quarterly Report,,erin@partner.org,partner.org,YES,202509,202507,employee,salary,,Engineering,Recruitment,Medium,a,g,policy_C,school work 
+2025-07-21T16:06:09,carol@company.com,Confidential Proposal,home.pdf,sara@client.com,client.com,YES,202509,202507,contractor,,salary,Finance,Accounting,Medium,c,g,policy_C,home
+2025-06-05T02:46:28,bob@company.com,Confidential Proposal,home.pdf,erin@partner.org,partner.org,YES,202512,202507,contractor,,salary,Engineering,Recruitment,Medium,c,f,policy_A,school work 
+2025-06-11T02:18:14,dave@company.com,Confidential Proposal,contract.pdf,erin@partner.org,partner.org,YES,202507,202507,intern,salary,,Engineering,Accounting,Medium,b,f,Ploicy_B,home
+2025-07-09T17:10:25,bob@company.com,Resignation Letter,,dave@external.com,external.com,NO,202507,202507,intern,salary,confidential,HR,Recruitment,High,c,f,policy_C,school work 
+2025-07-31T13:14:56,carol@company.com,Quarterly Report,home.pdf,erin@partner.org,partner.org,YES,202508,202507,employee,salary,salary,HR,Recruitment,Critical,a,h,policy_A,home
+2025-07-20T01:59:57,bob@company.com,Resignation Letter,org.pdf,dave@external.com,external.com,NO,202511,202507,employee,salary,,Finance,Accounting,Medium,b,f,policy_A,school work 
+2025-06-04T07:37:05,alice@company.com,Confidential Proposal,org.pdf,erin@partner.org,partner.org,NO,202512,202507,contractor,salary,salary,Engineering,Recruitment,Medium,b,g,policy_C,home
+2025-06-02T10:38:18,bob@company.com,Resignation Letter,report.pdf,erin@partner.org,partner.org,YES,202512,202507,intern,salary,,Engineering,Accounting,Critical,b,g,policy_C,school work 
+2025-07-24T13:21:16,carol@company.com,Resignation Letter,org.pdf,sara@client.com,client.com,YES,202510,202507,employee,salary,confidential,Finance,Development,Low,c,g,policy_A,home
+2025-06-21T19:36:32,carol@company.com,Confidential Proposal,home.pdf,erin@partner.org,partner.org,NO,202507,202507,contractor,confidential,,Finance,Recruitment,Medium,a,h,policy_C,school work 
+2025-06-07T05:33:23,alice@company.com,Project Update,report.pdf,sara@client.com,client.com,NO,202512,202507,contractor,confidential,,HR,Recruitment,Critical,c,g,policy_A,home
+2025-06-24T08:47:58,dave@company.com,Quarterly Report,org.pdf,john@vendor.org,vendor.org,NO,202511,202507,intern,salary,,HR,Accounting,Critical,c,g,Ploicy_B,school work 
+2025-06-19T14:13:04,carol@company.com,Project Update,home.pdf,erin@partner.org,partner.org,YES,202512,202507,contractor,confidential,salary,HR,Development,Low,a,f,policy_C,home
+2025-06-10T18:07:26,alice@company.com,Project Update,cv.pdf,sara@client.com,client.com,YES,202508,202507,employee,,salary,HR,Accounting,Medium,b,h,policy_C,school work 
+2025-06-12T07:45:28,alice@company.com,Project Update,contract.pdf,erin@partner.org,partner.org,NO,202511,202507,intern,,confidential,Engineering,Development,Medium,b,g,policy_A,home
+2025-07-03T16:59:26,bob@company.com,Confidential Proposal,report.pdf,dave@external.com,external.com,NO,202507,202507,intern,,confidential,Engineering,Accounting,Critical,a,h,policy_A,school work 
+2025-06-12T13:49:38,dave@company.com,Quarterly Report,org.pdf,dave@external.com,external.com,YES,202508,202507,employee,,salary,Engineering,Development,Low,a,g,policy_A,home
+2025-06-11T06:39:44,dave@company.com,Quarterly Report,home.pdf,john@vendor.org,vendor.org,YES,202511,202507,intern,confidential,confidential,Finance,Recruitment,Low,b,f,Ploicy_B,school work 
+2025-07-13T05:12:17,dave@company.com,Quarterly Report,org.pdf,john@vendor.org,vendor.org,NO,202508,202507,intern,salary,,HR,Recruitment,Medium,b,f,policy_C,home
+2025-07-21T22:21:40,carol@company.com,Project Update,contract.pdf,dave@external.com,external.com,YES,202507,202507,contractor,confidential,confidential,Engineering,Development,Low,a,h,policy_C,school work 
+2025-07-03T10:49:04,carol@company.com,Confidential Proposal,cv.pdf,dave@external.com,external.com,NO,202511,202507,intern,salary,salary,HR,Recruitment,Critical,a,f,policy_C,home
+2025-06-12T10:08:25,alice@company.com,Quarterly Report,org.pdf,dave@external.com,external.com,YES,202512,202507,intern,salary,confidential,HR,Accounting,Low,b,h,policy_C,school work 
+2025-06-02T07:52:50,bob@company.com,Project Update,org.pdf,dave@external.com,external.com,YES,202508,202507,employee,confidential,confidential,Finance,Accounting,Low,a,f,Ploicy_B,home
+2025-06-27T05:39:49,alice@company.com,Resignation Letter,contract.pdf,john@vendor.org,vendor.org,NO,202511,202507,contractor,salary,salary,Finance,Accounting,High,a,h,Ploicy_B,school work 
+2025-06-29T01:39:27,bob@company.com,Confidential Proposal,,erin@partner.org,partner.org,YES,202508,202507,intern,salary,,HR,Accounting,Medium,b,h,Ploicy_B,home
+2025-07-20T13:48:17,alice@company.com,Confidential Proposal,,sara@client.com,client.com,YES,202508,202507,intern,salary,,Finance,Accounting,Low,c,g,Ploicy_B,school work 
+2025-07-12T08:14:34,bob@company.com,Confidential Proposal,home.pdf,sara@client.com,client.com,YES,202508,202507,employee,confidential,confidential,Engineering,Development,Critical,a,f,policy_A,home
+2025-07-01T07:42:12,carol@company.com,Project Update,contract.pdf,john@vendor.org,vendor.org,NO,202510,202507,contractor,confidential,,HR,Accounting,Critical,a,g,policy_A,school work 
+2025-06-26T23:03:37,bob@company.com,Project Update,,erin@partner.org,partner.org,NO,202511,202507,contractor,salary,salary,Engineering,Accounting,High,a,h,policy_C,home
+2025-06-27T08:10:24,carol@company.com,Quarterly Report,contract.pdf,john@vendor.org,vendor.org,NO,202511,202507,employee,,,HR,Recruitment,Critical,a,g,policy_C,school work 
+2025-07-01T17:53:12,carol@company.com,Confidential Proposal,cv.pdf,sara@client.com,client.com,YES,202507,202507,intern,confidential,confidential,Engineering,Recruitment,Low,c,h,Ploicy_B,home
+2025-07-29T11:58:57,carol@company.com,Confidential Proposal,org.pdf,john@vendor.org,vendor.org,NO,202508,202507,intern,,,Engineering,Accounting,Low,c,f,policy_A,school work 
+2025-06-14T14:01:42,carol@company.com,Quarterly Report,cv.pdf,john@vendor.org,vendor.org,NO,202509,202507,intern,salary,confidential,Finance,Recruitment,Critical,a,f,policy_C,home
+2025-06-08T18:35:31,bob@company.com,Quarterly Report,contract.pdf,sara@client.com,client.com,NO,202510,202507,contractor,salary,,Finance,Accounting,Critical,c,g,Ploicy_B,school work 
+2025-06-16T02:26:07,dave@company.com,Project Update,,sara@client.com,client.com,NO,202509,202507,contractor,confidential,confidential,HR,Accounting,Low,c,h,policy_C,home
+2025-07-01T20:00:21,dave@company.com,Resignation Letter,org.pdf,dave@external.com,external.com,NO,202507,202507,contractor,confidential,confidential,Engineering,Recruitment,High,c,h,policy_C,school work 
+2025-06-30T16:24:17,dave@company.com,Confidential Proposal,home.pdf,sara@client.com,client.com,YES,202512,202507,contractor,salary,confidential,Engineering,Development,Low,b,f,policy_C,home
+2025-07-18T02:34:34,alice@company.com,Resignation Letter,home.pdf,john@vendor.org,vendor.org,NO,202512,202507,intern,salary,salary,Engineering,Development,Low,a,f,Ploicy_B,school work 
+2025-07-16T19:12:12,alice@company.com,Resignation Letter,cv.pdf,john@vendor.org,vendor.org,YES,202507,202507,employee,confidential,,HR,Accounting,Critical,b,f,Ploicy_B,home
+2025-07-27T08:54:56,bob@company.com,Project Update,report.pdf,sara@client.com,client.com,NO,202510,202507,employee,,confidential,Finance,Development,Critical,b,g,policy_A,school work 
+2025-06-13T02:55:25,dave@company.com,Project Update,org.pdf,john@vendor.org,vendor.org,YES,202509,202507,intern,,,Finance,Recruitment,High,a,g,policy_A,home
+2025-06-27T13:36:04,carol@company.com,Project Update,contract.pdf,dave@external.com,external.com,YES,202510,202507,contractor,,salary,Engineering,Development,Medium,c,h,policy_C,school work 
+2025-06-14T07:44:18,dave@company.com,Resignation Letter,contract.pdf,dave@external.com,external.com,YES,202512,202507,employee,salary,,Engineering,Recruitment,Medium,c,g,Ploicy_B,home
+2025-07-28T18:23:56,alice@company.com,Quarterly Report,,sara@client.com,client.com,YES,202510,202507,intern,confidential,,HR,Development,Medium,a,h,policy_C,school work 
+2025-07-21T20:50:12,carol@company.com,Confidential Proposal,,erin@partner.org,partner.org,YES,202510,202507,employee,salary,confidential,HR,Recruitment,Low,b,f,policy_A,home
+2025-07-29T21:33:27,carol@company.com,Resignation Letter,contract.pdf,sara@client.com,client.com,YES,202508,202507,employee,confidential,confidential,HR,Accounting,Medium,a,f,Ploicy_B,school work 
+2025-07-02T00:42:30,bob@company.com,Quarterly Report,report.pdf,erin@partner.org,partner.org,YES,202507,202507,employee,salary,salary,Finance,Accounting,Low,b,g,policy_C,home
+2025-07-13T05:16:45,bob@company.com,Project Update,,dave@external.com,external.com,NO,202511,202507,intern,confidential,confidential,Finance,Recruitment,Medium,a,f,policy_C,school work 
+2025-07-16T07:02:58,alice@company.com,Confidential Proposal,home.pdf,dave@external.com,external.com,NO,202507,202507,intern,,salary,Finance,Development,Critical,b,f,Ploicy_B,home
+2025-07-30T21:04:37,dave@company.com,Confidential Proposal,cv.pdf,dave@external.com,external.com,YES,202509,202507,intern,salary,,HR,Accounting,Critical,c,h,policy_A,school work 
+2025-07-05T18:52:39,alice@company.com,Confidential Proposal,contract.pdf,john@vendor.org,vendor.org,NO,202509,202507,employee,confidential,confidential,Engineering,Recruitment,Medium,c,h,policy_A,home
+2025-07-23T00:08:36,dave@company.com,Project Update,report.pdf,erin@partner.org,partner.org,YES,202509,202507,employee,confidential,salary,Engineering,Recruitment,Critical,b,f,policy_C,school work 
+2025-07-28T17:28:19,dave@company.com,Quarterly Report,org.pdf,dave@external.com,external.com,YES,202512,202507,employee,,salary,Engineering,Recruitment,Medium,a,g,policy_C,home
+2025-07-09T05:53:47,alice@company.com,Quarterly Report,contract.pdf,erin@partner.org,partner.org,NO,202507,202507,contractor,,confidential,HR,Accounting,Low,b,f,policy_C,school work 
+2025-07-25T22:06:07,alice@company.com,Project Update,org.pdf,dave@external.com,external.com,NO,202507,202507,employee,,confidential,Finance,Accounting,High,c,h,policy_C,home
+2025-06-09T18:50:44,carol@company.com,Project Update,report.pdf,erin@partner.org,partner.org,NO,202512,202507,contractor,confidential,salary,Finance,Recruitment,High,b,f,Ploicy_B,school work 
+2025-07-10T12:39:32,bob@company.com,Confidential Proposal,report.pdf,dave@external.com,external.com,YES,202510,202507,contractor,confidential,confidential,Finance,Development,High,b,h,policy_C,home
+2025-06-04T06:30:38,alice@company.com,Quarterly Report,contract.pdf,sara@client.com,client.com,YES,202511,202507,contractor,confidential,confidential,Finance,Development,Low,c,g,policy_A,school work 
+2025-07-07T18:52:53,dave@company.com,Quarterly Report,home.pdf,dave@external.com,external.com,YES,202508,202507,intern,confidential,,Finance,Development,High,a,f,policy_C,home
+2025-07-31T08:38:43,alice@company.com,Quarterly Report,cv.pdf,erin@partner.org,partner.org,NO,202507,202507,contractor,,,Engineering,Recruitment,Low,b,f,policy_C,school work 
+2025-07-23T17:25:58,dave@company.com,Confidential Proposal,home.pdf,dave@external.com,external.com,YES,202509,202507,intern,,salary,Finance,Development,Medium,a,h,policy_A,home
+2025-07-29T05:34:06,bob@company.com,Resignation Letter,home.pdf,sara@client.com,client.com,YES,202509,202507,intern,salary,confidential,Finance,Accounting,High,a,g,Ploicy_B,school work 
+2025-07-05T08:47:57,carol@company.com,Quarterly Report,org.pdf,dave@external.com,external.com,NO,202507,202507,intern,confidential,,Engineering,Recruitment,High,c,g,Ploicy_B,home
+2025-07-24T04:09:04,carol@company.com,Confidential Proposal,,dave@external.com,external.com,YES,202510,202507,employee,confidential,confidential,HR,Development,Low,c,f,Ploicy_B,school work 
+2025-06-27T03:00:04,carol@company.com,Resignation Letter,,john@vendor.org,vendor.org,YES,202508,202507,employee,,confidential,HR,Accounting,Critical,c,g,policy_C,home
+2025-06-14T17:23:03,dave@company.com,Resignation Letter,report.pdf,john@vendor.org,vendor.org,NO,202512,202507,contractor,,salary,Finance,Accounting,Critical,c,g,Ploicy_B,school work 
+2025-07-13T06:57:54,carol@company.com,Confidential Proposal,cv.pdf,erin@partner.org,partner.org,NO,202511,202507,employee,,salary,Finance,Development,Medium,c,f,policy_A,home
+2025-06-08T21:15:11,alice@company.com,Confidential Proposal,org.pdf,dave@external.com,external.com,NO,202510,202507,intern,,salary,HR,Development,Low,c,g,Ploicy_B,school work 
+2025-06-05T08:43:35,dave@company.com,Quarterly Report,cv.pdf,john@vendor.org,vendor.org,NO,202508,202507,intern,salary,,HR,Development,Critical,a,h,Ploicy_B,home
+2025-07-27T14:41:28,bob@company.com,Project Update,,sara@client.com,client.com,YES,202510,202507,employee,salary,confidential,HR,Accounting,High,b,g,policy_C,school work 
+2025-06-23T01:16:23,alice@company.com,Project Update,,erin@partner.org,partner.org,NO,202507,202507,employee,salary,,Finance,Development,Critical,a,g,Ploicy_B,home
+2025-07-18T18:21:09,carol@company.com,Confidential Proposal,contract.pdf,erin@partner.org,partner.org,YES,202508,202507,contractor,salary,confidential,Finance,Accounting,High,a,f,Ploicy_B,school work 
+2025-06-04T20:01:26,alice@company.com,Resignation Letter,,dave@external.com,external.com,YES,202507,202507,employee,salary,confidential,Engineering,Development,Low,c,g,Ploicy_B,home

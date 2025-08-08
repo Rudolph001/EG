@@ -258,14 +258,26 @@
         <div class="col-12">
             <div class="card shadow">
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-table"></i> Email Security Cases
-                    </h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary">
+                            <i class="fas fa-table"></i> Email Security Cases
+                        </h6>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="viewMode" id="individualView" value="individual" checked>
+                            <label class="btn btn-outline-primary btn-sm" for="individualView">
+                                <i class="fas fa-list"></i> Individual
+                            </label>
+                            <input type="radio" class="btn-check" name="viewMode" id="groupedView" value="grouped">
+                            <label class="btn btn-outline-primary btn-sm" for="groupedView">
+                                <i class="fas fa-layer-group"></i> Grouped
+                            </label>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover" id="casesTable">
-                            <thead class="table-dark">
+                            <thead class="table-dark" id="individualHeader">
                                 <tr>
                                     <th width="3%">
                                         <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
@@ -279,6 +291,19 @@
                                     <th width="12%">Time</th>
                                     <th width="8%">Attachments</th>
                                     <th width="7%">Actions</th>
+                                </tr>
+                            </thead>
+                            <thead class="table-dark" id="groupedHeader" style="display: none;">
+                                <tr>
+                                    <th width="5%">Expand</th>
+                                    <th width="15%">Sender</th>
+                                    <th width="25%">Subject</th>
+                                    <th width="10%">Recipients</th>
+                                    <th width="10%">Risk Level</th>
+                                    <th width="10%">Time</th>
+                                    <th width="10%">Status</th>
+                                    <th width="10%">Attachments</th>
+                                    <th width="5%">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="casesTableBody">
