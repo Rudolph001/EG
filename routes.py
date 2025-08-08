@@ -14,103 +14,81 @@ from datetime import datetime, timedelta
 import uuid
 from pathlib import Path
 
-# System statistics for the new admin template
-@app.route('/admin-temp')
-def admin_temp():
-    """Temporary admin route - will be cleaned up"""
-    stats = {
-        'total_sessions': ProcessingSession.query.count(),
-        'active_sessions': ProcessingSession.query.filter_by(status='processing').count(),
-        'completed_sessions': ProcessingSession.query.filter_by(status='completed').count(),
-        'failed_sessions': ProcessingSession.query.filter_by(status='failed').count()
-    }
+# Initialize core components
+from session_manager import SessionManager
+from data_processor import DataProcessor
+from ml_engine import MLEngine
+from advanced_ml_engine import AdvancedMLEngine
+from adaptive_ml_engine import AdaptiveMLEngine
+from rule_engine import RuleEngine
+from domain_manager import DomainManager
+from workflow_manager import WorkflowManager
+from audit_system import AuditLogger
+from ml_config import MLRiskConfig
+import uuid
+import os
+import json
+from datetime import datetime
+import logging
+import psutil
+import threading
+import shutil
+import statistics
+from collections import defaultdict, Counter
+from datetime import timedelta
+import threading
+from io import StringIO, BytesIO
+import csv
 
-    # Recent sessions for the admin panel
-    recent_sessions = ProcessingSession.query.order_by(ProcessingSession.upload_time.desc()).limit(5).all()
+logger = logging.getLogger(__name__)
 
-    # Legacy data for backward compatibility (if needed)
-    sessions = ProcessingSession.query.order_by(ProcessingSession.upload_time.desc()).all()
-    whitelist_domains = WhitelistDomain.query.filter_by(is_active=True).all()
-    attachment_keywords = AttachmentKeyword.query.filter_by(is_active=True).all()
+# Initialize core components
+session_manager = SessionManager()
+data_processor = DataProcessor()
+ml_engine = MLEngine()
+advanced_ml_engine = AdvancedMLEngine()
+adaptive_ml_engine = AdaptiveMLEngine()
+rule_engine = RuleEngine()
+domain_manager = DomainManager()
+workflow_manager = WorkflowManager()
+ml_config = MLRiskConfig()
 
-    # Get risk factors from database, fallback to default if empty
-    db_risk_factors = RiskFactor.query.filter_by(is_active=True).order_by(RiskFactor.sort_order, RiskFactor.name).all()
+# Add Jinja2 filter for JSON parsing
+@app.template_filter('from_json')
+def from_json_filter(value):
+    """Convert JSON string to Python object"""
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return []
+    return value or []
 
-    if db_risk_factors:
-        # Use database risk factors
-        factors_list = []
-        for factor in db_risk_factors:
-            factors_list.append({
-                'id': factor.id,
-                'name': factor.name,
-                'max_score': factor.max_score,
-                'description': factor.description,
-                'category': factor.category,
-                'weight_percentage': factor.weight_percentage,
-                'calculation_config': factor.calculation_config
-            })
-    else:
-        # Fallback to hardcoded values if database is empty
-        factors_list = [
-            {'id': None, 'name': 'Leaver Status', 'max_score': 0.3, 'description': 'Employee leaving organization', 'category': 'Security', 'weight_percentage': 30.0, 'calculation_config': {}},
-            {'id': None, 'name': 'External Domain', 'max_score': 0.2, 'description': 'Public email domains (Gmail, Yahoo, etc.)', 'category': 'Security', 'weight_percentage': 20.0, 'calculation_config': {}},
-            {'id': None, 'name': 'Attachment Risk', 'max_score': 0.3, 'description': 'File type and suspicious patterns', 'category': 'Content', 'weight_percentage': 30.0, 'calculation_config': {}},
-            {'id': None, 'name': 'Wordlist Matches', 'max_score': 0.2, 'description': 'Suspicious keywords in subject/attachment', 'category': 'Content', 'weight_percentage': 15.0, 'calculation_config': {}},
-            {'id': None, 'name': 'Time-based Risk', 'max_score': 0.1, 'description': 'Weekend/after-hours activity', 'category': 'Time', 'weight_percentage': 3.0, 'calculation_config': {}},
-            {'id': None, 'name': 'Justification Analysis', 'max_score': 0.1, 'description': 'Suspicious terms in explanations', 'category': 'Content', 'weight_percentage': 2.0, 'calculation_config': {}}
-        ]
-
-    # Risk scoring algorithm details for transparency
-    risk_scoring_info = {
-        'thresholds': {
-            'critical': 0.8,
-            'high': 0.6,
-            'medium': 0.4,
-            'low': 0.0
-        },
-        'algorithm_components': {
-            'anomaly_detection': {
-                'weight': 40,
-                'description': 'Isolation Forest algorithm detects unusual patterns',
-                'method': 'sklearn.ensemble.IsolationForest',
-                'contamination_rate': '10%',
-                'estimators': config.ml_estimators
-            },
-            'rule_based_factors': {
-                'weight': 60,
-                'factors': factors_list
-            }
-        },
-        'attachment_scoring': {
-            'high_risk_extensions': ['.exe', '.scr', '.bat', '.cmd', '.com', '.pif', '.vbs', '.js'],
-            'high_risk_score': 0.8,
-            'medium_risk_extensions': ['.zip', '.rar', '.7z', '.doc', '.docx', '.xls', '.xlsx', '.pdf'],
-            'medium_risk_score': 0.3,
-            'suspicious_patterns': ['double extension', 'hidden', 'confidential', 'urgent', 'invoice'],
-            'pattern_score': 0.2
-        },
-        'performance_config': {
-            'fast_mode': config.fast_mode,
-            'max_ml_records': config.max_ml_records,
-            'ml_estimators': config.ml_estimators,
-            'tfidf_max_features': config.tfidf_max_features,
-            'chunk_size': config.chunk_size
-        }
-    }
-
-    # Get the most recent session ID for dashboard navigation
+@app.context_processor
+def inject_session_id():
+    """Make session_id available to all templates"""
+    # Try to get session_id from URL path
     session_id = None
-    if recent_sessions:
-        session_id = recent_sessions[0].id
+    if request.endpoint and hasattr(request, 'view_args') and request.view_args:
+        session_id = request.view_args.get('session_id')
 
-    return render_template('admin.html',
-                         stats=stats,
-                         recent_sessions=recent_sessions,
-                         sessions=sessions,
-                         whitelist_domains=whitelist_domains,
-                         attachment_keywords=attachment_keywords,
-                         risk_scoring_info=risk_scoring_info,
-                         session_id=session_id)
+    # Also check if we're on index page with recent sessions
+    recent_sessions = []
+    if request.endpoint == 'index':
+        try:
+            recent_sessions = ProcessingSession.query.order_by(ProcessingSession.upload_time.desc()).limit(5).all()
+            if recent_sessions:
+                session_id = recent_sessions[0].id  # Use most recent session for navigation
+        except:
+            pass
+
+    return dict(session_id=session_id, recent_sessions=recent_sessions)
+
+@app.route('/')
+def index():
+    """Main index page with upload functionality"""
+    recent_sessions = ProcessingSession.query.order_by(ProcessingSession.upload_time.desc()).limit(10).all()
+    return render_template('index.html', recent_sessions=recent_sessions)
 
 @app.route('/whitelist-domains')
 def whitelist_domains():
@@ -2385,92 +2363,7 @@ def api_audit_logs():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Additional Flask route imports (duplicates will be cleaned up later)
-from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
-from sqlalchemy import text
-from io import StringIO, BytesIO
-import csv
-import json
-from datetime import datetime
-from app import app, db
-from models import ProcessingSession, EmailRecord, Rule, WhitelistDomain, AttachmentKeyword, ProcessingError, RiskFactor, FlaggedEvent, AdaptiveLearningMetrics, LearningPattern, MLFeedback, ModelVersion, AttachmentLearning, WhitelistSender
-from audit_system import AuditLog
-from session_manager import SessionManager
-from data_processor import DataProcessor
-from ml_engine import MLEngine
-from advanced_ml_engine import AdvancedMLEngine
-from adaptive_ml_engine import AdaptiveMLEngine
-from performance_config import PerformanceConfig
 
-# Initialize config
-config = PerformanceConfig()
-from ml_config import MLRiskConfig
-from rule_engine import RuleEngine
-from domain_manager import DomainManager
-from workflow_manager import WorkflowManager
-from audit_system import AuditLogger
-import uuid
-import os
-import json
-from datetime import datetime
-import logging
-import psutil
-import threading
-import shutil
-import statistics
-from collections import defaultdict, Counter
-from datetime import timedelta
-import threading
-
-logger = logging.getLogger(__name__)
-
-# Initialize core components
-session_manager = SessionManager()
-data_processor = DataProcessor()
-ml_engine = MLEngine()
-advanced_ml_engine = AdvancedMLEngine()
-adaptive_ml_engine = AdaptiveMLEngine()
-rule_engine = RuleEngine()
-domain_manager = DomainManager()
-workflow_manager = WorkflowManager()
-ml_config = MLRiskConfig()
-
-# Add Jinja2 filter for JSON parsing
-@app.template_filter('from_json')
-def from_json_filter(value):
-    """Convert JSON string to Python object"""
-    if isinstance(value, str):
-        try:
-            return json.loads(value)
-        except (json.JSONDecodeError, TypeError):
-            return []
-    return value or []
-
-@app.context_processor
-def inject_session_id():
-    """Make session_id available to all templates"""
-    # Try to get session_id from URL path
-    session_id = None
-    if request.endpoint and hasattr(request, 'view_args') and request.view_args:
-        session_id = request.view_args.get('session_id')
-
-    # Also check if we're on index page with recent sessions
-    recent_sessions = []
-    if request.endpoint == 'index':
-        try:
-            recent_sessions = ProcessingSession.query.order_by(ProcessingSession.upload_time.desc()).limit(5).all()
-            if recent_sessions:
-                session_id = recent_sessions[0].id  # Use most recent session for navigation
-        except:
-            pass
-
-    return dict(session_id=session_id, recent_sessions=recent_sessions)
-
-@app.route('/')
-def index():
-    """Main index page with upload functionality"""
-    recent_sessions = ProcessingSession.query.order_by(ProcessingSession.upload_time.desc()).limit(10).all()
-    return render_template('index.html', recent_sessions=recent_sessions)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
