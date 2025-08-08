@@ -1,4 +1,4 @@
-modules = ["web", "python-3.11", "nodejs-20", "postgresql-16"]
+modules = ["web", "python-3.11", "nodejs-20"]
 run = "python main.py"
 
 [nix]
@@ -7,10 +7,10 @@ packages = ["glibcLocales", "openssl", "postgresql"]
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["sh", "-c", "python main.py"]
+run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
 
 [workflows]
-runButton = "Start Email Guardian"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"

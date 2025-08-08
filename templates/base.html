@@ -74,8 +74,8 @@
                             <li><a class="dropdown-item" href="{{ url_for('time_analysis', session_id=session_id) }}">
                                 <i class="fas fa-clock me-2"></i> Time Analysis
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('network_dashboard', session_id=session_id) }}">
-                                <i class="fas fa-project-diagram me-2"></i> Network Analysis
+                            <li><a class="dropdown-item" href="{{ url_for('reports_dashboard', session_id=session_id) }}">
+                                <i class="fas fa-project-diagram me-2"></i> Reports Dashboard
                             </a></li>
                             {% elif recent_sessions %}
                             <li class="dropdown-header"><i class="fas fa-history me-2"></i>Recent Sessions</li>
@@ -108,7 +108,7 @@
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li class="dropdown-header"><i class="fas fa-flag me-2"></i>Threat Detection</li>
-                            <li><a class="dropdown-item" href="{{ url_for('flagged_events_dashboard', session_id=session_id) }}">
+                            <li><a class="dropdown-item" href="{{ url_for('cases', session_id=session_id) }}">
                                 <i class="fas fa-flag me-2"></i> Flagged Events
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('whitelist_analysis', session_id=session_id) }}">
@@ -136,12 +136,18 @@
                         </a>
                         <ul class="dropdown-menu shadow" aria-labelledby="reportsDropdown">
                             <li class="dropdown-header"><i class="fas fa-file-alt me-2"></i>Professional Reports</li>
-                            <li><a class="dropdown-item" href="{{ url_for('professional_reports') }}">
+                            {% if session_id %}
+                            <li><a class="dropdown-item" href="{{ url_for('reports_dashboard', session_id=session_id) }}">
                                 <i class="fas fa-file-contract me-2"></i> Professional Reports
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('monthly_report_dashboard') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('reports_dashboard', session_id=session_id) }}">
                                 <i class="fas fa-calendar-alt me-2"></i> Monthly Reports
                             </a></li>
+                            {% else %}
+                            <li><a class="dropdown-item disabled" href="#" onclick="return false;">
+                                <i class="fas fa-info-circle me-2"></i> Upload data to access reports
+                            </a></li>
+                            {% endif %}
                             {% if session_id %}
                             <li><hr class="dropdown-divider"></li>
                             <li class="dropdown-header"><i class="fas fa-chart-bar me-2"></i>Session Reports</li>
@@ -167,7 +173,7 @@
                         </a>
                         <ul class="dropdown-menu shadow" aria-labelledby="managementDropdown">
                             <li class="dropdown-header"><i class="fas fa-cog me-2"></i>System Configuration</li>
-                            <li><a class="dropdown-item" href="{{ url_for('admin') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('admin_audit_dashboard') }}">
                                 <i class="fas fa-cog me-2"></i> Admin Panel
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('rules') }}">
@@ -175,13 +181,13 @@
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li class="dropdown-header"><i class="fas fa-database me-2"></i>Data Management</li>
-                            <li><a class="dropdown-item" href="{{ url_for('whitelist_domains') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('api_whitelist_domains') }}">
                                 <i class="fas fa-list-ul me-2"></i> Whitelist Domains
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('whitelist_senders_dashboard') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard', session_id='default') if session_id else url_for('index') }}">
                                 <i class="fas fa-user-check me-2"></i> Manage Whitelisted Senders
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('wordlist_management') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard', session_id='default') if session_id else url_for('index') }}">
                                 <i class="fas fa-file-word me-2"></i> Wordlist Management
                             </a></li>
                         </ul>
