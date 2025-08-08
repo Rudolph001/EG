@@ -1,4 +1,20 @@
+# Email Guardian - Flask Routes
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, abort, session
+from werkzeug.utils import secure_filename
+from app import app, db
+from models import *
+import config
+import os
+import json
+import logging
+from datetime import datetime, timedelta
+import uuid
+from pathlib import Path
+
 # System statistics for the new admin template
+@app.route('/admin-temp')
+def admin_temp():
+    """Temporary admin route - will be cleaned up"""
     stats = {
         'total_sessions': ProcessingSession.query.count(),
         'active_sessions': ProcessingSession.query.filter_by(status='processing').count(),
@@ -2364,7 +2380,10 @@ def api_audit_logs():
             'current_page': page
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500<replit_final_file>from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
+        return jsonify({'error': str(e)}), 500
+
+# Additional Flask route imports (duplicates will be cleaned up later)
+from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
 from sqlalchemy import text
 from io import StringIO, BytesIO
 import csv
@@ -2632,7 +2651,10 @@ def dashboard(session_id):
         stats = session_manager.get_processing_stats(session_id)
     except Exception as e:
         logger.warning(f"Could not get processing stats: {str(e)}")
-        stats = {}
+    @app.route('/admin-temp')
+def admin_temp():
+    """Temporary admin route - will be cleaned up"""
+    stats = {}
 
     # Get ML insights
     try:
@@ -3211,7 +3233,23 @@ def adaptive_ml_dashboard(session_id):
 @app.route('/admin')
 def admin():
     """Administration panel"""
-    # System statistics for the new admin template
+    # Email Guardian - Flask Routes
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, abort, session
+from werkzeug.utils import secure_filename
+from app import app, db
+from models import *
+import config
+import os
+import json
+import logging
+from datetime import datetime, timedelta
+import uuid
+from pathlib import Path
+
+# System statistics for the new admin template
+@app.route('/admin-temp')
+def admin_temp():
+    """Temporary admin route - will be cleaned up"""
     stats = {
         'total_sessions': ProcessingSession.query.count(),
         'active_sessions': ProcessingSession.query.filter_by(status='processing').count(),
