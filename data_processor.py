@@ -21,7 +21,7 @@ class DataProcessor:
         """Initialize DataProcessor with performance configurations"""
         self.config = config
         self.logger = logging.getLogger(__name__)
-        self.logger.info(f"DataProcessor initialized with config: {self._get_config_summary()}")
+        # Initialize attributes before logging
         self.chunk_size = config.chunk_size
         self.batch_commit_size = config.batch_commit_size
         self.workflow_manager = WorkflowManager()
@@ -30,6 +30,8 @@ class DataProcessor:
         self._exclusion_keywords_cache = None
         # Cache for datetime parsing optimization
         self._datetime_format_cache = {}
+        # Now log after all attributes are initialized
+        self.logger.info(f"DataProcessor initialized with config: {self._get_config_summary()}")
         logger.info(f"DataProcessor initialized with config: {config.__dict__}")
 
     def _get_config_summary(self):
