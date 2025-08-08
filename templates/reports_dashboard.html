@@ -53,7 +53,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-danger shadow h-100 py-2 analytics-card">
                 <div class="card-body">
@@ -73,7 +73,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-success shadow h-100 py-2 analytics-card">
                 <div class="card-body">
@@ -93,7 +93,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-warning shadow h-100 py-2 analytics-card">
                 <div class="card-body">
@@ -214,7 +214,7 @@
                             <input type="text" class="form-control" id="searchFilter" placeholder="Search cases..." onkeyup="applyFilters()">
                         </div>
                     </div>
-                    
+
                     <div class="row mt-3">
                         <div class="col-md-6">
                             <div class="btn-group" role="group">
@@ -262,22 +262,19 @@
                         <h6 class="m-0 font-weight-bold text-primary">
                             <i class="fas fa-table"></i> Email Security Cases
                         </h6>
-                        <div class="btn-group" role="group">
-                            <input type="radio" class="btn-check" name="viewMode" id="individualView" value="individual" checked>
-                            <label class="btn btn-outline-primary btn-sm" for="individualView">
-                                <i class="fas fa-list"></i> Individual
-                            </label>
-                            <input type="radio" class="btn-check" name="viewMode" id="groupedView" value="grouped">
-                            <label class="btn btn-outline-primary btn-sm" for="groupedView">
-                                <i class="fas fa-layer-group"></i> Grouped
-                            </label>
+                        <!-- View Mode Indicator -->
+                        <div class="col-md-6">
+                            <div class="alert alert-primary mb-0 py-2">
+                                <i class="fas fa-layer-group me-2"></i>
+                                <strong>Aggregated View Active</strong> - Emails grouped by sender, subject, time, and attachments
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover" id="casesTable">
-                            <thead class="table-dark" id="individualHeader">
+                            <thead class="table-dark" id="individualHeader" style="display: none;">
                                 <tr>
                                     <th width="3%">
                                         <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
@@ -293,7 +290,7 @@
                                     <th width="7%">Actions</th>
                                 </tr>
                             </thead>
-                            <thead class="table-dark" id="groupedHeader" style="display: none;">
+                            <thead class="table-dark" id="groupedHeader">
                                 <tr>
                                     <th width="5%">Expand</th>
                                     <th width="15%">Sender</th>
@@ -480,6 +477,11 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeCharts();
     initializeCounters();
     updateSelection();
+    // Set initial view to grouped
+    document.getElementById('individualView').checked = false;
+    document.getElementById('groupedView').checked = true;
+    document.getElementById('individualHeader').style.display = 'none';
+    document.getElementById('groupedHeader').style.display = 'table-header-group';
 });
 
 // Initialize charts
@@ -662,7 +664,7 @@ function updateCasesTable() {
 function toggleSelectAll() {
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     const caseCheckboxes = document.querySelectorAll('.case-checkbox');
-    
+
     caseCheckboxes.forEach(checkbox => {
         checkbox.checked = selectAllCheckbox.checked;
         if (selectAllCheckbox.checked) {
@@ -671,7 +673,7 @@ function toggleSelectAll() {
             selectedCases.delete(checkbox.value);
         }
     });
-    
+
     updateSelection();
 }
 
@@ -691,13 +693,13 @@ function updateSelection() {
     const selectionText = document.getElementById('selectionText');
     const exportBtn = document.getElementById('exportBtn');
     const bulkUpdateBtn = document.getElementById('bulkUpdateBtn');
-    
+
     if (count > 0) {
         summaryDiv.style.display = 'block';
         selectionText.textContent = `${count} case${count > 1 ? 's' : ''} selected`;
         exportBtn.disabled = false;
         bulkUpdateBtn.disabled = false;
-        
+
         // Calculate breakdown by risk and status
         let breakdown = { high: 0, medium: 0, low: 0, active: 0, cleared: 0, escalated: 0 };
         selectedCases.forEach(caseId => {
@@ -709,7 +711,7 @@ function updateSelection() {
                 breakdown[status]++;
             }
         });
-        
+
         document.getElementById('selectionBreakdown').innerHTML = 
             `High Risk: ${breakdown.high}, Medium: ${breakdown.medium}, Low: ${breakdown.low} | ` +
             `Active: ${breakdown.active}, Cleared: ${breakdown.cleared}, Escalated: ${breakdown.escalated}`;
@@ -737,16 +739,16 @@ function exportSelectedCases() {
         alert('Please select cases to export');
         return;
     }
-    
+
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = `/api/export-cases/{{ session.id }}`;
-    
+
     const input = document.createElement('input');
     input.type = 'hidden';
     input.name = 'case_ids';
     input.value = JSON.stringify([...selectedCases]);
-    
+
     form.appendChild(input);
     document.body.appendChild(form);
     form.submit();
@@ -768,7 +770,7 @@ function bulkUpdateStatus() {
         alert('Please select cases to update');
         return;
     }
-    
+
     document.getElementById('bulkUpdateCount').textContent = selectedCases.size;
     new bootstrap.Modal(document.getElementById('bulkUpdateModal')).show();
 }
@@ -779,7 +781,7 @@ function confirmBulkUpdate() {
         alert('Please select a status');
         return;
     }
-    
+
     fetch(`/api/bulk-update-status/{{ session.id }}`, {
         method: 'POST',
         headers: {
@@ -803,7 +805,7 @@ function confirmBulkUpdate() {
         console.error('Error:', error);
         alert('Error updating cases');
     });
-    
+
     bootstrap.Modal.getInstance(document.getElementById('bulkUpdateModal')).hide();
 }
 

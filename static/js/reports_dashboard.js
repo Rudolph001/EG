@@ -21,7 +21,7 @@ function initializeReportsDashboard() {
     loadCasesData();
     initializeEventListeners();
     updateSelection();
-    initializeViewModeToggle();
+    initializeGroupedView();
 }
 
 // Load cases data from API
@@ -61,44 +61,19 @@ function loadGroupedCasesData() {
         });
 }
 
-// Initialize view mode toggle
-function initializeViewModeToggle() {
-    const individualViewRadio = document.getElementById('individualView');
-    const groupedViewRadio = document.getElementById('groupedView');
+// Always use grouped view - no toggle functionality needed
+function initializeGroupedView() {
+    // Set view mode to grouped
+    currentViewMode = 'grouped';
     
-    individualViewRadio.addEventListener('change', function() {
-        if (this.checked) {
-            currentViewMode = 'individual';
-            switchToIndividualView();
-        }
-    });
+    // Always show grouped header
+    const groupedHeader = document.getElementById('groupedHeader');
+    const individualHeader = document.getElementById('individualHeader');
     
-    groupedViewRadio.addEventListener('change', function() {
-        if (this.checked) {
-            currentViewMode = 'grouped';
-            switchToGroupedView();
-        }
-    });
-}
-
-// Switch to individual view
-function switchToIndividualView() {
-    document.getElementById('individualHeader').style.display = '';
-    document.getElementById('groupedHeader').style.display = 'none';
-    
-    // Render individual cases (existing functionality)
-    const tbody = document.getElementById('casesTableBody');
-    tbody.innerHTML = '';
-    
-    // Re-render individual cases from server-side data
-    // The table already contains server-rendered individual cases
-    location.reload(); // Simple approach - reload to get individual view
-}
-
-// Switch to grouped view
-function switchToGroupedView() {
-    document.getElementById('individualHeader').style.display = 'none';
-    document.getElementById('groupedHeader').style.display = '';
+    if (groupedHeader && individualHeader) {
+        groupedHeader.style.display = '';
+        individualHeader.style.display = 'none';
+    }
     
     // Load and render grouped cases
     loadGroupedCasesData();

@@ -1167,13 +1167,23 @@ def api_grouped_cases(session_id):
         # Get all matching records
         all_records = base_query.all()
 
-        # Group records by sender, subject, and attachments (content identifier)
-        # We exclude time from grouping to better group duplicates sent to multiple recipients
+        # Group records by sender, subject, time, and attachments as requested
         groups = {}
         for record in all_records:
+            # Use time rounded to hour for grouping similar time periods
+            time_key = ''
+            if record.time:
+                try:
+                    # Round time to the nearest hour for grouping
+                    dt = datetime.fromisoformat(record.time.replace('Z', '+00:00'))
+                    time_key = dt.strftime('%Y-%m-%d %H:00:00')
+                except:
+                    time_key = record.time[:16] if record.time else ''
+            
             group_key = (
                 record.sender or '',
                 record.subject or '',
+                time_key,
                 record.attachments or ''
             )
 
