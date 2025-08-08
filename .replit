@@ -10,7 +10,7 @@ deploymentTarget = "autoscale"
 run = ["sh", "-c", "python main.py"]
 
 [workflows]
-runButton = "Start Flask Development"
+runButton = "Start App Simple"
 
 [[workflows.workflow]]
 name = "Project"
@@ -62,6 +62,15 @@ args = "python main.py"
 
 [[workflows.workflow]]
 name = "Start Flask Development"
+author = 46135026
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+
+[[workflows.workflow]]
+name = "Start App Simple"
 author = 46135026
 mode = "sequential"
 
