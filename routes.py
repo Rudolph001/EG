@@ -2393,7 +2393,8 @@ import csv
 import json
 from datetime import datetime
 from app import app, db
-from models import ProcessingSession, EmailRecord, Rule, WhitelistDomain, AttachmentKeyword, ProcessingError, RiskFactor, FlaggedEvent, AdaptiveLearningMetrics, LearningPattern, MLFeedback, ModelVersion, AttachmentLearning, WhitelistSender, AuditLog
+from models import ProcessingSession, EmailRecord, Rule, WhitelistDomain, AttachmentKeyword, ProcessingError, RiskFactor, FlaggedEvent, AdaptiveLearningMetrics, LearningPattern, MLFeedback, ModelVersion, AttachmentLearning, WhitelistSender
+from audit_system import AuditLog
 from session_manager import SessionManager
 from data_processor import DataProcessor
 from ml_engine import MLEngine
@@ -2659,83 +2660,6 @@ def dashboard(session_id):
         logger.warning(f"Could not get processing stats: {str(e)}")
         stats = {}
 
-@app.route('/admin-temp')
-def admin_temp():
-    """Temporary admin route - will be cleaned up"""
-    stats = {}
-
-    # Get ML insights
-    try:
-        ml_insights = ml_engine.get_insights(session_id)
-    except Exception as e:
-        logger.warning(f"Could not get ML insights: {str(e)}")
-        ml_insights = {}
-
-    # Get BAU analysis (cached to prevent repeated calls)
-    try:
-        # Only run analysis if session is completed and we don't have cached results
-        if hasattr(session, 'bau_cached') and session.bau_cached:
-            bau_analysis = session.bau_cached
-        else:
-            bau_analysis = advanced_ml_engine.analyze_bau_patterns(session_id)
-    except Exception as e:
-        logger.warning(f"Could not get BAU analysis: {str(e)}")
-        bau_analysis = {}
-
-    # Get attachment risk analytics (cached to prevent repeated calls)
-    try:
-        # Only run analysis if session is completed and we don't have cached results
-        if hasattr(session, 'attachment_cached') and session.attachment_cached:
-            attachment_analytics = session.attachment_cached
-        else:
-            attachment_analytics = advanced_ml_engine.analyze_attachment_risks(session_id)
-    except Exception as e:
-        logger.warning(f"Could not get attachment analytics: {str(e)}")
-        attachment_analytics = {}
-
-    # Get workflow statistics for the dashboard
-    workflow_stats = {}
-    try:
-        # Count excluded records
-        excluded_count = EmailRecord.query.filter(
-            EmailRecord.session_id == session_id,
-            EmailRecord.excluded_by_rule.isnot(None)
-        ).count()
-
-        # Count whitelisted records  
-        whitelisted_count = EmailRecord.query.filter_by(
-            session_id=session_id,
-            whitelisted=True
-        ).count()
-
-        # Count records with rule matches
-        rules_matched_count = EmailRecord.query.filter(
-            EmailRecord.session_id == session_id,
-            EmailRecord.rule_matches.isnot(None)
-        ).count()
-
-        # Count critical cases
-        critical_cases_count = EmailRecord.query.filter_by(
-            session_id=session_id,
-            risk_level='Critical'
-        ).count()
-
-        workflow_stats = {
-            'excluded_count': excluded_count,
-            'whitelisted_count': whitelisted_count,
-            'rules_matched_count': rules_matched_count,
-            'critical_cases_count': critical_cases_count
-        }
-    except Exception as e:
-        logger.warning(f"Could not get workflow stats for dashboard: {str(e)}")
-
-    return render_template('dashboard.html', 
-                         session=session, 
-                         stats=stats,
-                         ml_insights=ml_insights,
-                         bau_analysis=bau_analysis,
-                         attachment_analytics=attachment_analytics,
-                         workflow_stats=workflow_stats)
 
 @app.route('/reports/<session_id>')
 def reports_dashboard(session_id):
@@ -3248,112 +3172,6 @@ from app import app, db
 from models import *
 from performance_config import PerformanceConfig
 
-# Initialize config
-config = PerformanceConfig()
-import os
-import json
-import logging
-from datetime import datetime, timedelta
-import uuid
-from pathlib import Path
-
-# System statistics for the new admin template
-@app.route('/admin-temp')
-def admin_temp():
-    """Temporary admin route - will be cleaned up"""
-    stats = {
-        'total_sessions': ProcessingSession.query.count(),
-        'active_sessions': ProcessingSession.query.filter_by(status='processing').count(),
-        'completed_sessions': ProcessingSession.query.filter_by(status='completed').count(),
-        'failed_sessions': ProcessingSession.query.filter_by(status='failed').count()
-    }
-
-    # Recent sessions for the admin panel
-    recent_sessions = ProcessingSession.query.order_by(ProcessingSession.upload_time.desc()).limit(5).all()
-
-    # Legacy data for backward compatibility (if needed)
-    sessions = ProcessingSession.query.order_by(ProcessingSession.upload_time.desc()).all()
-    whitelist_domains = WhitelistDomain.query.filter_by(is_active=True).all()
-    attachment_keywords = AttachmentKeyword.query.filter_by(is_active=True).all()
-
-    # Get risk factors from database, fallback to default if empty
-    db_risk_factors = RiskFactor.query.filter_by(is_active=True).order_by(RiskFactor.sort_order, RiskFactor.name).all()
-
-    if db_risk_factors:
-        # Use database risk factors
-        factors_list = []
-        for factor in db_risk_factors:
-            factors_list.append({
-                'id': factor.id,
-                'name': factor.name,
-                'max_score': factor.max_score,
-                'description': factor.description,
-                'category': factor.category,
-                'weight_percentage': factor.weight_percentage,
-                'calculation_config': factor.calculation_config
-            })
-    else:
-        # Fallback to hardcoded values if database is empty
-        factors_list = [
-            {'id': None, 'name': 'Leaver Status', 'max_score': 0.3, 'description': 'Employee leaving organization', 'category': 'Security', 'weight_percentage': 30.0, 'calculation_config': {}},
-            {'id': None, 'name': 'External Domain', 'max_score': 0.2, 'description': 'Public email domains (Gmail, Yahoo, etc.)', 'category': 'Security', 'weight_percentage': 20.0, 'calculation_config': {}},
-            {'id': None, 'name': 'Attachment Risk', 'max_score': 0.3, 'description': 'File type and suspicious patterns', 'category': 'Content', 'weight_percentage': 30.0, 'calculation_config': {}},
-            {'id': None, 'name': 'Wordlist Matches', 'max_score': 0.2, 'description': 'Suspicious keywords in subject/attachment', 'category': 'Content', 'weight_percentage': 15.0, 'calculation_config': {}},
-            {'id': None, 'name': 'Time-based Risk', 'max_score': 0.1, 'description': 'Weekend/after-hours activity', 'category': 'Time', 'weight_percentage': 3.0, 'calculation_config': {}},
-            {'id': None, 'name': 'Justification Analysis', 'max_score': 0.1, 'description': 'Suspicious terms in explanations', 'category': 'Content', 'weight_percentage': 2.0, 'calculation_config': {}}
-        ]
-
-    # Risk scoring algorithm details for transparency
-    risk_scoring_info = {
-        'thresholds': {
-            'critical': 0.8,
-            'high': 0.6,
-            'medium': 0.4,
-            'low': 0.0
-        },
-        'algorithm_components': {
-            'anomaly_detection': {
-                'weight': 40,
-                'description': 'Isolation Forest algorithm detects unusual patterns',
-                'method': 'sklearn.ensemble.IsolationForest',
-                'contamination_rate': '10%',
-                'estimators': config.ml_estimators
-            },
-            'rule_based_factors': {
-                'weight': 60,
-                'factors': factors_list
-            }
-        },
-        'attachment_scoring': {
-            'high_risk_extensions': ['.exe', '.scr', '.bat', '.cmd', '.com', '.pif', '.vbs', '.js'],
-            'high_risk_score': 0.8,
-            'medium_risk_extensions': ['.zip', '.rar', '.7z', '.doc', '.docx', '.xls', '.xlsx', '.pdf'],
-            'medium_risk_score': 0.3,
-            'suspicious_patterns': ['double extension', 'hidden', 'confidential', 'urgent', 'invoice'],
-            'pattern_score': 0.2
-        },
-        'performance_config': {
-            'fast_mode': config.fast_mode,
-            'max_ml_records': config.max_ml_records,
-            'ml_estimators': config.ml_estimators,
-            'tfidf_max_features': config.tfidf_max_features,
-            'chunk_size': config.chunk_size
-        }
-    }
-
-    # Get the most recent session ID for dashboard navigation
-    session_id = None
-    if recent_sessions:
-        session_id = recent_sessions[0].id
-
-    return render_template('admin.html',
-                         stats=stats,
-                         recent_sessions=recent_sessions,
-                         sessions=sessions,
-                         whitelist_domains=whitelist_domains,
-                         attachment_keywords=attachment_keywords,
-                         risk_scoring_info=risk_scoring_info,
-                         session_id=session_id)
 
 @app.route('/whitelist-domains')
 def whitelist_domains():
